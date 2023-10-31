@@ -49,12 +49,12 @@ def set_user_data(uuid, data):
 
 #Shutdown and Startup Procedure to save data
 def on_shutdown():
-    with open('user_data.json', 'w') as f:
+    with open('data/user_data.json', 'w') as f:
         json.dump(user_data_store, f)
 
 def load_data():
-    if os.path.exists('user_data.json'):
-        with open('user_data.json', 'r') as f:
+    if os.path.exists('data/user_data.json'):
+        with open('data/user_data.json', 'r') as f:
             return json.load(f)
     return {}
 
@@ -597,7 +597,7 @@ def randomize_item_values(n):
     return random_usage_rate, random_lead_time, random_item_cost, random_pna, random_safety_allowance, random_standard_pack, random_hits_per_month
 
 def save_data():
-    with open('user_data.json', 'w') as f:
+    with open('data/user_data.json', 'w') as f:
         json.dump(user_data_store, f)
 
 #use curl -X POST http://127.0.0.1:8050/shutdown to save server data
