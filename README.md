@@ -1,8 +1,10 @@
-# Inventory Management Simulator
+# IMSim (Inventory Management Simulator)
 
 ## 👋 Introduction
 
-Welcome to the Inventory Management Simulator, a tool designed to give you hands-on experience managing a virtual inventory. Built using Dash and Python, this simulator allows you to add items, simulate their usage, and track their statuses over time. The simulator aims to replicate the complexities and uncertainties that come with real-world inventory management, making it an invaluable tool for students, professionals, and anyone interested in learning about inventory management.
+Welcome to the Inventory Management Simulator, a tool designed to give you hands-on experience managing a virtual inventory. This Simulator is designed to show how viewing items' PNA in terms of days from OP can be beneficial.
+
+This siumulator is built using Dash and Python. The IMSim allows you to add items, simulate their usage, and track their statuses over time. The simulator aims to replicate the complexities and uncertainties that come with real-world inventory management, making it an invaluable tool for students, professionals, and anyone interested in learning about inventory management.
 
 ## 🚀 Getting started with this simulator
 
