@@ -1,3 +1,9 @@
+# Ignore all .code-workspace files
+*.code-workspace
+
+# Ignore all .json files
+*.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
