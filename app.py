@@ -246,21 +246,8 @@ app.layout = dbc.Container(
                         html.Hr(),
                         html.Div(id="day-display", children=f"Day: {1}", style={"margin-top": "20px"}),
                         html.Div(id="sim-status", children="Status: Paused", style={"margin-top": "20px"}),
-                        dcc.Store(id='user-data-store', storage_type='local', data={'uuid': str(uuid.uuid4())}),
-                        dcc.Store(id='page-load', data=0),
-                        """
-                        dcc.Store(id='user-data-store', storage_type='local', data={
-                            'uuid': str(uuid.uuid4()),
-                            'global_settings': {
-                                'r_cycle': 14,
-                                'r_cost': 8,
-                                'k_cost': 0.18
-                            },
-                            'items': [],
-                            'day': 1,
-                            'is_initialized': False
-                        }),
-                        """
+                        dcc.Store(id='user-data-store', storage_type='local'),
+                        dcc.Store(id='page-load', data=0)
                     ],
                     width=2,
                 ),
@@ -355,6 +342,15 @@ app.layout = dbc.Container(
     ],
     fluid=True,
 )
+
+@app.callback(
+    Output('user-data-store', 'data'),
+    Input('user-data-store', 'data')
+)
+def check_or_set_uuid(data):
+    if data is None or 'uuid' not in data:
+        return {'uuid': str(uuid.uuid4())}
+    return data  # If UUID is already set, just return the existing data
 
 @app.callback(
     Output("add-item-modal", "is_open"),
