@@ -35,31 +35,3 @@ This siumulator is built using Dash and Python. The IMSim allows you to add item
 1. **Initialize Settings**: After launching the app, you will find options to set initial parameters such as simulator speed, review cycle, and others.
 2. **Add Items**: Navigate to the "Items" tab and add items you want to manage. Here you can specify the item's attributes like usage rate, lead time, cost, etc.
 3. **Start Simulation**: Once the settings and items are initialized, navigate to the "Simulate" tab and click "Start Simulation".
-
-## ✅ Todo
-
-- [x] Refactor Code to have users store sim settings and items
-  - [x] Move User Data to server but keep UUID local to user
-    - [x] Add Persistence to user data on the server
-  - [ ] Ensure what user stores and passes between server is minimized to limit performance impact
-- [x] Build custom order modal (Why is graph not updating after custom order?)
-  - [ ] Add helpful metrics to custom order screen
-    - [ ] Cost & Extension?
-    - [ ] Available On Hand, On Order, & Backorder
-    - [ ] Detailed Usage over time
-- [x] Add reality (normalized randomness) to simulator, may want to include hits/month to item variables
-  - [x] Add hits ratings to items based on CSD
-  - [x] Use new hits to randomize usage (did pna decrease that day (hits), then by how much (usage and hits))
-- [ ] Add item import module
-- [ ] Add End of Month item recalculaiton based on CSD
-  - [ ] log monthly usage, hits and lead time
-  - [ ] recalculate item usage, hits and lead time at EOM based on CSD
-- [ ] Add On Hand tracking
-  - [ ] Store Order Data (Lead Time for when it arrives)
-  - [ ] Track On Hand Quantity
-  - [ ] Create graph of On Hand Quantity
-- [ ] Add item manager module
-- [ ] Add manual mins/keeps based on CSD
-- [ ] Add warehouse storage and pallet quantity
-- [ ] Build deployment tutorial
-- [ ] Add Dark Mode toggle
