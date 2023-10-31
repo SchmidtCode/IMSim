@@ -13,6 +13,7 @@ import numpy as np
 import json
 from flask import Flask, request
 import os
+import copy
 
 executor = ThreadPoolExecutor(max_workers=4)  # Define the number of worker threads
 
@@ -41,7 +42,7 @@ def get_user_data(uuid):
     # Check if uuid is in user_data_store
     if uuid not in user_data_store:
         # If not, create a new entry with default data
-        user_data_store[uuid] = default_data
+        user_data_store[uuid] = copy.deepcopy(default_data)
     return user_data_store.get(uuid, {...})  # returns default data if uuid not found
 
 def set_user_data(uuid, data):
@@ -246,6 +247,7 @@ app.layout = dbc.Container(
                         html.Hr(),
                         html.Div(id="day-display", children=f"Day: {1}", style={"margin-top": "20px"}),
                         html.Div(id="sim-status", children="Status: Paused", style={"margin-top": "20px"}),
+                        html.Div(id='store-output', style={"margin-top": "20px"}),
                         dcc.Store(id='user-data-store', storage_type='local'),
                         dcc.Store(id='page-load', data=0)
                     ],
@@ -343,24 +345,31 @@ app.layout = dbc.Container(
     fluid=True,
 )
 
+# Callback to set a new UUID for each session
 @app.callback(
     Output('user-data-store', 'data'),
-    Input('user-data-store', 'data')
+    Input('user-data-store', 'modified_timestamp'),  # This is an internal property of dcc.Store
+    State('user-data-store', 'data'),
+    prevent_initial_call=True  # Prevent running on app load
 )
-def check_or_set_uuid(data):
-    if data is None or 'uuid' not in data:
+def set_uuid(ts, data):
+    if ts is None or (data is not None and 'uuid' in data):
+        raise dash.exceptions.PreventUpdate
+    if not data or 'uuid' not in data or not data['uuid']:
         return {'uuid': str(uuid.uuid4())}
-    return data  # If UUID is already set, just return the existing data
+    else:
+        raise dash.exceptions.PreventUpdate
 
 @app.callback(
-    Output("add-item-modal", "is_open"),
+    [Output("add-item-modal", "is_open"), Output('store-output', 'children')],
     [Input("add-item-button", "n_clicks"), Input("submit-item-button", "n_clicks")],
-    [State("add-item-modal", "is_open")],
+    [State("add-item-modal", "is_open"),
+     State('user-data-store', 'data')],
 )
-def toggle_modal(add_clicks, submit_clicks, is_open):
+def toggle_modal(add_clicks, submit_clicks, is_open, data):
     if add_clicks or submit_clicks:
-        return not is_open
-    return is_open
+        return not is_open, str(data)
+    return is_open, str(data)
 
 @app.callback(
     [Output("place-custom-order-modal", "is_open"),
