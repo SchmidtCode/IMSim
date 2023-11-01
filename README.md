@@ -17,14 +17,14 @@ This siumulator is built using Dash and Python. The IMSim allows you to add item
 
 #### Using `pip`
 
-1. **Clone the Repository**: Run `git clone <repo_url>` to clone the project repository to your local machine.
+1. **Clone the Repository**: Run `git clone https://github.com/SchmidtCode/IMSim` to clone the project repository to your local machine.
 2. **Navigate to Project Directory**: Use `cd <directory_name>` to navigate into the root directory of the project.
 3. **Install Dependencies**: Run `pip install -r requirements.txt` to install the required packages.
 4. **Run the App**: Use `python app.py` to start the Dash app. The app will be accessible at `http://127.0.0.1:8050/` by default.
 
 #### Using Anaconda
 
-1. **Clone the Repository**: Run `git clone <repo_url>` to clone the project repository to your local machine.
+1. **Clone the Repository**: Run `git clone https://github.com/SchmidtCode/IMSim` to clone the project repository to your local machine.
 2. **Navigate to Project Directory**: Use `cd <directory_name>` to navigate into the root directory of the project.
 3. **Create a New Environment**: Run `conda env create -f environment.yml` to create a new Anaconda environment with the required packages.
 4. **Activate the Environment**: Use `conda activate <env_name>` to activate the new environment.
