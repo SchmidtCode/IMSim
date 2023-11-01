@@ -198,7 +198,8 @@ def update_graph_based_on_items(items, global_settings):
     )
     return fig
 
-# Layout
+app.title = 'IM Sim'
+
 app.layout = dbc.Container(
     [
         # Navigation Bar
