@@ -1,5 +1,6 @@
 import dash
-from dash import dcc, html, Input, Output, State, callback, ALL
+from dash.exceptions import PreventUpdate
+from dash import dcc, html, Input, Output, State, callback, ALL, dash_table
 import dash_bootstrap_components as dbc
 from dash_bootstrap_components import Modal, ModalHeader, ModalBody, ModalFooter
 from dash_bootstrap_templates import load_figure_template
@@ -13,7 +14,9 @@ import numpy as np
 import json
 from flask import Flask, request
 import os
-import copy
+import base64
+import datetime
+import io
 
 executor = ThreadPoolExecutor(max_workers=4)  # Define the number of worker threads
 
@@ -27,22 +30,19 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY], server=serve
 user_data_store = {}
 
 # Default data structure
-default_data = {
-    'global_settings': {
-        'r_cycle': 14,
-        'r_cost': 8,
-        'k_cost': 0.18
-    },
+def get_default_data():
+    return {
+    'global_settings': {'r_cycle': 14, 'r_cost': 8, 'k_cost': 0.18},
     'items': [],
     'day': 1,
     'is_initialized': False
-}
+    }
 
 def get_user_data(uuid):
     # Check if uuid is in user_data_store
     if uuid not in user_data_store:
         # If not, create a new entry with default data
-        user_data_store[uuid] = copy.deepcopy(default_data)
+        user_data_store[uuid] = get_default_data()
     return user_data_store.get(uuid, {...})  # returns default data if uuid not found
 
 def set_user_data(uuid, data):
@@ -120,6 +120,74 @@ def calculate_surplus_line(lp, eoq):
 def calculate_critical_point(usage_rate, lead_time):
     return usage_rate * lead_time
 
+def parse_contents(contents, filename, date):
+    content_type, content_string = contents.split(',')
+
+    decoded = base64.b64decode(content_string)
+    try:
+        if 'csv' in filename:
+            # Assume that the user uploaded a CSV file
+            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+        elif 'xls' in filename or 'xlsx' in filename:
+            # Assume that the user uploaded an excel file
+            df = pd.read_excel(io.BytesIO(decoded))
+            print(df)
+        else:
+            return dbc.Alert("The Input file was of the wrong type.", color="warning", duration=4000)
+        
+        # Data validation steps
+        # Check for the correct number of columns
+        if df.shape[1] != 7:
+            return dbc.Alert(f"Incorrect number of columns. Expected 7, found {df.shape[1]}.", color="warning", duration=4000)
+
+        # Check for any empty cells
+        if df.isnull().values.any():
+            return dbc.Alert("One or more cells are empty.", color="warning", duration=4000)
+
+        # Check all values are greater than 0
+        if (df <= 0).any().any():
+            return dbc.Alert("All values must be greater than 0.", color="warning", duration=4000)
+
+        # Data type validation - checking if all columns contain numbers
+        try:
+            df = df.apply(pd.to_numeric, errors='coerce')
+            if df.isnull().values.any():
+                return dbc.Alert("All columns must contain only numbers.", color="warning", duration=4000)
+        except Exception as e:
+            print(e)
+            return dbc.Alert("All columns must contain only numbers.", color="danger", duration=4000)
+
+    except Exception as e:
+        print(e)
+        return dbc.Alert("There was an error processing this file.", color="danger", duration=4000)
+
+    return dbc.Card(
+        dbc.CardBody([
+            html.H5(filename, className="card-title"),
+            html.H6(datetime.datetime.fromtimestamp(date).strftime('%Y-%m-%d %H:%M:%S'), className="card-subtitle"),
+            html.Br(),
+            dash_table.DataTable(
+                data=df.to_dict('records'),
+                columns=[{'name': i, 'id': i} for i in df.columns],
+                style_table={'overflowX': 'auto'},
+                style_header={
+                    'backgroundColor': 'rgb(30, 30, 30)',
+                    'color': 'white'
+                },
+                style_cell={
+                    'backgroundColor': 'rgb(50, 50, 50)',
+                    'color': 'white',
+                    'border': '1px solid #444'
+                },
+                style_data={
+                    'border': '1px solid #444'
+                }
+            ),
+            html.Hr(className="my-4"),
+        ]),
+        className="mb-3"
+    )
+
 def initial_graph(store_data=None):
     if not store_data or 'items' not in store_data or not store_data['items']:
         fig = px.scatter(title="Inventory Simulation")
@@ -184,7 +252,7 @@ def update_gs_related_values(item, global_settings):
 def update_graph_based_on_items(items, global_settings):
     df = pd.DataFrame(items)
     # Create a mask for rows where pro_pna_days_frm_op is different from pna_days_frm_op
-    mask = df['pro_pna_days_frm_op'] != df['pna_days_frm_op']
+    mask = (df['pro_pna_days_frm_op'] != df['pna_days_frm_op']) & (df['pna'] <= df['lp'])
     filtered_df = df[mask]
     fig = px.scatter(df, x=df.index+1, y=df['pna_days_frm_op'], title="Inventory Simulation")
     fig.update_traces(marker=dict(color='blue'))
@@ -204,115 +272,112 @@ app.layout = dbc.Container(
     [
         # Navigation Bar
         dbc.NavbarSimple(
-            children=[
-                dbc.NavItem(dbc.NavLink("Inventory Management Simulator", href="#")),
-            ],
+            children=[dbc.NavItem(dbc.NavLink("Inventory Management Simulator", href="#")),],
             brand="CEEUS",
             brand_href="#",
             color="primary",
             dark=True,
         ),
-        dbc.Row(
-            [
-                # Left column for settings and buttons
+        dbc.Row([
                 dbc.Col(
                     [
-                        html.H4("Controls", style={"margin-top": "20px"}),
-                        html.Div(
-                            [
-                                dbc.Button("Start/Pause Simulation", id="start-button", n_clicks=0, color="success"),
-                                dbc.Button("Reset Simulation", id="reset-button", n_clicks=0),
-                                dbc.Button("Place Purchase Order", id="po-button", n_clicks=0),
-                                dbc.Button("Place Custom Order", id="place-custom-order-button", n_clicks=0, color="warning"),
-                                dbc.Button("Add Item", id="add-item-button", n_clicks=0, color="info")
-                            ],
-                            className="vstack gap-2",
-                        ),
-                        html.Hr(),
-                        html.H5("Parameters"),
-                        dbc.Row([
-                            dbc.Col([
-                                dbc.InputGroupText("Review Cycle (Days):", style={"margin-bottom": "8px"}),
-                                dbc.InputGroupText("R-Cost ($):", style={"margin-bottom": "8px"}),
-                                dbc.InputGroupText("K-Cost (%):", style={"margin-bottom": "8px"})
-                            ], width=8, style={"padding-right": "2px"}),
-                            dbc.Col([
-                                dbc.Input(id="review-cycle-input", type="number", value=14, style={"margin-bottom": "8px"}),
-                                dbc.Input(id="r-cost-input", type="number", value=8, style={"margin-bottom": "8px"}),
-                                dbc.Input(id="k-cost-input", type="number", value=0.18 * 100, style={"margin-bottom": "8px"})
-                            ], width=4, style={"padding-left": "2px"})
-                        ], style={"margin-top": "8px"}),
-                        dbc.Button("Update Parameters", id="update-button", n_clicks=0, color="primary", style={"width": "100%"}),
-                        dbc.Label("Simulation Speed (ms):", style={"margin-top": "10px"}),
-                        dcc.Slider(id="sim-speed-slider", min=150, max=2000, value=600, marks={150: "Fast", 2000: "Slow"}, step=50),
-                        html.Hr(),
-                        html.Div(id="day-display", children=f"Day: {1}", style={"margin-top": "20px"}),
-                        html.Div(id="sim-status", children="Status: Paused", style={"margin-top": "20px"}),
-                        html.Div(id='store-output', style={"margin-top": "20px"}),
+                        dbc.Card([
+                            dbc.CardHeader("Controls"),
+                            dbc.CardBody(
+                                [
+                                    dbc.Button("Start/Pause Simulation", id="start-button", n_clicks=0, color="success"),
+                                    dbc.Button("Reset Simulation", id="reset-button", n_clicks=0),
+                                    dbc.Button("Place Purchase Order", id="po-button", n_clicks=0),
+                                    dbc.Button("Place Custom Order", id="place-custom-order-button", n_clicks=0, color="warning"),
+                                    dbc.Button("Add Item", id="add-item-button", n_clicks=0, color="info")
+                                ],
+                                className="vstack gap-2"
+                            )
+                        ], style={"margin-top": "10px"}),
+                        dbc.Card([
+                            dbc.CardHeader("Parameters"),
+                            dbc.CardBody(
+                                [
+                                    dbc.InputGroup([dbc.InputGroupText("Review Cycle (Days):"), dbc.Input(id="review-cycle-input", type="number", value=14)]),
+                                    dbc.InputGroup([dbc.InputGroupText("R-Cost ($):"), dbc.Input(id="r-cost-input", type="number", value=8)]),
+                                    dbc.InputGroup([dbc.InputGroupText("K-Cost (%):"), dbc.Input(id="k-cost-input", type="number", value=0.18 * 100)]),
+                                    dbc.Row(id = "update-params-conf"),
+                                    dbc.Button("Update Parameters", id="update-params-button", n_clicks=0, color="primary", className="w-100 mb-2"),
+                                    dbc.Label("Simulation Speed (ms):", className="d-block mb-2"),
+                                    dcc.Slider(id="sim-speed-slider", min=150, max=2000, value=600, marks={150: "Fast", 2000: "Slow"}, step=50)
+                                ],
+                                className="vstack gap-2"
+                            )
+                        ], style={"margin-top": "10px"}),
+                        dbc.Card([
+                            dbc.CardBody(
+                                [
+                                        html.Div(id="day-display", children=f"Day: {1}"),
+                                        html.Div(id="sim-status", children="Status: Paused"),
+                                        html.Div(id='store-output')
+                                ],
+                                className="vstack gap-2"
+                            )
+                        ], style={"margin-top": "10px"}),
                         dcc.Store(id='user-data-store', storage_type='local'),
-                        dcc.Store(id='page-load', data=0)
+                        dcc.Store(id='page-load', data=0),
+                        dcc.Store(id='page-load-2', data=0)
                     ],
                     width=2,
                 ),
                 # Right column for the graph
-                dbc.Col(
-                    [
-                        dcc.Graph(id="inventory-graph", style={"height": "800px"}, figure=initial_graph()),
-                    ],
-                    width=10,
-                ),
-            ]
-        ),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("Inventory Graph"),
+                        dbc.CardBody([
+                            dcc.Graph(id="inventory-graph", style={"height": '80vh'}, figure=initial_graph())
+                        ])
+                    ])
+                ], width=10, style={"margin-top": "10px"})
+        ]),
         dcc.Interval(id="interval-component", interval=600, n_intervals=0, max_intervals=-1, disabled=True),
         Modal(
             [
                 ModalHeader("Add New Item"),
-                ModalBody(
-                    [
-                        dbc.InputGroup([
-                                dbc.InputGroupText("Usage Rate:"),
-                                dbc.Input(id="usage-rate-input", type="number", value=0)
-                            ], style={"margin-bottom": "10px"}
-                        ),
-                        dbc.InputGroup([
-                                dbc.InputGroupText("Lead Time:"),
-                                dbc.Input(id="lead-time-input", type="number", value=0)
-                            ], style={"margin-bottom": "10px"}
-                        ),
-                        dbc.InputGroup([
-                                dbc.InputGroupText("Item Cost:"),
-                                dbc.Input(id="item-cost-input", type="number", value=0)
-                            ], style={"margin-bottom": "10px"}
-                        ),
-                        dbc.InputGroup([
-                                dbc.InputGroupText("Initial PNA:"),
-                                dbc.Input(id="pna-input", type="number", value=0)
-                            ], style={"margin-bottom": "10px"}
-                        ),
-                        dbc.InputGroup([
-                                dbc.InputGroupText("Safety Allowance (%):"),
-                                dbc.Input(id="safety-allowance-input", type="number", value=50)
-                            ], style={"margin-bottom": "10px"}
-                        ),
-                        dbc.InputGroup([
-                                dbc.InputGroupText("Standard Pack:"),
-                                dbc.Input(id="standard-pack-input", type="number", value=0)
-                            ], style={"margin-bottom": "10px"}
-                        ),
-                                dbc.InputGroup([
-                                dbc.InputGroupText("Hits Per Month:"),
-                                dbc.Input(id="hits-per-month-input", type="number", value=0)
-                            ], style={"margin-bottom": "10px"}
+                ModalBody([
+                    dbc.Card([
+                        dbc.CardHeader("Manually Add Item"),
+                        dbc.CardBody(
+                            [
+                                dbc.InputGroup([dbc.InputGroupText("Usage Rate:"), dbc.Input(id="usage-rate-input", type="number", value=0)], style={"margin-bottom": "10px"}),
+                                dbc.InputGroup([dbc.InputGroupText("Lead Time:"), dbc.Input(id="lead-time-input", type="number", value=0)], style={"margin-bottom": "10px"}),
+                                dbc.InputGroup([dbc.InputGroupText("Item Cost:"), dbc.Input(id="item-cost-input", type="number", value=0)], style={"margin-bottom": "10px"}),
+                                dbc.InputGroup([dbc.InputGroupText("Initial PNA:"), dbc.Input(id="pna-input", type="number", value=0)], style={"margin-bottom": "10px"}),
+                                dbc.InputGroup([dbc.InputGroupText("Safety Allowance (%):"), dbc.Input(id="safety-allowance-input", type="number", value=50)], style={"margin-bottom": "10px"}),
+                                dbc.InputGroup([dbc.InputGroupText("Standard Pack:"), dbc.Input(id="standard-pack-input", type="number", value=0)], style={"margin-bottom": "10px"}),
+                                dbc.InputGroup([dbc.InputGroupText("Hits Per Month:"), dbc.Input(id="hits-per-month-input", type="number", value=0)], style={"margin-bottom": "10px"}),
+                                dbc.Row(id = "add-item-error"),
+                                dbc.Button("Randomize", id="randomize-button", color="secondary", className="me-md-2"),
+                                dbc.Button("Add item", id="submit-item-button", color="primary")
+                            ],
+                            className="end"
                         )
-                    ]
-                ),
-                ModalFooter([
-                    dbc.Button("Randomize", id="randomize-button", color="secondary"),
-                    dbc.Button("Add item", id="submit-item-button", color="primary")
-                ]),
+                    ]),
+                    dbc.Card([
+                        dbc.CardHeader("Upload Items"),
+                        dbc.CardBody(
+                            [
+                                dcc.Upload(
+                                    id='upload-item',
+                                    children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
+                                    style={'width': '100%', 'height': '60px', 'lineHeight': '60px', 'borderWidth': '1px', 'borderStyle': 'dashed', 'borderRadius': '5px', 'textAlign': 'center', 'margin': '10px'},
+                                    multiple=True # Allow multiple files to be uploaded
+                                ),
+                                html.Div(id='output-item-upload')
+                            ]
+                        )
+                    ], style={"margin-top": "10px"}),
+                ])
             ],
             id="add-item-modal",
             is_open=False,  # by default, the modal is not open
+            style={'maxHeight': 'calc(95vh)', 'overflowY': 'auto'},
+            size="lg"
         ),
         Modal(
             [
@@ -339,8 +404,8 @@ app.layout = dbc.Container(
             ],
             id="place-custom-order-modal",
             is_open=False,
-            size="lg",
-            style={"maxHeight": "70vh", "overflowY": "auto"}  # To ensure scrolling if there are many items
+            style={'maxHeight': 'calc(95vh)', 'overflowY': 'auto'},
+            size="lg"
         )
     ],
     fluid=True,
@@ -355,87 +420,110 @@ app.layout = dbc.Container(
 )
 def set_uuid(ts, data):
     if ts is None or (data is not None and 'uuid' in data):
-        raise dash.exceptions.PreventUpdate
+        raise PreventUpdate
     if not data or 'uuid' not in data or not data['uuid']:
         return {'uuid': str(uuid.uuid4())}
     else:
-        raise dash.exceptions.PreventUpdate
+        raise PreventUpdate
 
 @app.callback(
-    [Output("add-item-modal", "is_open"), Output('store-output', 'children')],
-    [Input("add-item-button", "n_clicks"), Input("submit-item-button", "n_clicks")],
-    [State("add-item-modal", "is_open"),
-     State('user-data-store', 'data')],
+    [Output('day-display', 'children', allow_duplicate=True),
+     Output('inventory-graph', 'figure', allow_duplicate=True)],
+    [Input('interval-component', 'n_intervals')],
+    [State('user-data-store', 'data')],
+    prevent_initial_call = True
 )
-def toggle_modal(add_clicks, submit_clicks, is_open, data):
-    if add_clicks or submit_clicks:
-        return not is_open, str(data)
-    return is_open, str(data)
+def update_on_interval(n_intervals, client_data):
+    if not n_intervals or not client_data:
+        raise PreventUpdate
 
-@app.callback(
-    [Output("place-custom-order-modal", "is_open"),
-     Output("custom-order-items-div", "children")],
-    [Input("place-custom-order-button", "n_clicks"),
-     Input("cancel-custom-order-button", "n_clicks"),
-     Input("place-order-button", "n_clicks")],
-    [State("user-data-store", "data")]
-)
-def populate_custom_order_items(n, cancel_clicks, place_order_clicks, client_data):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return dash.no_update, dash.no_update
-    else:
-        button_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    
-    # Retrieve user's data based on uuid
-    uuid = client_data['uuid']
+    uuid = client_data.get('uuid')
     current_data = get_user_data(uuid)
-    items = current_data.get('items', [])
+
+    if not current_data.get('is_initialized', False):
+        # If simulation is not initialized, don't proceed
+        raise PreventUpdate
 
     if not current_data or 'items' not in current_data or not current_data['items']:
-        raise dash.exceptions.PreventUpdate
+        # If there are no items, don't proceed
+        raise PreventUpdate
 
-    # Build rows for each item
-    item_rows = []
-    for index, item in enumerate(items):
-        row = dbc.Row([
-            dbc.Col(html.P(str(index+1)), width=2),
-            dbc.Col(html.P(str(round(item['pna'])))),
-            dbc.Col(html.P(str(round(item['usage_rate'])))),
-            dbc.Col(html.P(str(round(item['lead_time'])))),
-            dbc.Col(html.P(str(round(item['op'])))),
-            dbc.Col(html.P(str(round(item['lp'])))),
-            dbc.Col(html.P(str(round(item['oq'])))),
-            dbc.Col(dbc.Input(value=round(item['soq']), id={"type": "order-quantity", "index": index}))
-        ])
-        item_rows.append(row)
+    # Update the day count
+    day_count = current_data.get('day', 1) + 1
+    current_data['day'] = day_count
 
-    if button_id == "place-custom-order-button":  # Corrected button id
-        return True, item_rows
-    elif button_id in ["cancel-custom-order-button", "place-order-button"]:
-        return False, item_rows
-    return dash.no_update, item_rows
+    # Process each item
+    futures = [executor.submit(process_item, item) for item in current_data['items']]
+    current_data['items'] = [future.result() for future in futures]
+
+    # Update the graph based on the processed items
+    fig = update_graph_based_on_items(current_data['items'], current_data['global_settings'])
+
+    # Save updated data back to user-data-store (this will depend on your implementation of set_user_data)
+    set_user_data(uuid, current_data)
+
+    # Construct the day display string
+    day_display = f"Day: {day_count}"
+
+    return day_display, fig
 
 @app.callback(
-    [Output('day-display', 'children'),
-     Output('inventory-graph', 'figure'),
-     Output('interval-component', 'disabled'),
+    [Output('sim-status', 'children', allow_duplicate=True),
+     Output('interval-component', 'disabled', allow_duplicate=True),
      Output('start-button', 'children'),
-     Output('start-button', 'color'),
-     Output('sim-status', 'children'),
-     Output('page-load', 'data'),
-     Output('interval-component', 'interval')],
-    [Input('interval-component', 'n_intervals'),
-     Input('start-button', 'n_clicks'),
-     Input('reset-button', 'n_clicks'),
-     Input("submit-item-button", "n_clicks"),
-     Input("update-button", "n_clicks"),
-     Input("po-button", 'n_clicks'),
-     Input("place-order-button", 'n_clicks'),
-     Input({"type": "order-quantity", "index": ALL}, "value")],
-    [State('interval-component', 'disabled'),
-     State('user-data-store', 'data'),
-     State('page-load', 'data'),
+     Output('start-button', 'color')],
+    [Input('start-button', 'n_clicks')],
+    [State('user-data-store', 'data'),
+     State('interval-component', 'disabled')],
+    prevent_initial_call = True
+)
+def toggle_simulation(n_clicks, client_data, is_disabled):
+    if not n_clicks or not client_data:
+        raise PreventUpdate
+
+    uuid = client_data['uuid']
+    current_data = get_user_data(uuid)
+
+    # Toggle the simulation status based on whether it is currently paused or running.
+    if is_disabled:
+        # If the simulation is currently disabled/paused, start it.
+        current_data['is_initialized'] = True
+        set_user_data(uuid, current_data)
+        return "Status: Running", False, "Pause Simulation", "warning"
+    else:
+        # If the simulation is running, pause it.
+        return "Status: Paused", True, "Resume Simulation", "success"
+
+@app.callback(
+    [Output('day-display', 'children', allow_duplicate=True),
+     Output('inventory-graph', 'figure', allow_duplicate=True),
+     Output('sim-status', 'children', allow_duplicate=True),
+     Output('user-data-store', 'data', allow_duplicate=True)],  # To update the stored data
+    [Input('reset-button', 'n_clicks')],
+    [State('user-data-store', 'data')],
+    prevent_initial_call=True
+)
+def reset_simulation(n_clicks, client_data):
+    if n_clicks:
+        # Reset the day count and other necessary parts of `client_data` to their defaults
+        default_data = get_default_data()
+        default_data['day'] = 1
+
+        # Prepare the initial state of the graph
+        fig = initial_graph()
+
+        # Return the updated outputs
+        return f"Day: {default_data['day']}", fig, "Status: Paused", default_data
+
+    raise PreventUpdate
+
+@app.callback(
+    [Output("add-item-modal", "is_open"),
+     Output('add-item-error', 'children'),
+     Output('inventory-graph', 'figure', allow_duplicate=True)],
+    [Input("add-item-button", "n_clicks"),
+     Input("submit-item-button", "n_clicks")],
+    [State("add-item-modal", "is_open"),
      State("usage-rate-input", "value"),
      State("lead-time-input", "value"),
      State("item-cost-input", "value"),
@@ -443,135 +531,242 @@ def populate_custom_order_items(n, cancel_clicks, place_order_clicks, client_dat
      State("safety-allowance-input", "value"),
      State("standard-pack-input", "value"),
      State("hits-per-month-input", "value"),
-     State("review-cycle-input", "value"),
-     State("r-cost-input", "value"),
-     State("k-cost-input", "value"),
-     State("sim-speed-slider", "value")]
+     State('user-data-store', 'data')],
+    prevent_initial_call=True
 )
-def combined_callback(n_intervals, start_clicks, reset_clicks, submit_item_clicks, update_button_clicks, po_button, place_order_button, order_quantities, is_disabled, client_data, page_load, usage_rate, lead_time, item_cost, pna, safety_allowance, standard_pack, hits_per_month, review_cycle, r_cost, k_cost, sim_speed):
-
+def handle_add_item_and_update_graph(add_clicks, submit_clicks, is_open, usage_rate, lead_time, item_cost, pna, safety_allowance, standard_pack, hits_per_month, client_data):
     ctx = dash.callback_context
+    if not ctx.triggered:
+        return is_open, dash.no_update, dash.no_update
 
-    uuid = client_data['uuid']
-    current_data = get_user_data(uuid)
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    if button_id == "add-item-button":
+        # Toggle modal without validating inputs
+        return not is_open, dash.no_update, dash.no_update
 
-    print(uuid, " data: ",current_data)
+    if button_id == "submit-item-button":
+        # Validate inputs
+        all_inputs = [usage_rate, lead_time, item_cost, pna, safety_allowance, standard_pack, hits_per_month]
+        if any(i is None for i in all_inputs):
+            return is_open, dbc.Alert("All fields must be filled out!", color="warning", duration=4000), dash.no_update
 
-    if page_load == 0:
-        day_count = current_data.get('day', 1)
-        day_display = f"Day: {day_count}"  # Or whatever your default should be
-        fig = initial_graph(current_data)
-        return day_display, fig, dash.no_update, dash.no_update, dash.no_update, dash.no_update, 1, sim_speed  # Set page load to 1
-    
-    # If interval-component was triggered
-    elif ctx.triggered and ctx.triggered[0]['prop_id'] == 'interval-component.n_intervals':
-        # If simulation is not initialized, don't proceed
-        if not current_data.get('is_initialized', False):
-            raise dash.exceptions.PreventUpdate
-        if not current_data or 'items' not in current_data or not current_data['items']:
-            raise dash.exceptions.PreventUpdate
-        day_count = current_data.get('day', 1)
-        current_data['day'] = day_count + 1
-        futures = [executor.submit(process_item, item) for item in current_data['items']]
-        current_data['items'] = [future.result() for future in futures]
-        day_display = f"Day: {day_count}"
-        set_user_data(uuid=uuid, data=current_data)
-        fig = update_graph_based_on_items(current_data['items'],current_data['global_settings'])
-        print(current_data)
-        return day_display, fig, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, sim_speed
+        if any(i <= 0 for i in [usage_rate, lead_time, item_cost, safety_allowance, standard_pack, hits_per_month]):
+            return is_open, dbc.Alert("All item parameters except PNA must be greater than 0!", color="warning", duration=4000), dash.no_update
 
-    # If the start-button was clicked
-    elif ctx.triggered and ctx.triggered[0]['prop_id'] == 'start-button.n_clicks':
-        if is_disabled:
-            current_data['is_initialized'] = True  # Set to True when starting the simulation
-            set_user_data(uuid=uuid, data=current_data)
-            return dash.no_update, dash.no_update, False, "Pause Simulation", "warning", "Status: Running", dash.no_update, sim_speed
-        else:
-            return dash.no_update, dash.no_update, True, "Resume Simulation", "success", "Status: Paused", dash.no_update, sim_speed
-        
-    # If the reset-button was clicked
-    elif ctx.triggered and ctx.triggered[0]['prop_id'] == 'reset-button.n_clicks':
-        # Reset the user data to defaults
-        default_data = {
-            'global_settings': {'r_cycle': 14, 'r_cost': 8, 'k_cost': 0.18},
-            'items': [],
-            'day': 1,
-            'is_initialized': False
-        }
-        current_data['day'] = 1
-        day_count = current_data.get('day', 1)  # Safely get the 'day'
-        day_display = f"Day: {day_count}"
-        fig = px.scatter(title="Inventory Simulation")
-        set_user_data(uuid=uuid, data=default_data)
-        return day_display, fig, True, "Start Simulation", "success", "Status: Paused", dash.no_update, sim_speed
-        
-    # Handle adding a new item
-    elif ctx.triggered and ctx.triggered[0]['prop_id'] == 'submit-item-button.n_clicks':
-        new_item = create_inventory_item(usage_rate, lead_time, item_cost, pna, (safety_allowance/100), standard_pack,current_data['global_settings'], hits_per_month)
+        # Add the new item
+        uuid = client_data['uuid']
+        current_data = get_user_data(uuid)
+        new_item = create_inventory_item(usage_rate, lead_time, item_cost, pna, safety_allowance/100, standard_pack, current_data['global_settings'], hits_per_month)
         current_data['items'].append(new_item)
         set_user_data(uuid=uuid, data=current_data)
-        fig = update_graph_based_on_items(current_data['items'],current_data['global_settings'])
-        return dash.no_update, fig, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, sim_speed
-    
-    # If the update-button was clicked
-    elif ctx.triggered and ctx.triggered[0]['prop_id'] == 'update-button.n_clicks':
-        if not current_data or 'global_settings' not in current_data or not current_data['global_settings']:
-            raise dash.exceptions.PreventUpdate
-        # Update global settings
-        current_data['global_settings'] = update_global_settings(current_data['global_settings'], review_cycle, r_cost, k_cost/100)
-        set_user_data(uuid=uuid, data=current_data)
-        if not current_data or 'items' not in current_data or not current_data['items']:
-            raise dash.exceptions.PreventUpdate
-        # Update all items based on the new global settings
+
+        # Update the graph
+        fig = update_graph_based_on_items(current_data['items'], current_data['global_settings'])
+
+        # Close the modal and clear any error message, then return the updated graph
+        return False, None, fig
+
+    raise PreventUpdate
+
+@app.callback(
+    [Output('update-params-conf', 'children'),
+     Output('inventory-graph', 'figure', allow_duplicate=True)],  # Assuming this is the ID of your graph
+    [Input('update-params-button', 'n_clicks')],
+    [State('review-cycle-input', 'value'),
+     State('r-cost-input', 'value'),
+     State('k-cost-input', 'value'),
+     State('user-data-store', 'data')],
+    prevent_initial_call=True
+)
+def update_parameters(n_clicks, review_cycle, r_cost, k_cost, client_data):
+    if not n_clicks:
+        raise PreventUpdate
+
+    # Input validation
+    if review_cycle is None or r_cost is None or k_cost is None:
+        return dbc.Alert("Please fill out all parameters!", color="warning", duration=4000), dash.no_update
+
+    if review_cycle <= 0 or r_cost <= 0 or k_cost <= 0:
+        return dbc.Alert("All parameters must be greater than 0!", color="danger", duration=4000), dash.no_update
+
+    # Extract the UUID from client_data and get the current data
+    uuid = client_data.get('uuid')
+    if not uuid:
+        raise PreventUpdate
+
+    current_data = get_user_data(uuid)
+    if 'global_settings' not in current_data:
+        return dbc.Alert("Global settings not found.", color="danger", duration=4000), dash.no_update
+
+    # Update global settings with new values
+    current_data['global_settings'] = update_global_settings(
+        current_data['global_settings'],
+        review_cycle,
+        r_cost,
+        k_cost / 100  # Assuming k_cost was provided as a percentage and needs to be converted to a decimal
+    )
+
+    # Save the updated global settings back to the user's data store
+    set_user_data(uuid, current_data)
+
+    # Update all items based on the new global settings
+    if 'items' in current_data:
         for item in current_data['items']:
             item = update_gs_related_values(item, current_data['global_settings'])
-        set_user_data(uuid=uuid, data=current_data)
-        fig = update_graph_based_on_items(current_data['items'],current_data['global_settings'])
-        return dash.no_update, fig, is_disabled, dash.no_update, dash.no_update, dash.no_update, dash.no_update, sim_speed
-    
-    # If the po-button was clicked
-    elif ctx.triggered and ctx.triggered[0]['prop_id'] == 'po-button.n_clicks':
-        if not current_data or 'items' not in current_data or not current_data['items']:
-            raise dash.exceptions.PreventUpdate
-        # Increase the pna of each item by its soq
-        for i, item in enumerate(current_data['items']):
-            item['pna'] += item['soq']
-            current_data['items'][i] = update_pna_related_values(item)
-        set_user_data(uuid=uuid, data=current_data)
-        fig = update_graph_based_on_items(current_data['items'], current_data['global_settings'])
-        return dash.no_update, fig, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
-    # If the custom po-button was clicked
-    elif ctx.triggered and ctx.triggered[0]['prop_id'] == "place-order-button.n_clicks":
-        if not current_data or 'items' not in current_data or not current_data['items']:
-            raise dash.exceptions.PreventUpdate
-        for index, item in enumerate(current_data['items']):
-            custom_order_quantity = float(order_quantities[index]) if order_quantities[index] is not None else 0
-            item['pna'] += custom_order_quantity
-            item = update_pna_related_values(item)
-        set_user_data(uuid=uuid, data=current_data)
-        #Not sure why graph is not updating after custom po placed
+        set_user_data(uuid, current_data)
+        # Now update the graph based on the updated items
         fig = update_graph_based_on_items(current_data['items'], current_data['global_settings'])
-        return dash.no_update, fig, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
-
     else:
-        raise dash.exceptions.PreventUpdate
+        fig = dash.no_update  # Or set to an empty figure if no items exist
+
+    # Provide user feedback
+    return dbc.Alert("Parameters updated successfully!", color="success", duration=4000), fig
+
+
+@app.callback(
+    Output('inventory-graph', 'figure', allow_duplicate=True),
+    [Input("po-button", "n_clicks")],
+    [State('user-data-store', 'data')],
+    prevent_initial_call=True
+)
+def handle_purchase_order(n_clicks, client_data):
+    if not n_clicks:
+        raise PreventUpdate
+    
+    # Extract the UUID from client_data and get the current data
+    uuid = client_data.get('uuid')
+    if not uuid:
+        raise PreventUpdate
+
+    current_data = get_user_data(uuid)
+    if not current_data or 'items' not in current_data or not current_data['items']:
+        raise PreventUpdate
+
+    # Increase the PNA of each item by its SOQ and update item details accordingly
+    for i, item in enumerate(current_data['items']):
+        item['pna'] += item['soq']
+        current_data['items'][i] = update_pna_related_values(item)
+    
+    # Save the updated item data back to the user's data store
+    set_user_data(uuid, current_data)
+
+    # Now update the graph based on the updated items
+    fig = update_graph_based_on_items(current_data['items'], current_data['global_settings'])
+    
+    return fig
+
+@app.callback(
+    [Output('inventory-graph', 'figure', allow_duplicate=True),
+     Output('custom-order-items-div', 'children'),
+     Output("place-custom-order-modal", "is_open"),
+     Output('sim-status', 'children', allow_duplicate=True),
+     Output('interval-component', 'disabled', allow_duplicate=True)],
+    [Input("place-custom-order-button", "n_clicks"),
+     Input("cancel-custom-order-button", "n_clicks"),
+     Input("place-order-button", "n_clicks")],
+    [State({"type": "order-quantity", "index": ALL}, "value"),
+     State('user-data-store', 'data'),
+     State('interval-component', 'disabled')],
+    prevent_initial_call=True
+)
+def handle_custom_order_and_modal_actions(place_order_clicks, cancel_clicks, submit_clicks, order_quantities, client_data, is_interval_disabled):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        # No button clicked yet, nothing to update
+        return dash.no_update, dash.no_update, False, dash.no_update, is_interval_disabled
+
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    uuid = client_data.get('uuid')
+
+    # If there's no UUID, we cannot proceed
+    if not uuid:
+        return dash.no_update, dash.no_update, False, dash.no_update, is_interval_disabled
+
+    current_data = get_user_data(uuid)
+    items = current_data.get('items', [])
+    item_rows = [build_row(index, item) for index, item in enumerate(items)]
+
+    if button_id == "place-custom-order-button":
+        # Open the modal and pause the simulation
+        return dash.no_update, item_rows, True, "Status: Paused", True
+
+    elif button_id == "cancel-custom-order-button":
+        # Close the modal and resume simulation if it was paused
+        return dash.no_update, dash.no_update, False, dash.no_update, dash.no_update
+
+    elif button_id == "place-order-button":
+        if not items:
+            # If there are no items, keep the modal open
+            return dash.no_update, dbc.Alert("No items available for ordering.", color="warning"), True, dash.no_update, True
+
+        error_message = None
+        for index, quantity in enumerate(order_quantities):
+            if quantity is None or float(quantity) < 0:
+                error_message = f"Order quantity for item {index + 1} cannot be less than zero."
+                item_rows = update_custom_order_items_div(items, order_quantities, error_index=index)
+                return dash.no_update, item_rows, True, dash.no_update, True
+
+        for index, quantity in enumerate(order_quantities):
+            custom_order_quantity = float(quantity)
+            item = items[index]
+            item['pna'] += custom_order_quantity
+            items[index] = update_pna_related_values(item)
+
+        set_user_data(uuid, current_data)
+        fig = update_graph_based_on_items(items, current_data['global_settings'])
+
+        # Close the modal and resume simulation
+        return fig, item_rows, False, "Status: Running", False
+
+    # If the callback was not triggered by any of the above buttons
+    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+def update_custom_order_items_div(items, order_quantities, error_index=None):
+    item_rows = []
+    for index, item in enumerate(items):
+        row = build_row(index, item)
+        if index == error_index:
+            # Add an error message or styling to the row
+            row.children.append(dbc.Alert("Invalid quantity!", color="danger", duration=4000))
+        item_rows.append(row)
+    return item_rows
+
+def build_row(index, item):
+    # This helper function builds a single row of item data
+    return dbc.Row([
+        dbc.Col(html.P(str(index+1)), width=2),
+        dbc.Col(html.P(str(round(item['pna'])))),
+        dbc.Col(html.P(str(round(item['usage_rate'])))),
+        dbc.Col(html.P(str(round(item['lead_time'])))),
+        dbc.Col(html.P(str(round(item['op'])))),
+        dbc.Col(html.P(str(round(item['lp'])))),
+        dbc.Col(html.P(str(round(item['oq'])))),
+        dbc.Col(dbc.Input(value=round(item['soq']), id={"type": "order-quantity", "index": index}))
+    ])
 
 @app.callback(
     [Output('review-cycle-input', 'value'),
      Output('r-cost-input', 'value'),
-     Output('k-cost-input', 'value')],
-    [Input('update-button', 'n_clicks')],
-    [State('user-data-store', 'data')]
+     Output('k-cost-input', 'value'),
+     Output('page-load-2', 'data'),],
+    [Input('update-params-button', 'n_clicks')],
+    [State('user-data-store', 'data'),
+     State('page-load-2', 'data')]
 )
-def update_input_values_from_data_store(n_clicks, data):
+def update_input_values_from_data_store(n_clicks, data, page_load):
+    if page_load == 0:
+        uuid = data['uuid']
+        current_data = get_user_data(uuid)
+        global_settings = current_data.get('global_settings', {})
+        return global_settings.get('r_cycle', 14), global_settings.get('r_cost', 8), global_settings.get('k_cost', 0.18) * 100, 1  # Return defaults if not found
     if not n_clicks:
-        raise dash.exceptions.PreventUpdate
+        raise PreventUpdate
     uuid = data['uuid']
     current_data = get_user_data(uuid)
     # Extract the global settings
     global_settings = current_data.get('global_settings', {})
-    return global_settings.get('r_cycle', 14), global_settings.get('r_cost', 8), global_settings.get('k_cost', 0.18) * 100  # Return defaults if not found
+    return global_settings.get('r_cycle', 14), global_settings.get('r_cost', 8), global_settings.get('k_cost', 0.18) * 100, dash.no_update  # Return defaults if not found
 
 @app.callback(
     [Output("usage-rate-input", "value"),
@@ -585,7 +780,7 @@ def update_input_values_from_data_store(n_clicks, data):
 )
 def randomize_item_values(n):
     if not n:
-        raise dash.exceptions.PreventUpdate
+        raise PreventUpdate
 
     # Generate random values within specified ranges
     random_usage_rate = random.randint(1, 100)
@@ -601,6 +796,37 @@ def randomize_item_values(n):
     random_hits_per_month = np.random.poisson(5)
 
     return random_usage_rate, random_lead_time, random_item_cost, random_pna, random_safety_allowance, random_standard_pack, random_hits_per_month
+
+@app.callback(
+    [Output('day-display', 'children'),
+     Output('inventory-graph', 'figure'),
+     Output('page-load', 'data')],  # Assuming 'page-load' is a dcc.Store component
+    [Input('page-load', 'data')],   # Triggers when 'page-load' data changes
+    [State('user-data-store', 'data')]
+)
+def handle_page_load(page_load, client_data):
+    if page_load == 0:
+        # Assuming get_user_data function fetches the current user's data
+        current_data = get_user_data(client_data['uuid']) if client_data and 'uuid' in client_data else {'day': 1}
+        day_count = current_data.get('day', 1)
+        fig = initial_graph(current_data)  # Assuming initial_graph is a function that creates the initial graph figure
+
+        # Update 'page-load' to 1 so this initialization doesn't run again
+        return f"Day: {day_count}", fig, 1
+    else:
+        # If 'page-load' is not 0, do not update anything
+        raise PreventUpdate
+
+@callback(Output('output-item-upload', 'children'),
+    Input('upload-item', 'contents'),
+    State('upload-item', 'filename'),
+    State('upload-item', 'last_modified'))
+def update_output(list_of_contents, list_of_names, list_of_dates):
+    if list_of_contents is not None:
+        children = [
+            parse_contents(c, n, d) for c, n, d in
+            zip(list_of_contents, list_of_names, list_of_dates)]
+        return children
 
 def save_data():
     with open('data/user_data.json', 'w') as f:

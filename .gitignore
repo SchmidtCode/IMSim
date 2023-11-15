@@ -7,6 +7,9 @@
 # Ignore data folder
 data/
 
+# Ignore testing file
+testing.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
