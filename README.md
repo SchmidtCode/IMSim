@@ -1,37 +1,77 @@
+
 # IMSim (Inventory Management Simulator)
 
-## 👋 Introduction
+A lightweight simulator to experiment with inventory policies. It models **PNA** (Projected Net Available) in **days from OP** (Order Point), with live ticks, item uploads, and quick ordering actions. Built with **Dash 3.2.0**.
 
-Welcome to the Inventory Management Simulator, a tool designed to give you hands-on experience managing a virtual inventory. This Simulator is designed to show how viewing items' PNA in terms of days from OP can be beneficial.
+* Add items manually or import via CSV/Excel
+* Start/Pause the simulation; adjust **Simulation Speed (ms)** on the fly
+* Place Purchase Orders or custom per-item orders
+* Dark UI via Bootstrap (Darkly)
 
-This siumulator is built using Dash and Python. The IMSim allows you to add items, simulate their usage, and track their statuses over time. The simulator aims to replicate the complexities and uncertainties that come with real-world inventory management, making it an invaluable tool for students, professionals, and anyone interested in learning about inventory management.
+---
 
-## 🚀 Getting started with this simulator
+## Requirements
 
-### Requirements
+* **Python**: 3.10 (project is pinned via `.python-version`; tested on 3.10)
+* **uv**: package & environment manager
+  Install:
 
-1. **Python**: Make sure you have Python 3.11.5 installed.
-2. **Anaconda** (Optional): If you prefer using Anaconda, make sure you have it installed.
+  * macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+  * Windows (PowerShell): `iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex`
 
-### Installation and Running
+---
 
-#### Using `pip`
+## Quickstart (uv)
 
-1. **Clone the Repository**: Run `git clone https://github.com/SchmidtCode/IMSim` to clone the project repository to your local machine.
-2. **Navigate to Project Directory**: Use `cd <directory_name>` to navigate into the root directory of the project.
-3. **Install Dependencies**: Run `pip install -r requirements.txt` to install the required packages.
-4. **Run the App**: Use `python app.py` to start the Dash app. The app will be accessible at `http://127.0.0.1:8050/` by default.
+```bash
+git clone https://github.com/SchmidtCode/IMSim
+cd IMSim
 
-#### Using Anaconda
+# Ensure the pinned Python from .python-version is available
+uv python install
 
-1. **Clone the Repository**: Run `git clone https://github.com/SchmidtCode/IMSim` to clone the project repository to your local machine.
-2. **Navigate to Project Directory**: Use `cd <directory_name>` to navigate into the root directory of the project.
-3. **Create a New Environment**: Run `conda env create -f environment.yml` to create a new Anaconda environment with the required packages.
-4. **Activate the Environment**: Use `conda activate <env_name>` to activate the new environment.
-5. **Run the App**: Use `python app.py` to start the Dash app. The app will be accessible at `http://127.0.0.1:8050/` by default.
+# Install project dependencies from pyproject.toml / uv.lock
+uv sync
 
-### Basic Usage
+# Run (no manual venv activation needed)
+uv run python app.py
+```
 
-1. **Initialize Settings**: After launching the app, you will find options to set initial parameters such as simulator speed, review cycle, and others.
-2. **Add Items**: Navigate to the "Items" tab and add items you want to manage. Here you can specify the item's attributes like usage rate, lead time, cost, etc.
-3. **Start Simulation**: Once the settings and items are initialized, navigate to the "Simulate" tab and click "Start Simulation".
+App will be at [http://127.0.0.1:8050/](http://127.0.0.1:8050/)
+
+---
+
+## Basic usage
+
+1. **Parameters**: Set Review Cycle (days), R-Cost (\$), K-Cost (%), and **Simulation Speed (ms)**.
+2. **Add Items**: Use **Add Item** (manual form) or **Upload Items** (CSV/XLS/XLSX).
+3. **Run**: Click **Start/Pause Simulation**. The speed slider updates the tick interval immediately.
+4. **Orders**: Use **Place Purchase Order** (adds SOQ) or **Place Custom Order** for per-item quantities.
+
+---
+
+## Upload format
+
+The uploader expects **7 numeric columns** (all values **> 0**) in this order:
+
+1. Usage Rate
+2. Lead Time
+3. Item Cost
+4. Initial PNA
+5. Safety Allowance (%)
+6. Standard Pack
+7. Hits Per Month
+
+---
+
+## Notes for development
+
+* **Dash**: 3.2.0
+* **Change deps**: `uv add <package>` (writes to `pyproject.toml` and lockfile), then `uv sync`.
+* **Run with a specific Python**: `uv venv --python 3.10 && uv sync && uv run python app.py` (optional; `uv python install` + `uv sync` is usually enough).
+
+---
+
+## License
+
+Apache-2.0 — see `LICENSE`.
