@@ -10,7 +10,6 @@ import math
 from concurrent.futures import ThreadPoolExecutor
 import uuid
 import pandas as pd
-import random
 import numpy as np
 import json
 from flask import Flask, request
@@ -19,8 +18,12 @@ import base64
 import datetime
 import io
 from threading import local
+from threading import RLock
+from typing import Dict, List, Union, TypeAlias, cast, Sequence
+from collections import defaultdict
 
 executor = ThreadPoolExecutor(max_workers=4)  # Define the number of worker threads
+_store_lock = RLock()
 
 load_figure_template("darkly")
 
@@ -33,6 +36,12 @@ user_data_store = {}
 
 # Thread-local RNG for NumPy (recommended over global legacy RNG)
 _thread_local = local()
+
+Number: TypeAlias = Union[int, float]
+Cell: TypeAlias = Union[bool, int, float, str]  # what DataTable cells allow
+Row: TypeAlias = Dict[str, Cell]
+
+engine = "openpyxl"
 
 
 def _rng():
@@ -51,16 +60,22 @@ def get_default_data():
     }
 
 
-def get_user_data(uuid):
-    # Check if uuid is in user_data_store
-    if uuid not in user_data_store:
-        # If not, create a new entry with default data
-        user_data_store[uuid] = get_default_data()
-    return user_data_store.get(uuid, {...})  # returns default data if uuid not found
+def get_user_data(user_id: str) -> dict:
+    with _store_lock:
+        if user_data_store.get(user_id) is None:
+            user_data_store[user_id] = get_default_data()
+        return user_data_store[user_id]
 
 
-def set_user_data(uuid, data):
-    user_data_store[uuid] = data
+def save_data():
+    os.makedirs("data", exist_ok=True)
+    with _store_lock, open("data/user_data.json", "w") as f:
+        json.dump(user_data_store, f)
+
+
+def set_user_data(user_id: str, data: dict):
+    with _store_lock:
+        user_data_store[user_id] = data
 
 
 # Shutdown and Startup Procedure to save data
@@ -84,34 +99,37 @@ def create_global_settings(r_cycle=14, r_cost=8, k_cost=0.18):
 
 
 def create_inventory_item(
-    usage_rate,
-    lead_time,
-    item_cost,
-    pna,
-    safety_allowance,
-    standard_pack,
-    global_settings,
-    hits_per_month,
-):
-    daily_ur = usage_rate / 30
-    pna_days = pna / daily_ur
+    usage_rate: float,
+    lead_time: float,
+    item_cost: float,
+    pna: float,
+    safety_allowance: float,
+    standard_pack: float,
+    global_settings: dict,
+    hits_per_month: float,
+) -> dict:
+    usage_rate = max(0.0, float(usage_rate))
+    lead_time = max(0.0, float(lead_time))
+    item_cost = max(0.0, float(item_cost))
+    pna = max(0.0, float(pna))
+    safety_allowance = max(0.0, float(safety_allowance))
+    standard_pack = max(1.0, float(standard_pack))
+    hits_per_month = max(1.0, float(hits_per_month))
+
+    daily_ur = safe_div(usage_rate, 30.0, 0.0)
+    pna_days = safe_div(pna, daily_ur, 0.0)
+
     op = calculate_op(usage_rate, lead_time, safety_allowance)
-    pna_days_frm_op = ((pna - op) / usage_rate) * 30
     lp = calculate_lp(usage_rate, global_settings, op)
     eoq = calculate_eoq(usage_rate, item_cost, global_settings)
     oq = calculate_oq(eoq, usage_rate, global_settings)
     soq = calculate_soq(pna, lp, op, oq, standard_pack)
     surplus_line = calculate_surplus_line(lp, eoq)
     cp = calculate_critical_point(usage_rate, lead_time)
-    proposed_pna = (
-        pna + soq
-    )  # This is where the PNA would bump up to if an order is placed
-    pro_pna_days_frm_op = (
-        (proposed_pna - op) / usage_rate
-    ) * 30  # conv to days from op
-    no_pna_days_frm_op = ((0 - op) / usage_rate) * 30
 
-    return {
+    proposed_pna = pna + soq
+
+    item = {
         "usage_rate": usage_rate,
         "lead_time": lead_time,
         "item_cost": item_cost,
@@ -121,7 +139,7 @@ def create_inventory_item(
         "daily_ur": daily_ur,
         "pna_days": pna_days,
         "op": op,
-        "pna_days_frm_op": pna_days_frm_op,
+        "pna_days_frm_op": safe_div((pna - op), max(1e-9, usage_rate), 0.0) * 30.0,
         "lp": lp,
         "eoq": eoq,
         "oq": oq,
@@ -129,125 +147,234 @@ def create_inventory_item(
         "surplus_line": surplus_line,
         "cp": cp,
         "proposed_pna": proposed_pna,
-        "pro_pna_days_frm_op": pro_pna_days_frm_op,
-        "no_pna_days_frm_op": no_pna_days_frm_op,
+        "pro_pna_days_frm_op": safe_div((proposed_pna - op), max(1e-9, usage_rate), 0.0)
+        * 30.0,
+        "no_pna_days_frm_op": safe_div((0.0 - op), max(1e-9, usage_rate), 0.0) * 30.0,
         "hits_per_month": hits_per_month,
     }
+    return item
 
 
-def calculate_op(usage_rate, lead_time, safety_allowance):
-    safety_stock = (usage_rate * lead_time * safety_allowance) / 30
-    return usage_rate * (lead_time / 30) + safety_stock
+def safe_div(n, d, default=0.0):
+    try:
+        return n / d if d not in (0, 0.0, None) else default
+    except Exception:
+        return default
 
 
-def calculate_lp(usage_rate, global_settings, op):
-    return (usage_rate * (global_settings["r_cycle"] / 30)) + op
+def calculate_op(
+    usage_rate: float, lead_time_days: float, safety_allowance: float
+) -> float:
+    # usage_rate is per month (per your UI), lead_time is in DAYS
+    monthly_lt = lead_time_days / 30.0
+    safety_stock = usage_rate * monthly_lt * safety_allowance
+    return usage_rate * monthly_lt + safety_stock
 
 
-def calculate_eoq(usage_rate, item_cost, global_settings):
-    return math.sqrt(
-        (24 * global_settings["r_cost"] * usage_rate)
-        / (global_settings["k_cost"] * item_cost)
-    )
+def calculate_lp(usage_rate: float, global_settings: dict, op: float) -> float:
+    review_cycle_days = global_settings["r_cycle"]
+    return usage_rate * (review_cycle_days / 30.0) + op
 
 
-def calculate_oq(eoq, usage_rate, global_settings):
-    oq_min = max(0.5 * usage_rate, global_settings["r_cycle"] / 30 * usage_rate)
-    oq_max = 12 * usage_rate
+def calculate_eoq(usage_rate: float, item_cost: float, global_settings: dict) -> float:
+    r_cost = global_settings["r_cost"]
+    k_cost = global_settings["k_cost"]
+    if item_cost <= 0 or k_cost <= 0 or usage_rate <= 0:
+        return 0.0
+    # Your EOQ variant:
+    return math.sqrt((24.0 * r_cost * usage_rate) / (k_cost * item_cost))
+
+
+def calculate_oq(eoq: float, usage_rate: float, global_settings: dict) -> float:
+    rc_days = global_settings["r_cycle"]
+    oq_min = max(0.5 * usage_rate, (rc_days / 30.0) * usage_rate)
+    oq_max = 12.0 * usage_rate
+    if eoq <= 0:
+        return oq_min
     return max(min(eoq, oq_max), oq_min)
 
 
-def calculate_soq(pna, lp, op, oq, standard_pack):
+def round_to_pack(qty: float, pack: float) -> float:
+    if pack is None or pack <= 0:
+        return max(0.0, float(qty))
+    return max(0.0, round(float(qty) / float(pack)) * float(pack))
+
+
+def calculate_soq(
+    pna: float, lp: float, op: float, oq: float, standard_pack: float
+) -> float:
     if pna > lp:
-        return 0
-    elif pna > op:
-        return round(oq / standard_pack) * standard_pack
-    else:
-        return round((oq + op - pna) / standard_pack) * standard_pack
+        return 0.0
+    base = oq if pna > op else (oq + op - pna)
+    return round_to_pack(base, standard_pack)
 
 
-def calculate_surplus_line(lp, eoq):
-    return lp + eoq
+def calculate_surplus_line(lp: float, eoq: float) -> float:
+    return lp + max(0.0, eoq)
 
 
-def calculate_critical_point(usage_rate, lead_time):
-    return usage_rate * lead_time
+def calculate_critical_point(usage_rate: float, lead_time_days: float) -> float:
+    # If CP should be expressed in "units" at risk during lead time (monthly rate → daily)
+    return safe_div(usage_rate, 30.0) * max(0.0, lead_time_days)
 
 
-def parse_contents(contents, filename, date):
-    content_type, content_string = contents.split(",")
-
-    decoded = base64.b64decode(content_string)
+def _extract_base64(contents: str) -> bytes:
+    """
+    Return the decoded bytes from a dcc.Upload 'contents' string.
+    Accepts both full data URLs and raw base64 strings.
+    """
+    if not isinstance(contents, str):
+        raise ValueError("Invalid upload payload type.")
+    # Always returns a 3-tuple; sep == "" means comma not found
+    _prefix, sep, b64data = contents.partition(",")
+    b64data = b64data if sep else contents  # handle raw base64 (no prefix)
     try:
-        if "csv" in filename:
-            # Assume that the user uploaded a CSV file
-            df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
-        elif "xls" in filename or "xlsx" in filename:
-            # Assume that the user uploaded an excel file
-            df = pd.read_excel(io.BytesIO(decoded))
-            print(df)
-        else:
-            return dbc.Alert(
-                "The Input file was of the wrong type.", color="warning", duration=4000
-            )
-
-        # Data validation steps
-        # Check for the correct number of columns
-        if df.shape[1] != 7:
-            return dbc.Alert(
-                f"Incorrect number of columns. Expected 7, found {df.shape[1]}.",
-                color="warning",
-                duration=4000,
-            )
-
-        # Check for any empty cells
-        if df.isnull().values.any():
-            return dbc.Alert(
-                "One or more cells are empty.", color="warning", duration=4000
-            )
-
-        # Check all values are greater than 0
-        if (df <= 0).any().any():
-            return dbc.Alert(
-                "All values must be greater than 0.", color="warning", duration=4000
-            )
-
-        # Data type validation - checking if all columns contain numbers
-        try:
-            df = df.apply(pd.to_numeric, errors="coerce")
-            if df.isnull().values.any():
-                return dbc.Alert(
-                    "All columns must contain only numbers.",
-                    color="warning",
-                    duration=4000,
-                )
-        except Exception as e:
-            print(e)
-            return dbc.Alert(
-                "All columns must contain only numbers.", color="danger", duration=4000
-            )
-
+        return base64.b64decode(b64data, validate=False)  # tolerate newlines/whitespace
     except Exception as e:
-        print(e)
-        return dbc.Alert(
-            "There was an error processing this file.", color="danger", duration=4000
+        raise ValueError(f"Could not decode uploaded file: {e}")
+
+
+def coerce_uploaded(df: pd.DataFrame) -> pd.DataFrame:
+    # Normalize incoming header strings
+    raw_cols = [str(c) for c in df.columns]
+    lower_cols = [c.strip().lower() for c in raw_cols]
+
+    mapped: list[str] = []
+    unknown: list[str] = []
+    sources_by_canon: dict[str, list[str]] = defaultdict(list)
+
+    for raw, lower in zip(raw_cols, lower_cols):
+        if lower in HEADER_ALIASES:
+            canon = HEADER_ALIASES[lower]
+            mapped.append(canon)
+            sources_by_canon[canon].append(raw)
+        else:
+            unknown.append(raw)
+
+    if unknown:
+        exp = ", ".join(sorted(set(HEADER_ALIASES.keys())))
+        raise ValueError(f"Unrecognized headers: {unknown}. Expected one of: {exp}")
+
+    # Detect duplicate logical columns after aliasing
+    dups = {k: v for k, v in sources_by_canon.items() if len(v) > 1}
+    if dups:
+        pretty = "; ".join(f"{k} ⇐ {v}" for k, v in dups.items())
+        raise ValueError(
+            f"Duplicate logical columns after header normalization: {pretty}"
         )
 
+    # Ensure all required canonical columns are present
+    missing = [c for c in CANONICAL_COLS if c not in mapped]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
+    # Rename to canonical names and select only the required seven
+    df2 = df.copy()
+    df2.columns = mapped  # all columns are now canonical names
+    df2 = df2[CANONICAL_COLS].copy()
+
+    # Coerce numerics on the canonical set only
+    for c in CANONICAL_COLS:
+        df2[c] = pd.to_numeric(df2[c], errors="coerce")
+
+    if df2.isnull().values.any():
+        raise ValueError("All required columns must be numeric and non-empty.")
+
+    # Enforce positivity rules (PNA may be zero)
+    must_pos = [
+        "usage_rate",
+        "lead_time_days",
+        "item_cost",
+        "safety_allowance_pct",
+        "standard_pack",
+        "hits_per_month",
+    ]
+    if (df2[must_pos] <= 0).any().any():
+        raise ValueError("All values (except PNA) must be > 0.")
+
+    return df2
+
+
+def parse_contents(contents: str, filename: str | None, date) -> dbc.Card | dbc.Alert:
+
+    # Base64 decode
+    try:
+        decoded = _extract_base64(contents)
+    except ValueError as e:
+        return dbc.Alert(str(e), color="danger")
+
+    # Read file -> DataFrame
+    try:
+        lower = (filename or "").lower()
+        if lower.endswith(".csv"):
+            raw = pd.read_csv(io.StringIO(decoded.decode("utf-8-sig")))
+        elif lower.endswith(".xls"):
+            raw = pd.read_excel(io.BytesIO(decoded), engine="xlrd")
+        elif lower.endswith(".xlsx"):
+            raw = pd.read_excel(io.BytesIO(decoded), engine="openpyxl")
+        else:
+            return dbc.Alert(
+                "The input file must be .csv, .xls, or .xlsx.", color="warning"
+            )
+
+        # Normalize/validate columns (your pipeline)
+        df = coerce_uploaded(raw)
+    except Exception as e:
+        return dbc.Alert(str(e), color="warning")
+
+    # Convert values to JSON-serializable primitives for DataTable
+    def _to_native(v) -> Cell:
+        # Treat NaNs as empty strings in the preview
+        try:
+            if pd.isna(v):
+                return ""
+        except Exception:
+            pass
+
+        # Ensure numpy scalars become Python scalars (int/float/bool)
+        if isinstance(v, np.generic):
+            py = v.item()
+            if isinstance(py, (bool, int, float, str)):
+                return py  # type: ignore[return-value]
+            return str(py)
+
+        if isinstance(v, (bool, int, float, str)):
+            return v
+        return str(v)
+
+    # Ensure keys are strings and values are DataTable-safe cells
+    typed_records: List[Row] = []
+    for rec in df.to_dict("records"):
+        out: Row = {}
+        for k, v in rec.items():
+            out[str(k)] = _to_native(v)
+        typed_records.append(out)
+
+    # Format timestamp (Upload.last_modified is often ms)
+    try:
+        ts = float(date)
+        if ts > 1e11:  # very likely milliseconds
+            ts /= 1000.0
+        when_str = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        when_str = ""
+
+    # Cap preview rows for performance on large uploads
+    preview_cols = [str(c) for c in df.columns]
+    preview_records = typed_records[:250]
+
+    # Build preview card
     return dbc.Card(
         dbc.CardBody(
             [
-                html.H5(filename, className="card-title"),
-                html.H6(
-                    datetime.datetime.fromtimestamp(date).strftime("%Y-%m-%d %H:%M:%S"),
-                    className="card-subtitle",
-                ),
+                html.H5(filename or "Uploaded file", className="card-title"),
+                html.H6(when_str, className="card-subtitle"),
                 html.Br(),
                 dash_table.DataTable(
-                    data=[
-                        {str(k): v for k, v in record.items()}
-                        for record in df.to_dict("records")
-                    ],
-                    columns=[{"name": i, "id": i} for i in df.columns],
+                    data=cast(Sequence[Dict[str, Cell]], preview_records),
+                    columns=[{"name": c, "id": c} for c in preview_cols],
+                    page_size=15,
+                    page_action="native",
                     style_table={"overflowX": "auto"},
                     style_header={
                         "backgroundColor": "rgb(30, 30, 30)",
@@ -257,6 +384,9 @@ def parse_contents(contents, filename, date):
                         "backgroundColor": "rgb(50, 50, 50)",
                         "color": "white",
                         "border": "1px solid #444",
+                        "minWidth": 80,
+                        "maxWidth": 240,
+                        "whiteSpace": "normal",
                     },
                     style_data={"border": "1px solid #444"},
                 ),
@@ -272,8 +402,7 @@ def initial_graph(store_data=None):
         fig = px.scatter(title="Inventory Simulation")
         fig.update_layout(
             xaxis=dict(autorange=True, title="Items"),
-            yaxis=dict(autorange=True),
-            title="PNA (Days from OP)",
+            yaxis=dict(autorange=True, title="PNA (Days from OP)"),
         )
     else:
         fig = update_graph_based_on_items(
@@ -282,50 +411,46 @@ def initial_graph(store_data=None):
     return fig
 
 
-def simulate_daily_hits(hpm):
-    daily_hit_rate = hpm / 30.0  # Convert monthly rate to daily
-    return _rng().poisson(daily_hit_rate)  # Poisson-distributed random number
+def simulate_daily_hits(hpm: float) -> int:
+    return int(_rng().poisson(max(0.0, float(hpm)) / 30.0))
 
 
-def simulate_sales(avg_sale_qty, standard_pack):
-    # Draw raw sales from Poisson, then ceil to the next whole pack (if any sale)
-    raw_sales = _rng().poisson(avg_sale_qty)
-    if raw_sales <= 0:
+def simulate_sales(avg_sale_qty: float, standard_pack: float) -> int:
+    if avg_sale_qty <= 0:
         return 0
-    packs = int(np.ceil(raw_sales / float(standard_pack)))
-    return packs * standard_pack
+    raw = int(_rng().poisson(avg_sale_qty))
+    if raw <= 0:
+        return 0
+    pack = max(1.0, float(standard_pack))
+    return int(math.ceil(raw / pack) * pack)
 
 
-def process_item(item):
-    avg_sale_qty = item["usage_rate"] / item["hits_per_month"]
+def process_item(item: dict) -> dict:
+    # Treat dict as input, produce a *new* dict (avoid cross-thread side-effects)
+    it = dict(item)
+    hpm = max(1.0, float(it["hits_per_month"]))  # clamp
+    ur = max(0.0, float(it["usage_rate"]))
+    avg_sale_qty = safe_div(ur, hpm, 0.0)
 
-    # Simulate the number of hits for today
-    num_hits_today = simulate_daily_hits(item["hits_per_month"])
+    hits = simulate_daily_hits(hpm)
+    total = 0
+    for _ in range(hits):
+        total += simulate_sales(avg_sale_qty, it["standard_pack"])
 
-    # Simulate the sale for each hit
-    total_sales_today = 0
-    for _ in range(num_hits_today):
-        total_sales_today += simulate_sales(avg_sale_qty, item["standard_pack"])
-
-    # Update PNA
-    item["pna"] -= total_sales_today
-
-    return update_pna_related_values(item)
+    it["pna"] = float(it["pna"]) - total
+    return update_pna_related_values(it)
 
 
-def update_pna_related_values(item):
-    item["pna_days_frm_op"] = ((item["pna"] - item["op"]) / item["usage_rate"]) * 30
-    # Now, recalculate all the related fields
-    item["pna_days"] = item["pna"] / item["daily_ur"]
-    item["soq"] = calculate_soq(
-        item["pna"], item["lp"], item["op"], item["oq"], item["standard_pack"]
-    )
+def update_pna_related_values(item: dict) -> dict:
+    ur = max(0.0, float(item["usage_rate"]))
+    op = float(item["op"])
+    pna = float(item["pna"])
+    item["pna_days_frm_op"] = safe_div((pna - op), ur, 0.0) * 30.0
+    item["pna_days"] = safe_div(pna, max(1e-9, item["daily_ur"]), 0.0)
+    item["soq"] = calculate_soq(pna, item["lp"], op, item["oq"], item["standard_pack"])
     item["surplus_line"] = calculate_surplus_line(item["lp"], item["eoq"])
-    item["proposed_pna"] = item["pna"] + item["soq"]
-    item["pro_pna_days_frm_op"] = (
-        (item["proposed_pna"] - item["op"]) / item["usage_rate"]
-    ) * 30  # convert to days from op
-
+    item["proposed_pna"] = pna + item["soq"]
+    item["pro_pna_days_frm_op"] = safe_div((item["proposed_pna"] - op), ur, 0.0) * 30.0
     return item
 
 
@@ -337,7 +462,6 @@ def update_global_settings(current_settings, review_cycle, r_cost, k_cost):
 
 
 def update_gs_related_values(item, global_settings):
-    # Recalculate all the properties that depend on global settings
     item["lp"] = calculate_lp(item["usage_rate"], global_settings, item["op"])
     item["eoq"] = calculate_eoq(item["usage_rate"], item["item_cost"], global_settings)
     item["oq"] = calculate_oq(item["eoq"], item["usage_rate"], global_settings)
@@ -346,46 +470,121 @@ def update_gs_related_values(item, global_settings):
     )
     item["surplus_line"] = calculate_surplus_line(item["lp"], item["eoq"])
     item["proposed_pna"] = item["pna"] + item["soq"]
+    ur = max(0.0, float(item["usage_rate"]))
     item["pro_pna_days_frm_op"] = (
-        (item["proposed_pna"] - item["op"]) / item["usage_rate"]
-    ) * 30  # convert to days from op
+        safe_div((item["proposed_pna"] - item["op"]), ur, 0.0) * 30.0
+    )
     return item
 
 
-def update_graph_based_on_items(items, global_settings):
-    df = pd.DataFrame(items)
-    # Create a mask for rows where pro_pna_days_frm_op is different from pna_days_frm_op
+def update_graph_based_on_items(items: list[dict], global_settings: dict):
+    if not items:
+        return px.scatter(
+            title="Inventory Simulation",
+            labels={"x": "Items", "y": "PNA (Days from OP)"},
+        )
+
+    # fixed palette
+    BLUE = "#1f77b4"  # current
+    GREEN = "#2ca02c"  # proposed (outline)
+    RED = "#d62728"  # zero PNA
+
+    df = pd.DataFrame(items).reset_index(names="idx")
     mask = (df["pro_pna_days_frm_op"] != df["pna_days_frm_op"]) & (
         df["pna"] <= df["lp"]
     )
-    filtered_df = df[mask]
+
+    # base: current PNA (filled blue)
     fig = px.scatter(
-        df, x=df.index + 1, y=df["pna_days_frm_op"], title="Inventory Simulation"
+        df,
+        x=df["idx"] + 1,
+        y="pna_days_frm_op",
+        title="Inventory Simulation",
+        labels={"x": "Items", "pna_days_frm_op": "PNA (Days from OP)"},
     )
-    fig.update_traces(marker=dict(color="blue"))
-    fig.add_scatter(
-        x=(filtered_df.index + 1),
-        y=filtered_df["pro_pna_days_frm_op"],
+    fig.update_traces(
         mode="markers",
-        name="PNA + SOQ Days from OP",
-        marker=dict(color="green", symbol="circle-open"),
+        name="Current PNA Days from OP",
+        marker=dict(symbol="circle", size=8, color=BLUE),
+        legendgroup="current",
+        legendrank=1,
     )
+
+    # proposed: outlined green
+    if mask.any():
+        df2 = df[mask]
+        fig.add_scatter(
+            x=(df2["idx"] + 1),
+            y=df2["pro_pna_days_frm_op"],
+            mode="markers",
+            name="PNA + SOQ Days from OP",
+            marker=dict(
+                symbol="circle-open",
+                size=10,
+                color=GREEN,  # for open symbols, this is the outline color
+                line=dict(color=GREEN, width=2),
+            ),
+            legendgroup="proposed",
+            legendrank=2,
+        )
+
+    # zero PNA: filled red
     fig.add_scatter(
-        x=df.index + 1,
+        x=(df["idx"] + 1),
         y=df["no_pna_days_frm_op"],
         mode="markers",
         name="0 PNA",
-        marker=dict(color="red"),
+        marker=dict(symbol="circle", size=8, color=RED),
+        legendgroup="zero",
+        legendrank=3,
     )
+
+    # guides
     fig.add_hline(y=0, line_dash="dot", annotation_text="OP")
     fig.add_hline(y=global_settings["r_cycle"], line_dash="dot", annotation_text="LP")
-    fig.update_layout(
-        xaxis=dict(
-            autorange=True, tickvals=list(range(1, len(items) + 1)), title="Items"
-        ),
-        yaxis=dict(autorange=True, title="PNA (Days from OP)"),
+
+    # integers on X
+    n = len(df)
+    fig.update_xaxes(
+        tickmode="linear",
+        dtick=1,
+        tick0=1,
+        tickformat="d",
+        range=[0.5, n + 0.5],
     )
+    fig.update_layout(yaxis_title="PNA (Days from OP)")
+
     return fig
+
+
+CANONICAL_COLS = [
+    "usage_rate",
+    "lead_time_days",
+    "item_cost",
+    "pna",
+    "safety_allowance_pct",
+    "standard_pack",
+    "hits_per_month",
+]
+
+HEADER_ALIASES = {
+    "usage rate (per month)": "usage_rate",
+    "usage rate": "usage_rate",
+    "usage_rate": "usage_rate",
+    "lead time (days)": "lead_time_days",
+    "lead time": "lead_time_days",
+    "lead_time_days": "lead_time_days",
+    "item cost": "item_cost",
+    "item_cost": "item_cost",
+    "initial pna": "pna",
+    "pna": "pna",
+    "safety allowance (%)": "safety_allowance_pct",
+    "safety_allowance_pct": "safety_allowance_pct",
+    "standard pack": "standard_pack",
+    "standard_pack": "standard_pack",
+    "hits per month": "hits_per_month",
+    "hits_per_month": "hits_per_month",
+}
 
 
 app.title = "IM Sim"
@@ -693,9 +892,11 @@ app.layout = dbc.Container(
                                             multiple=True,  # Allow multiple files to be uploaded
                                         ),
                                         html.Div(id="output-item-upload"),
-                                        html.Button(
+                                        dbc.Button(
                                             "Import items",
                                             id="import-uploaded-items",
+                                            color="primary",
+                                            className="mt-2",
                                             style={"display": "none"},
                                         ),
                                         html.Div(id="upload-feedback"),
@@ -864,6 +1065,7 @@ def toggle_simulation(n_clicks, client_data, is_disabled):
         # If the simulation is currently disabled/paused, start it.
         current_data["is_initialized"] = True
         set_user_data(uuid_val, current_data)
+        save_data()
         return "Status: Running", False, "Pause Simulation", "warning"
     else:
         # If the simulation is running, pause it.
@@ -876,24 +1078,40 @@ def toggle_simulation(n_clicks, client_data, is_disabled):
         Output("inventory-graph", "figure", allow_duplicate=True),
         Output("sim-status", "children", allow_duplicate=True),
         Output("user-data-store", "data", allow_duplicate=True),
-    ],  # To update the stored data
+        Output("interval-component", "disabled", allow_duplicate=True),
+        Output("start-button", "children", allow_duplicate=True),
+        Output("start-button", "color", allow_duplicate=True),
+        Output("start-button", "disabled", allow_duplicate=True),
+    ],
     [Input("reset-button", "n_clicks")],
     [State("user-data-store", "data")],
     prevent_initial_call=True,
 )
 def reset_simulation(n_clicks, client_data):
-    if n_clicks:
-        # Reset the day count and other necessary parts of `client_data` to their defaults
-        default_data = get_default_data()
-        default_data["day"] = 1
+    if not n_clicks:
+        raise PreventUpdate
 
-        # Prepare the initial state of the graph
-        fig = initial_graph()
+    # fresh defaults
+    default_data = get_default_data()
+    default_data["day"] = 1
+    # keep the same session bucket
+    uuid_val = (client_data or {}).get("uuid", "__anon__")
+    set_user_data(uuid_val, default_data)
+    save_data()
 
-        # Return the updated outputs
-        return f"Day: {default_data['day']}", fig, "Status: Paused", default_data
+    # empty/initial figure
+    fig = initial_graph(default_data)
 
-    raise PreventUpdate
+    return (
+        f"Day: {default_data['day']}",  # day-display
+        fig,  # inventory-graph
+        "Status: Paused",  # sim-status
+        default_data,  # user-data-store
+        True,  # interval disabled (paused)
+        "Start Simulation",  # start-button text
+        "success",  # start-button color
+        False,  # start-button enabled
+    )
 
 
 @app.callback(
@@ -987,23 +1205,30 @@ def handle_add_item_and_update_graph(
                 dash.no_update,
             )
         current_data = get_user_data(uuid_val)
-        new_item = create_inventory_item(
-            usage_rate,
-            lead_time,
-            item_cost,
-            pna,
-            safety_allowance / 100,
-            standard_pack,
-            current_data["global_settings"],
-            hits_per_month,
+        gs = current_data.get("global_settings", create_global_settings())
+
+        # Build item from modal inputs (safety_allowance is provided as percent in the UI)
+        item = create_inventory_item(
+            usage_rate=usage_rate,
+            lead_time=lead_time,
+            item_cost=item_cost,
+            pna=pna,
+            safety_allowance=safety_allowance / 100.0,
+            standard_pack=standard_pack,
+            global_settings=gs,
+            hits_per_month=max(1.0, hits_per_month),
         )
-        current_data["items"].append(new_item)
-        set_user_data(uuid=uuid_val, data=current_data)
+
+        current_data.setdefault("items", []).append(item)
+        set_user_data(uuid_val, current_data)
 
         # Update the graph
         fig = update_graph_based_on_items(
             current_data["items"], current_data["global_settings"]
         )
+
+        set_user_data(uuid_val, current_data)
+        save_data()
 
         # Close the modal and clear any error message, then return the updated graph
         return False, None, fig
@@ -1072,8 +1297,10 @@ def update_parameters(n_clicks, review_cycle, r_cost, k_cost, client_data):
 
     # Update all items based on the new global settings
     if "items" in current_data:
-        for item in current_data["items"]:
-            item = update_gs_related_values(item, current_data["global_settings"])
+        for i, item in enumerate(current_data["items"]):
+            current_data["items"][i] = update_gs_related_values(
+                item, current_data["global_settings"]
+            )
 
         set_user_data(uuid_val, current_data)
         # Now update the graph based on the updated items
@@ -1082,6 +1309,9 @@ def update_parameters(n_clicks, review_cycle, r_cost, k_cost, client_data):
         )
     else:
         fig = dash.no_update  # Or set to an empty figure if no items exist
+
+    set_user_data(uuid_val, current_data)
+    save_data()
 
     # Provide user feedback
     return (
@@ -1122,6 +1352,9 @@ def handle_purchase_order(n_clicks, client_data):
         current_data["items"], current_data["global_settings"]
     )
 
+    set_user_data(uuid_val, current_data)
+    save_data()
+
     return fig
 
 
@@ -1132,8 +1365,9 @@ def handle_purchase_order(n_clicks, client_data):
         Output("place-custom-order-modal", "is_open"),
         Output("sim-status", "children", allow_duplicate=True),
         Output("interval-component", "disabled", allow_duplicate=True),
-        Output("start-button", "children", allow_duplicate=True),  # NEW
-        Output("start-button", "color", allow_duplicate=True),  # NEW
+        Output("start-button", "children", allow_duplicate=True),
+        Output("start-button", "color", allow_duplicate=True),
+        Output("start-button", "disabled", allow_duplicate=True),
     ],
     [
         Input("place-custom-order-button", "n_clicks"),
@@ -1165,6 +1399,7 @@ def handle_custom_order_and_modal_actions(
             is_interval_disabled,
             dash.no_update,
             dash.no_update,
+            dash.no_update,
         )
 
     uuid_val = (client_data or {}).get("uuid")
@@ -1175,6 +1410,7 @@ def handle_custom_order_and_modal_actions(
             False,
             dash.no_update,
             is_interval_disabled,
+            dash.no_update,
             dash.no_update,
             dash.no_update,
         )
@@ -1193,6 +1429,7 @@ def handle_custom_order_and_modal_actions(
             True,
             "Resume Simulation",
             "success",
+            True,
         )
 
     elif ctx.triggered_id == "cancel-custom-order-button":
@@ -1205,6 +1442,7 @@ def handle_custom_order_and_modal_actions(
             True,
             "Resume Simulation",
             "success",
+            False,
         )
 
     elif ctx.triggered_id == "place-order-button":
@@ -1217,6 +1455,7 @@ def handle_custom_order_and_modal_actions(
                 True,
                 "Resume Simulation",
                 "success",
+                True,
             )
 
         for index, quantity in enumerate(order_quantities):
@@ -1232,6 +1471,7 @@ def handle_custom_order_and_modal_actions(
                     True,
                     "Resume Simulation",
                     "success",
+                    True,
                 )
 
         for index, quantity in enumerate(order_quantities):
@@ -1241,6 +1481,7 @@ def handle_custom_order_and_modal_actions(
             items[index] = update_pna_related_values(item)
 
         set_user_data(uuid_val, current_data)
+        save_data()
         fig = update_graph_based_on_items(items, current_data["global_settings"])
 
         # Close the modal and keep paused; set button to "Resume Simulation"
@@ -1252,10 +1493,12 @@ def handle_custom_order_and_modal_actions(
             True,
             "Resume Simulation",
             "success",
+            False,
         )
 
     # If no custom order is placed, do not update anything
     return (
+        dash.no_update,
         dash.no_update,
         dash.no_update,
         dash.no_update,
@@ -1352,36 +1595,26 @@ def randomize_item_values(n):
     if not n:
         raise PreventUpdate
 
-    # Generate random values within specified ranges
-    random_usage_rate = random.randint(1, 100)
-    random_lead_time = abs(round(np.random.normal(30, 30)))
-    while random_lead_time < 7:
-        random_lead_time = abs(round(np.random.normal(30, 30)))
-    random_item_cost = abs(round(np.random.normal(100, 100)))
-    while random_lead_time < 7:
-        random_lead_time = abs(round(np.random.normal(30, 30)))
-    random_safety_allowance = (
-        50 if random_lead_time < 60 else round(3000 / random_lead_time)
+    rng = _rng()
+    usage = int(rng.integers(1, 101))
+    lead = 0
+    while lead < 7:
+        lead = int(abs(rng.normal(30, 30)))
+    cost = max(1, int(abs(rng.normal(100, 100))))
+    safety_pct = 50 if lead < 60 else max(1, int(round(3000 / lead)))
+    pack = int(
+        rng.choice([1, 5, 10, 20, 25, 40, 50], p=[0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1])
     )
-    random_standard_pack = np.random.choice(
-        [1, 5, 10, 20, 25, 40, 50], p=[0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1]
+    pna = int(
+        round(
+            usage * (lead / 30.0)
+            + ((usage * (lead / 30.0)) * (safety_pct / 100.0))
+            + pack
+        )
     )
-    random_pna = round(
-        random_usage_rate * (random_lead_time / 30)
-        + ((random_usage_rate * random_lead_time * random_safety_allowance / 100) / 30)
-        + random_standard_pack
-    )
-    random_hits_per_month = np.random.poisson(5)
+    hpm = max(1, int(rng.poisson(5)))
 
-    return (
-        random_usage_rate,
-        random_lead_time,
-        random_item_cost,
-        random_pna,
-        random_safety_allowance,
-        random_standard_pack,
-        random_hits_per_month,
-    )
+    return usage, lead, cost, pna, safety_pct, pack, hpm
 
 
 @app.callback(
@@ -1417,6 +1650,7 @@ def handle_page_load(page_load, client_data):
     [
         Output("output-item-upload", "children"),
         Output("upload-preview-data", "data"),
+        Output("import-uploaded-items", "style"),
     ],
     Input("upload-item", "contents"),
     State("upload-item", "filename"),
@@ -1426,105 +1660,62 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
     if not list_of_contents:
         raise PreventUpdate
 
-    # Build your existing preview cards using parse_contents()
     cards = [
         parse_contents(c, n, d)
         for c, n, d in zip(list_of_contents, list_of_names, list_of_dates)
     ]
 
-    # ALSO build a combined dataframe from the uploaded files
     frames = []
+    errors = []
+
     for contents, name in zip(list_of_contents, list_of_names):
         try:
-            content_type, content_string = contents.split(",")
-            decoded = base64.b64decode(content_string)
+            decoded = _extract_base64(contents)  # robust base64 extractor
             lower = (name or "").lower()
             if lower.endswith(".csv"):
-                df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
-            elif lower.endswith(".xls") or lower.endswith(".xlsx"):
-                df = pd.read_excel(io.BytesIO(decoded))
+                df = pd.read_csv(io.StringIO(decoded.decode("utf-8-sig")))
+            elif lower.endswith(".xls"):
+                df = pd.read_excel(io.BytesIO(decoded), engine="xlrd")  # ✅ .xls → xlrd
+            elif lower.endswith(".xlsx"):
+                df = pd.read_excel(io.BytesIO(decoded), engine="openpyxl")
             else:
-                # If an unsupported type sneaks in, treat as no data
-                return (
-                    cards
-                    + [
-                        dbc.Alert(
-                            f"Unsupported file: {name}", color="warning", duration=4000
-                        )
-                    ],
-                    None,
-                )
-
-            # Mirror your validations
-            if df.shape[1] != 7:
-                return (
-                    cards
-                    + [
-                        dbc.Alert(
-                            f"'{name}' has {df.shape[1]} columns (expected 7).",
-                            color="warning",
-                            duration=6000,
-                        )
-                    ],
-                    None,
-                )
-            df_num = df.apply(pd.to_numeric, errors="coerce")
-            if df_num.isnull().values.any():
-                return (
-                    cards
-                    + [
-                        dbc.Alert(
-                            f"'{name}': all columns must be numeric.",
-                            color="warning",
-                            duration=6000,
-                        )
-                    ],
-                    None,
-                )
-            if (df_num <= 0).any().any():
-                return (
-                    cards
-                    + [
-                        dbc.Alert(
-                            f"'{name}': all values must be > 0.",
-                            color="warning",
-                            duration=6000,
-                        )
-                    ],
-                    None,
-                )
-
-            frames.append(df_num)
+                errors.append(f"{name}: unsupported file type")
+                continue
         except Exception as e:
+            errors.append(f"{name}: failed to decode/read file ({e})")
+            continue
+
+        try:
+            df_num = coerce_uploaded(df)
+        except Exception as e:
+            # ✅ always return 3 outputs
             return (
-                cards
-                + [
-                    dbc.Alert(
-                        f"Error reading '{name}': {e}", color="danger", duration=6000
-                    )
-                ],
+                cards + [dbc.Alert(f"'{name}': {e}", color="warning")],
                 None,
+                {"display": "none"},
             )
+
+        frames.append(df_num)
+
+    if errors:
+        return (
+            cards + [dbc.Alert("; ".join(errors), color="warning")],
+            None,
+            {"display": "none"},
+        )
 
     if not frames:
         return (
-            cards + [dbc.Alert("No valid rows found.", color="warning", duration=4000)],
+            cards + [dbc.Alert("No valid rows found.", color="warning")],
             None,
+            {"display": "none"},
         )
 
     combined = pd.concat(frames, ignore_index=True)
+    ready = html.Div(f"Ready to import {len(combined)} rows.", className="mb-2")
 
-    # Import button below the previews
-    controls = dbc.Stack(
-        [
-            html.Div(f"Ready to import {len(combined)} rows.", className="mb-2"),
-            dbc.Button("Import items", id="import-uploaded-items", color="primary"),
-        ],
-        gap=2,
-        className="mt-2",
-    )
-
-    return cards + [controls], combined.to_dict("records")
+    # ✅ show the existing button by clearing the style
+    return cards + [ready], combined.to_dict("records"), {}
 
 
 @callback(
@@ -1541,59 +1732,47 @@ def import_uploaded_items(n_clicks, rows, client_data):
     if not n_clicks:
         raise PreventUpdate
     if not rows:
-        return dash.no_update, dbc.Alert(
-            "No data to import.", color="warning", duration=4000
-        )
+        return dash.no_update, dbc.Alert("No data to import.", color="warning")
 
     uuid_val = (client_data or {}).get("uuid")
     if not uuid_val:
-        return dash.no_update, dbc.Alert(
-            "Session not initialized.", color="danger", duration=4000
-        )
+        return dash.no_update, dbc.Alert("Session not initialized.", color="danger")
 
     current_data = get_user_data(uuid_val)
     gs = current_data.get("global_settings", create_global_settings())
 
-    new_items = []
-    for i, r in enumerate(rows, start=1):
-        vals = list(r.values())
-        if len(vals) != 7:
-            return dash.no_update, dbc.Alert(
-                f"Row {i}: expected 7 columns.", color="danger", duration=6000
-            )
+    df = pd.DataFrame(rows)
+    try:
+        df = coerce_uploaded(df)
+    except Exception as e:
+        return dash.no_update, dbc.Alert(f"Import error: {e}", color="danger")
 
-        (
-            usage_rate,
-            lead_time,
-            item_cost,
-            pna,
-            safety_pct,
-            standard_pack,
-            hits_per_month,
-        ) = vals
+    new_items = []
+    for row_num, (_, rec) in enumerate(df.iterrows(), start=1):
         try:
             item = create_inventory_item(
-                usage_rate=float(usage_rate),
-                lead_time=float(lead_time),
-                item_cost=float(item_cost),
-                pna=float(pna),
-                safety_allowance=float(safety_pct) / 100.0,  # convert % → fraction
-                standard_pack=float(standard_pack),
+                usage_rate=float(rec["usage_rate"]),
+                lead_time=float(rec["lead_time_days"]),
+                item_cost=float(rec["item_cost"]),
+                pna=float(rec["pna"]),
+                safety_allowance=float(rec["safety_allowance_pct"]) / 100.0,
+                standard_pack=float(rec["standard_pack"]),
                 global_settings=gs,
-                hits_per_month=max(1.0, float(hits_per_month)),  # avoid divide-by-zero
+                hits_per_month=max(1.0, float(rec["hits_per_month"])),
             )
             new_items.append(item)
         except Exception as e:
             return dash.no_update, dbc.Alert(
-                f"Row {i} import error: {e}", color="danger", duration=6000
+                f"Row {row_num} import error: {e}", color="danger"
             )
 
     current_data.setdefault("items", []).extend(new_items)
     set_user_data(uuid_val, current_data)
-
     fig = update_graph_based_on_items(current_data["items"], gs)
+    save_data()
+
     return fig, dbc.Alert(
-        f"Imported {len(new_items)} items successfully.", color="success", duration=4000
+        f"Imported {len(new_items)} items successfully.", color="success"
     )
 
 
@@ -1606,11 +1785,6 @@ def set_sim_speed(ms):
         raise PreventUpdate
     # dcc.Interval expects milliseconds
     return int(ms)
-
-
-def save_data():
-    with open("data/user_data.json", "w") as f:
-        json.dump(user_data_store, f)
 
 
 # use curl -X POST http://127.0.0.1:8050/shutdown to save server data
