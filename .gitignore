@@ -10,6 +10,9 @@ data/
 # Ignore testing file
 testing.py
 
+# Ignore .noncommits folder
+.noncommits/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

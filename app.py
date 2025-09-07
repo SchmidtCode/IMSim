@@ -1,90 +1,202 @@
-import dash
-from dash.exceptions import PreventUpdate
-from dash import dcc, html, Input, Output, State, callback, ALL, dash_table
-from dash import ctx
-import dash_bootstrap_components as dbc
-from dash_bootstrap_components import Modal, ModalHeader, ModalBody, ModalFooter
-from dash_bootstrap_templates import load_figure_template
-import plotly.express as px
-import math
-from concurrent.futures import ThreadPoolExecutor
-import uuid
-import pandas as pd
-import numpy as np
-import json
-from flask import Flask, request
-import os
+"""
+app.py — Inventory Management Simulator (Dash) + ASQ OP Adjuster
+
+What’s inside:
+- Inventory planning (OP/LP/EOQ/OQ) + physical state (On-Hand / Pipeline / Backorder)
+- Demand simulation (hits → orders → shipped/backordered)
+- Costing (ordering, holding, stockout, expedite)
+- Sales engine (global GM% → revenue; track COGS, units sold)
+- Visualization:
+    • Current PNA (days from OP)
+    • Proposed PNA + SOQ (days from OP)
+    • 0 PNA (days from OP)
+    • On-Hand (days from OP) — orange "x" dot
+- File upload/import for items
+- PO placement, custom orders, PO overview (expedite/cancel)
+- KPI strip refresh
+- Maintenance scheduling API
+
+NEW — ASQ OP Adjuster:
+- Tracks line hits & usage during a rolling “month” (configurable period days).
+- Computes ASQ = usage / line hits.
+- At month-end (or on-demand), if ASQ > raw OP, raises OP to ASQ.
+- Applies only when:
+    • ASQ Adjuster is enabled.
+    • Min line hits met.
+    • Max $ Diff (inventory value increase from OP raise) not exceeded.
+- Optionally counts transfers (currently the sim does not generate transfers; toggle is provided).
+
+Notes:
+- GM input is a global percentage; price per unit = item_cost / (1 - GM).
+- “0 PNA” != “0 On-Hand”. PNA = on_hand + pipeline - backorder (net availability).
+- On-Hand dot helps visualize imminent stockouts even with incoming POs.
+"""
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Imports & Setup
+# ──────────────────────────────────────────────────────────────────────────────
 import base64
 import datetime
 import io
-from threading import local
-from threading import RLock
-from typing import Dict, List, Union, TypeAlias, cast, Sequence
+import json
+import math
+import os
+import uuid
+import time
+import requests
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from threading import RLock, local
+from typing import Dict, List, Sequence, TypeAlias, Union, cast
+from flask import Flask, request, abort
 
-executor = ThreadPoolExecutor(max_workers=4)  # Define the number of worker threads
+import dash
+import dash_bootstrap_components as dbc
+import numpy as np
+import pandas as pd
+import plotly.express as px
+from dash import ALL, Input, Output, State, callback, dcc, html, dash_table, ctx
+from dash.exceptions import PreventUpdate
+from dash_bootstrap_components import Modal, ModalBody, ModalFooter, ModalHeader
+from dash_bootstrap_templates import load_figure_template
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Infra / Globals
+# ──────────────────────────────────────────────────────────────────────────────
+
+executor = ThreadPoolExecutor(max_workers=4)
 _store_lock = RLock()
+_thread_local = local()
 
+# Plotly Bootstrap template
 load_figure_template("darkly")
 
 server = Flask(__name__)
-# Initialize Dash App
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY], server=server)
+app = dash.Dash(
+    __name__,
+    external_stylesheets=[dbc.themes.DARKLY],
+    server=server,
+)
+app.title = "IM Sim"
 
-# server-side data store
-user_data_store = {}
+# In-memory server-side data store (persisted to disk periodically)
+user_data_store: dict = {}
 
-# Thread-local RNG for NumPy (recommended over global legacy RNG)
-_thread_local = local()
-
+# Handy aliases
 Number: TypeAlias = Union[int, float]
-Cell: TypeAlias = Union[bool, int, float, str]  # what DataTable cells allow
+Cell: TypeAlias = Union[bool, int, float, str]
 Row: TypeAlias = Dict[str, Cell]
 
-engine = "openpyxl"
+# Graceful shutdown state (polled by all clients)
+SHUTDOWN_URL = os.environ.get("SHUTDOWN_URL", "http://127.0.0.1:8050/shutdown")
+_shutdown_state = {"active": False, "at": 0.0, "message": "", "closing": False}
 
 
 def _rng():
+    """Thread-local RNG to keep simulation deterministic per-thread."""
     if not hasattr(_thread_local, "gen"):
         _thread_local.gen = np.random.default_rng()
     return _thread_local.gen
 
 
-# Default data structure
-def get_default_data():
+def format_money(x: float) -> str:
+    """Render currency consistently."""
+    return f"${x:,.2f}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Default structures / factories
+# ──────────────────────────────────────────────────────────────────────────────
+
+def new_service_bucket() -> dict:
+    """Per-day and cumulative service-level counters."""
     return {
-        "global_settings": {"r_cycle": 14, "r_cost": 8, "k_cost": 0.18},
-        "items": [],
-        "day": 1,
-        "is_initialized": False,
+        "orders": 0,
+        "orders_stockout": 0,
+        "units_ordered": 0.0,
+        "units_shipped": 0.0,
+        "units_backordered": 0.0,
+        "zero_on_hand_hits": 0,
     }
 
 
-def get_user_data(user_id: str) -> dict:
-    with _store_lock:
-        if user_data_store.get(user_id) is None:
-            user_data_store[user_id] = get_default_data()
-        return user_data_store[user_id]
+def new_costs_bucket() -> dict:
+    """Cost buckets; total is derived as a convenience."""
+    return {
+        "ordering": 0.0,
+        "holding": 0.0,
+        "stockout": 0.0,
+        "expedite": 0.0,
+        "purchases": 0.0,   # cost of received inventory (qty * item_cost)
+        "total": 0.0,       # inventory overhead only (ordering+holding+stockout+expedite)
+    }
 
+
+def new_sales_bucket() -> dict:
+    """Sales tracking buckets."""
+    return {
+        "revenue": 0.0,    # ∑ price_per_unit * units_shipped
+        "cogs": 0.0,       # ∑ item_cost * units_shipped
+        "units_sold": 0.0, # convenience metric
+    }
+
+
+def asq_defaults() -> dict:
+    """Default ASQ adjuster configuration."""
+    return {
+        "enabled": True,            # toggle
+        "min_hits": 3,              # minimum line hits required to consider ASQ
+        "include_transfers": False, # whether transfers count (sim currently has none)
+        "max_amount_diff": 2500.0,  # $ cap on increase due to ASQ raise
+        "period_days": 30,          # "month end" cadence in days
+    }
+
+
+def get_default_data() -> dict:
+    """Initial state for a brand-new session."""
+    return {
+        "global_settings": {
+            "r_cycle": 14,         # Review cycle (days)
+            "r_cost": 8.0,         # Ordering cost per item ordered
+            "k_cost": 0.18,        # Annual holding rate (decimal)
+            "stockout_penalty": 5.0,  # $ per unit short
+            "expedite_rate": 0.03,    # fraction of item_cost per unit per day expedited
+            "gm": 0.15,               # default GM (15%)
+            "realization": 0.95,      # realized price fraction (e.g., promos, leakage)
+            "asq": asq_defaults(),    # NEW: ASQ adjuster config
+            "auto_po_enabled": False,   # when True, system places orders each tick
+        },
+        "items": [],
+        "day": 1,
+        "is_initialized": False,
+        "service_today": new_service_bucket(),
+        "service_totals": new_service_bucket(),
+        "costs": new_costs_bucket(),
+        "sales": new_sales_bucket(),
+        "exception_center": [],  # NEW: simple exception log
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Persistence helpers
+# ──────────────────────────────────────────────────────────────────────────────
 
 def save_data():
+    """Persist all users' blobs to disk (simple JSON)."""
     os.makedirs("data", exist_ok=True)
     with _store_lock, open("data/user_data.json", "w") as f:
         json.dump(user_data_store, f)
 
 
 def set_user_data(user_id: str, data: dict):
+    """Replace a user's blob in the in-memory store."""
     with _store_lock:
         user_data_store[user_id] = data
 
 
-# Shutdown and Startup Procedure to save data
-def on_shutdown():
-    with open("data/user_data.json", "w") as f:
-        json.dump(user_data_store, f)
-
-
-def load_data():
+def load_data() -> dict:
+    """Load store from disk on boot (no migration)."""
     if os.path.exists("data/user_data.json"):
         with open("data/user_data.json", "r") as f:
             return json.load(f)
@@ -94,8 +206,266 @@ def load_data():
 user_data_store = load_data()
 
 
-def create_global_settings(r_cycle=14, r_cost=8, k_cost=0.18):
-    return {"r_cycle": r_cycle, "r_cost": r_cost, "k_cost": k_cost}
+def get_user_data(user_id: str) -> dict:
+    """Get a user's blob (initialize if missing)."""
+    with _store_lock:
+        if user_data_store.get(user_id) is None:
+            user_data_store[user_id] = get_default_data()
+        # Backfill ASQ defaults for older saves
+        gs = user_data_store[user_id].setdefault("global_settings", {})
+        gs.setdefault("asq", asq_defaults())
+        gs.setdefault("auto_po_enabled", False)
+        return user_data_store[user_id]
+    
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Shutdown helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def schedule_shutdown_in(minutes: float, message: str = "Maintenance"):
+    """Schedule a shutdown at now + minutes."""
+    with _store_lock:
+        _shutdown_state["active"] = True
+        _shutdown_state["at"] = time.time() + max(0.0, float(minutes)) * 60.0
+        _shutdown_state["message"] = message or "Maintenance"
+        _shutdown_state["closing"] = False
+
+def cancel_shutdown():
+    """Cancel a scheduled shutdown."""
+    with _store_lock:
+        _shutdown_state.update({"active": False, "at": 0.0, "message": "", "closing": False})
+
+def gentle_stop_all_sessions():
+    """Pause all sims and persist before exit."""
+    with _store_lock:
+        for uid, blob in user_data_store.items():
+            try:
+                blob["is_initialized"] = False  # pauses per-user sim
+            except Exception:
+                pass
+        save_data()
+    time.sleep(1.0)  # let any in-flight requests finish
+    print("[shutdown] All sessions paused and data saved.")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Admin API (no UI) — schedule/cancel via curl
+# ──────────────────────────────────────────────────────────────────────────────
+
+from flask import abort, jsonify
+
+ADMIN_TOKEN = os.environ.get("IMSIM_ADMIN_TOKEN")  # optional; if set, required
+
+def _authorized(req) -> bool:
+    if not ADMIN_TOKEN:
+        return True  # no token required
+    # accept either header
+    bearer = (req.headers.get("Authorization") or "")
+    if bearer.startswith("Bearer "):
+        bearer = bearer.split(" ", 1)[1]
+    header_token = req.headers.get("X-IMSIM-ADMIN-TOKEN") or bearer
+    return header_token == ADMIN_TOKEN
+
+@server.post("/api/admin/schedule_shutdown")
+def api_schedule_shutdown():
+    if not _authorized(request):
+        return abort(401)
+    data = request.get_json(silent=True) or {}
+    minutes = float(data.get("minutes", 0))
+    message = str(data.get("message", "Maintenance"))
+    schedule_shutdown_in(minutes, message)
+    return jsonify({"ok": True, "active": True, "minutes": minutes, "message": message})
+
+@server.post("/api/admin/cancel_shutdown")
+def api_cancel_shutdown():
+    if not _authorized(request):
+        return abort(401)
+    cancel_shutdown()
+    return jsonify({"ok": True, "active": False})
+
+@server.get("/api/admin/shutdown_status")
+def api_shutdown_status():
+    with _store_lock:
+        st = dict(_shutdown_state)
+    now = time.time()
+    remaining = max(0.0, st["at"] - now) if st.get("active") else None
+    return jsonify({"active": st.get("active", False),
+                    "message": st.get("message", ""),
+                    "seconds_remaining": None if remaining is None else int(remaining),
+                    "closing": st.get("closing", False)})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Planning math
+# ──────────────────────────────────────────────────────────────────────────────
+
+def safe_div(n, d, default=0.0):
+    """Division with default on zero/None/exception."""
+    try:
+        return n / d if d not in (0, 0.0, None) else default
+    except Exception:
+        return default
+
+
+def calculate_op(usage_rate: float, lead_time_days: float, safety_allowance: float) -> float:
+    """Order point: expected demand over lead-time + safety stock."""
+    monthly_lt = lead_time_days / 30.0
+    safety_stock = usage_rate * monthly_lt * safety_allowance
+    return usage_rate * monthly_lt + safety_stock
+
+
+def calculate_lp(usage_rate: float, global_settings: dict, op: float) -> float:
+    """Line point: demand over review cycle added to OP."""
+    review_cycle_days = global_settings["r_cycle"]
+    return usage_rate * (review_cycle_days / 30.0) + op
+
+
+def calculate_eoq(usage_rate: float, item_cost: float, global_settings: dict) -> float:
+    """EOQ via standard square-root formula (annualized k-cost)."""
+    r_cost = global_settings["r_cost"]
+    k_cost = global_settings["k_cost"]
+    if item_cost <= 0 or k_cost <= 0 or usage_rate <= 0:
+        return 0.0
+    return math.sqrt((24.0 * r_cost * usage_rate) / (k_cost * item_cost))
+
+
+def calculate_oq(eoq: float, usage_rate: float, global_settings: dict) -> float:
+    """Smoothed OQ: bounded between ~RC demand and ~12 months of demand."""
+    rc_days = global_settings["r_cycle"]
+    oq_min = max(0.5 * usage_rate, (rc_days / 30.0) * usage_rate)
+    oq_max = 12.0 * usage_rate
+    if eoq <= 0:
+        return oq_min
+    return max(min(eoq, oq_max), oq_min)
+
+
+def round_up_to_pack(qty: float, pack: float) -> float:
+    """Round UP to the next pack (for order suggestions)."""
+    if pack is None or pack <= 0:
+        return max(0.0, float(qty))
+    if qty <= 0:
+        return 0.0
+    return math.ceil(float(qty) / float(pack)) * float(pack)
+
+def round_down_to_pack(qty: float, pack: float) -> float:
+    """Round DOWN to the previous pack (rarely used)."""
+    if pack is None or pack <= 0:
+        return max(0.0, float(qty))
+    if qty <= 0:
+        return 0.0
+    return math.floor(float(qty) / float(pack)) * float(pack)
+
+def round_to_pack(qty: float, pack: float) -> float:
+    """Round to the NEAREST pack (keep for displays if you like)."""
+    if pack is None or pack <= 0:
+        return max(0.0, float(qty))
+    # “Nearest” — but avoid banker’s rounding by adding a tiny epsilon
+    q = float(qty) / float(pack)
+    return max(0.0, float(pack) * math.floor(q + 0.5 + 1e-12))
+
+
+def calculate_soq(pna: float, lp: float, op: float, oq: float, standard_pack: float) -> float:
+    """
+    SOQ policy:
+    - If PNA > LP → 0
+    - If OP < PNA ≤ LP → OQ
+    - If PNA ≤ OP → OQ + (OP - PNA)
+    Round UP to packs for actionable order quantities.
+    """
+    if pna > lp:
+        return 0.0
+    base = oq if pna > op else (oq + max(0.0, op - pna))
+    return round_up_to_pack(base, standard_pack)
+
+
+def calculate_surplus_line(lp: float, eoq: float) -> float:
+    """Surplus threshold line for visualization."""
+    return lp + max(0.0, eoq)
+
+
+def calculate_critical_point(usage_rate: float, lead_time_days: float) -> float:
+    """Critical units ~= demand over lead-time (no safety)."""
+    return safe_div(usage_rate, 30.0) * max(0.0, lead_time_days)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Inventory helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def item_on_order(item: dict) -> float:
+    """Sum of pipeline quantities."""
+    return float(sum(float(r["qty"]) for r in item.get("pipeline", [])))
+
+
+def compute_item_pna(item: dict) -> float:
+    """Projected net available = On-hand + On-order - Backorder."""
+    return (
+        max(0.0, float(item.get("on_hand", 0.0)))
+        + item_on_order(item)
+        - max(0.0, float(item.get("backorder", 0.0)))
+    )
+
+
+def update_planning_fields(item: dict, global_settings: dict) -> dict:
+    """
+    Update all derived fields after any physical/planning change.
+    Includes:
+      - pna, pna_days, pna_days_frm_op
+      - oh_days_frm_op (on-hand normalized to days-from-OP)
+      - soq, surplus_line, proposed_pna, pro_pna_days_frm_op
+      - no_pna_days_frm_op (for 0 PNA plotting)
+    """
+    item["pna"] = compute_item_pna(item)
+    ur = max(0.0, float(item["usage_rate"]))
+    daily_ur = max(1e-9, float(item.get("daily_ur", safe_div(ur, 30.0, 0.0))))
+
+    # Days of supply metrics
+    item["pna_days"] = safe_div(item["pna"], daily_ur, 0.0)
+    item["pna_days_frm_op"] = safe_div((item["pna"] - item["op"]), max(1e-9, ur), 0.0) * 30.0
+
+    # On-hand (not PNA) normalized to days-from-OP (for "close to stockout" read)
+    on_hand = max(0.0, float(item.get("on_hand", 0.0)))
+    item["oh_days_frm_op"] = safe_div((on_hand - item["op"]), max(1e-9, ur), 0.0) * 30.0
+
+    # Ordering math
+    item["soq"] = calculate_soq(item["pna"], item["lp"], item["op"], item["oq"], item["standard_pack"])
+    item["surplus_line"] = calculate_surplus_line(item["lp"], item["eoq"])
+    item["proposed_pna"] = item["pna"] + item["soq"]
+    item["pro_pna_days_frm_op"] = safe_div((item["proposed_pna"] - item["op"]), max(1e-9, ur), 0.0) * 30.0
+    item["no_pna_days_frm_op"] = safe_div((0.0 - item["op"]), max(1e-9, ur), 0.0) * 30.0
+
+    return item
+
+
+def ensure_item_physical_defaults(it: dict, gs: dict) -> dict:
+    """
+    Ensure physical state exists and compute planning inputs if missing.
+    Then update derived fields for consistency.
+    """
+    # Physical defaults
+    if "on_hand" not in it:
+        sp = float(it.get("standard_pack", 1.0) or 1.0)
+        on_hand_seed = float(it.get("pna", 0.0))
+        it["on_hand"] = round_to_pack(on_hand_seed, sp)
+    it.setdefault("pipeline", [])
+    it.setdefault("backorder", 0.0)
+    it.setdefault("stockout_today", False)
+    it.setdefault("daily_ur", safe_div(float(it.get("usage_rate", 0.0)), 30.0, 0.0))
+
+    # Ensure planning inputs exist
+    if not all(k in it for k in ("op", "lp", "eoq", "oq")):
+        ur = float(it.get("usage_rate", 0.0))
+        lt = float(it.get("lead_time", it.get("lead_time_days", 0.0)))
+        # accept either % or decimal on legacy
+        sa = it.get("safety_allowance", it.get("safety_allowance_pct", 0.0))
+        sa = float(sa) / 100.0 if "safety_allowance_pct" in it else float(sa)
+        ic = float(it.get("item_cost", 0.0))
+        it["op"] = calculate_op(ur, lt, sa)
+        it["lp"] = calculate_lp(ur, gs, it["op"])
+        it["eoq"] = calculate_eoq(ur, ic, gs)
+        it["oq"] = calculate_oq(it["eoq"], ur, gs)
+
+    return update_planning_fields(it, gs)
 
 
 def create_inventory_item(
@@ -108,6 +478,9 @@ def create_inventory_item(
     global_settings: dict,
     hits_per_month: float,
 ) -> dict:
+    """
+    Build a new item with planning + physical state, then compute deriveds.
+    """
     usage_rate = max(0.0, float(usage_rate))
     lead_time = max(0.0, float(lead_time))
     item_cost = max(0.0, float(item_cost))
@@ -117,445 +490,197 @@ def create_inventory_item(
     hits_per_month = max(1.0, float(hits_per_month))
 
     daily_ur = safe_div(usage_rate, 30.0, 0.0)
-    pna_days = safe_div(pna, daily_ur, 0.0)
 
     op = calculate_op(usage_rate, lead_time, safety_allowance)
     lp = calculate_lp(usage_rate, global_settings, op)
     eoq = calculate_eoq(usage_rate, item_cost, global_settings)
     oq = calculate_oq(eoq, usage_rate, global_settings)
-    soq = calculate_soq(pna, lp, op, oq, standard_pack)
     surplus_line = calculate_surplus_line(lp, eoq)
     cp = calculate_critical_point(usage_rate, lead_time)
 
-    proposed_pna = pna + soq
+    # Physical state
+    on_hand = round_to_pack(pna, standard_pack)
+    pipeline: list[dict] = []
+    backorder = 0.0
 
     item = {
+        # static inputs
         "usage_rate": usage_rate,
         "lead_time": lead_time,
         "item_cost": item_cost,
-        "pna": pna,
         "safety_allowance": safety_allowance,
         "standard_pack": standard_pack,
+        "hits_per_month": hits_per_month,
         "daily_ur": daily_ur,
-        "pna_days": pna_days,
+        # planning
         "op": op,
-        "pna_days_frm_op": safe_div((pna - op), max(1e-9, usage_rate), 0.0) * 30.0,
         "lp": lp,
         "eoq": eoq,
         "oq": oq,
-        "soq": soq,
         "surplus_line": surplus_line,
         "cp": cp,
-        "proposed_pna": proposed_pna,
-        "pro_pna_days_frm_op": safe_div((proposed_pna - op), max(1e-9, usage_rate), 0.0)
-        * 30.0,
-        "no_pna_days_frm_op": safe_div((0.0 - op), max(1e-9, usage_rate), 0.0) * 30.0,
-        "hits_per_month": hits_per_month,
+        # physical state
+        "on_hand": on_hand,
+        "pipeline": pipeline,
+        "backorder": backorder,
+        "stockout_today": False,
+        # ASQ tracking (period counters)
+        "asq_hits_period": 0,
+        "asq_usage_period": 0.0,
+        "asq_last_value": 0.0,
+        "asq_last_applied_day": 0,
+        "op_base_raw": op,
+        # derived placeholders (computed next)
+        "pna": 0.0,
+        "pna_days": 0.0,
+        "pna_days_frm_op": 0.0,
+        "soq": 0.0,
+        "proposed_pna": 0.0,
+        "pro_pna_days_frm_op": 0.0,
+        "no_pna_days_frm_op": 0.0,
     }
-    return item
+    return update_planning_fields(item, global_settings)
 
 
-def safe_div(n, d, default=0.0):
-    try:
-        return n / d if d not in (0, 0.0, None) else default
-    except Exception:
-        return default
-
-
-def calculate_op(
-    usage_rate: float, lead_time_days: float, safety_allowance: float
-) -> float:
-    # usage_rate is per month (per your UI), lead_time is in DAYS
-    monthly_lt = lead_time_days / 30.0
-    safety_stock = usage_rate * monthly_lt * safety_allowance
-    return usage_rate * monthly_lt + safety_stock
-
-
-def calculate_lp(usage_rate: float, global_settings: dict, op: float) -> float:
-    review_cycle_days = global_settings["r_cycle"]
-    return usage_rate * (review_cycle_days / 30.0) + op
-
-
-def calculate_eoq(usage_rate: float, item_cost: float, global_settings: dict) -> float:
-    r_cost = global_settings["r_cost"]
-    k_cost = global_settings["k_cost"]
-    if item_cost <= 0 or k_cost <= 0 or usage_rate <= 0:
-        return 0.0
-    # Your EOQ variant:
-    return math.sqrt((24.0 * r_cost * usage_rate) / (k_cost * item_cost))
-
-
-def calculate_oq(eoq: float, usage_rate: float, global_settings: dict) -> float:
-    rc_days = global_settings["r_cycle"]
-    oq_min = max(0.5 * usage_rate, (rc_days / 30.0) * usage_rate)
-    oq_max = 12.0 * usage_rate
-    if eoq <= 0:
-        return oq_min
-    return max(min(eoq, oq_max), oq_min)
-
-
-def round_to_pack(qty: float, pack: float) -> float:
-    if pack is None or pack <= 0:
-        return max(0.0, float(qty))
-    return max(0.0, round(float(qty) / float(pack)) * float(pack))
-
-
-def calculate_soq(
-    pna: float, lp: float, op: float, oq: float, standard_pack: float
-) -> float:
-    if pna > lp:
-        return 0.0
-    base = oq if pna > op else (oq + op - pna)
-    return round_to_pack(base, standard_pack)
-
-
-def calculate_surplus_line(lp: float, eoq: float) -> float:
-    return lp + max(0.0, eoq)
-
-
-def calculate_critical_point(usage_rate: float, lead_time_days: float) -> float:
-    # If CP should be expressed in "units" at risk during lead time (monthly rate → daily)
-    return safe_div(usage_rate, 30.0) * max(0.0, lead_time_days)
-
-
-def _extract_base64(contents: str) -> bytes:
-    """
-    Return the decoded bytes from a dcc.Upload 'contents' string.
-    Accepts both full data URLs and raw base64 strings.
-    """
-    if not isinstance(contents, str):
-        raise ValueError("Invalid upload payload type.")
-    # Always returns a 3-tuple; sep == "" means comma not found
-    _prefix, sep, b64data = contents.partition(",")
-    b64data = b64data if sep else contents  # handle raw base64 (no prefix)
-    try:
-        return base64.b64decode(b64data, validate=False)  # tolerate newlines/whitespace
-    except Exception as e:
-        raise ValueError(f"Could not decode uploaded file: {e}")
-
-
-def coerce_uploaded(df: pd.DataFrame) -> pd.DataFrame:
-    # Normalize incoming header strings
-    raw_cols = [str(c) for c in df.columns]
-    lower_cols = [c.strip().lower() for c in raw_cols]
-
-    mapped: list[str] = []
-    unknown: list[str] = []
-    sources_by_canon: dict[str, list[str]] = defaultdict(list)
-
-    for raw, lower in zip(raw_cols, lower_cols):
-        if lower in HEADER_ALIASES:
-            canon = HEADER_ALIASES[lower]
-            mapped.append(canon)
-            sources_by_canon[canon].append(raw)
-        else:
-            unknown.append(raw)
-
-    if unknown:
-        exp = ", ".join(sorted(set(HEADER_ALIASES.keys())))
-        raise ValueError(f"Unrecognized headers: {unknown}. Expected one of: {exp}")
-
-    # Detect duplicate logical columns after aliasing
-    dups = {k: v for k, v in sources_by_canon.items() if len(v) > 1}
-    if dups:
-        pretty = "; ".join(f"{k} ⇐ {v}" for k, v in dups.items())
-        raise ValueError(
-            f"Duplicate logical columns after header normalization: {pretty}"
-        )
-
-    # Ensure all required canonical columns are present
-    missing = [c for c in CANONICAL_COLS if c not in mapped]
-    if missing:
-        raise ValueError(f"Missing required columns: {missing}")
-
-    # Rename to canonical names and select only the required seven
-    df2 = df.copy()
-    df2.columns = mapped  # all columns are now canonical names
-    df2 = df2[CANONICAL_COLS].copy()
-
-    # Coerce numerics on the canonical set only
-    for c in CANONICAL_COLS:
-        df2[c] = pd.to_numeric(df2[c], errors="coerce")
-
-    if df2.isnull().values.any():
-        raise ValueError("All required columns must be numeric and non-empty.")
-
-    # Enforce positivity rules (PNA may be zero)
-    must_pos = [
-        "usage_rate",
-        "lead_time_days",
-        "item_cost",
-        "safety_allowance_pct",
-        "standard_pack",
-        "hits_per_month",
-    ]
-    if (df2[must_pos] <= 0).any().any():
-        raise ValueError("All values (except PNA) must be > 0.")
-
-    return df2
-
-
-def parse_contents(contents: str, filename: str | None, date) -> dbc.Card | dbc.Alert:
-
-    # Base64 decode
-    try:
-        decoded = _extract_base64(contents)
-    except ValueError as e:
-        return dbc.Alert(str(e), color="danger")
-
-    # Read file -> DataFrame
-    try:
-        lower = (filename or "").lower()
-        if lower.endswith(".csv"):
-            raw = pd.read_csv(io.StringIO(decoded.decode("utf-8-sig")))
-        elif lower.endswith(".xls"):
-            raw = pd.read_excel(io.BytesIO(decoded), engine="xlrd")
-        elif lower.endswith(".xlsx"):
-            raw = pd.read_excel(io.BytesIO(decoded), engine="openpyxl")
-        else:
-            return dbc.Alert(
-                "The input file must be .csv, .xls, or .xlsx.", color="warning"
-            )
-
-        # Normalize/validate columns (your pipeline)
-        df = coerce_uploaded(raw)
-    except Exception as e:
-        return dbc.Alert(str(e), color="warning")
-
-    # Convert values to JSON-serializable primitives for DataTable
-    def _to_native(v) -> Cell:
-        # Treat NaNs as empty strings in the preview
-        try:
-            if pd.isna(v):
-                return ""
-        except Exception:
-            pass
-
-        # Ensure numpy scalars become Python scalars (int/float/bool)
-        if isinstance(v, np.generic):
-            py = v.item()
-            if isinstance(py, (bool, int, float, str)):
-                return py  # type: ignore[return-value]
-            return str(py)
-
-        if isinstance(v, (bool, int, float, str)):
-            return v
-        return str(v)
-
-    # Ensure keys are strings and values are DataTable-safe cells
-    typed_records: List[Row] = []
-    for rec in df.to_dict("records"):
-        out: Row = {}
-        for k, v in rec.items():
-            out[str(k)] = _to_native(v)
-        typed_records.append(out)
-
-    # Format timestamp (Upload.last_modified is often ms)
-    try:
-        ts = float(date)
-        if ts > 1e11:  # very likely milliseconds
-            ts /= 1000.0
-        when_str = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        when_str = ""
-
-    # Cap preview rows for performance on large uploads
-    preview_cols = [str(c) for c in df.columns]
-    preview_records = typed_records[:250]
-
-    # Build preview card
-    return dbc.Card(
-        dbc.CardBody(
-            [
-                html.H5(filename or "Uploaded file", className="card-title"),
-                html.H6(when_str, className="card-subtitle"),
-                html.Br(),
-                dash_table.DataTable(
-                    data=cast(Sequence[Dict[str, Cell]], preview_records),
-                    columns=[{"name": c, "id": c} for c in preview_cols],
-                    page_size=15,
-                    page_action="native",
-                    style_table={"overflowX": "auto"},
-                    style_header={
-                        "backgroundColor": "rgb(30, 30, 30)",
-                        "color": "white",
-                    },
-                    style_cell={
-                        "backgroundColor": "rgb(50, 50, 50)",
-                        "color": "white",
-                        "border": "1px solid #444",
-                        "minWidth": 80,
-                        "maxWidth": 240,
-                        "whiteSpace": "normal",
-                    },
-                    style_data={"border": "1px solid #444"},
-                ),
-                html.Hr(className="my-4"),
-            ]
-        ),
-        className="mb-3",
-    )
-
-
-def initial_graph(store_data=None):
-    if not store_data or "items" not in store_data or not store_data["items"]:
-        fig = px.scatter(title="Inventory Simulation")
-        fig.update_layout(
-            xaxis=dict(autorange=True, title="Items"),
-            yaxis=dict(autorange=True, title="PNA (Days from OP)"),
-        )
-    else:
-        fig = update_graph_based_on_items(
-            store_data["items"], store_data["global_settings"]
-        )
-    return fig
-
-
-def simulate_daily_hits(hpm: float) -> int:
-    return int(_rng().poisson(max(0.0, float(hpm)) / 30.0))
-
-
-def simulate_sales(avg_sale_qty: float, standard_pack: float) -> int:
-    if avg_sale_qty <= 0:
-        return 0
-    raw = int(_rng().poisson(avg_sale_qty))
-    if raw <= 0:
-        return 0
-    pack = max(1.0, float(standard_pack))
-    return int(math.ceil(raw / pack) * pack)
-
-
-def process_item(item: dict) -> dict:
-    # Treat dict as input, produce a *new* dict (avoid cross-thread side-effects)
-    it = dict(item)
-    hpm = max(1.0, float(it["hits_per_month"]))  # clamp
-    ur = max(0.0, float(it["usage_rate"]))
-    avg_sale_qty = safe_div(ur, hpm, 0.0)
-
-    hits = simulate_daily_hits(hpm)
-    total = 0
-    for _ in range(hits):
-        total += simulate_sales(avg_sale_qty, it["standard_pack"])
-
-    it["pna"] = float(it["pna"]) - total
-    return update_pna_related_values(it)
-
-
-def update_pna_related_values(item: dict) -> dict:
-    ur = max(0.0, float(item["usage_rate"]))
-    op = float(item["op"])
-    pna = float(item["pna"])
-    item["pna_days_frm_op"] = safe_div((pna - op), ur, 0.0) * 30.0
-    item["pna_days"] = safe_div(pna, max(1e-9, item["daily_ur"]), 0.0)
-    item["soq"] = calculate_soq(pna, item["lp"], op, item["oq"], item["standard_pack"])
-    item["surplus_line"] = calculate_surplus_line(item["lp"], item["eoq"])
-    item["proposed_pna"] = pna + item["soq"]
-    item["pro_pna_days_frm_op"] = safe_div((item["proposed_pna"] - op), ur, 0.0) * 30.0
-    return item
-
-
-def update_global_settings(current_settings, review_cycle, r_cost, k_cost):
+def update_global_settings(
+    current_settings: dict,
+    review_cycle: Number,
+    r_cost: Number,
+    k_cost: Number,
+    stockout_penalty: Number,
+    expedite_rate: Number,
+    gm: Number,
+) -> dict:
+    """Write-through of global settings with one function for clarity."""
     current_settings["r_cycle"] = review_cycle
     current_settings["r_cost"] = r_cost
     current_settings["k_cost"] = k_cost
+    current_settings["stockout_penalty"] = stockout_penalty
+    current_settings["expedite_rate"] = expedite_rate
+    current_settings["gm"] = gm
+    # keep ASQ block as-is (separately updated)
     return current_settings
 
 
-def update_gs_related_values(item, global_settings):
+def update_gs_related_values(item: dict, global_settings: dict) -> dict:
+    """When globals change, recompute item planning+deriveds (OP left intact)."""
     item["lp"] = calculate_lp(item["usage_rate"], global_settings, item["op"])
     item["eoq"] = calculate_eoq(item["usage_rate"], item["item_cost"], global_settings)
     item["oq"] = calculate_oq(item["eoq"], item["usage_rate"], global_settings)
-    item["soq"] = calculate_soq(
-        item["pna"], item["lp"], item["op"], item["oq"], item["standard_pack"]
-    )
-    item["surplus_line"] = calculate_surplus_line(item["lp"], item["eoq"])
-    item["proposed_pna"] = item["pna"] + item["soq"]
-    ur = max(0.0, float(item["usage_rate"]))
-    item["pro_pna_days_frm_op"] = (
-        safe_div((item["proposed_pna"] - item["op"]), ur, 0.0) * 30.0
-    )
-    return item
+    return update_planning_fields(item, global_settings)
 
 
-def update_graph_based_on_items(items: list[dict], global_settings: dict):
-    if not items:
-        return px.scatter(
-            title="Inventory Simulation",
-            labels={"x": "Items", "y": "PNA (Days from OP)"},
+# ──────────────────────────────────────────────────────────────────────────────
+# ASQ Adjuster — core logic
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _log_exception(current: dict, code: str, msg: str, item_index: int, it: dict, today: int):
+    current.setdefault("exception_center", []).append(
+        {
+            "day": int(today),
+            "item_index": int(item_index),
+            "code": code,
+            "message": msg,
+            "op": float(it.get("op", 0.0)),
+            "op_base_raw": float(it.get("op_base_raw", 0.0)),
+            "asq": float(it.get("asq_last_value", 0.0)),
+            "item_cost": float(it.get("item_cost", 0.0)),
+        }
+    )
+
+
+def _apply_asq_to_item(it: dict, gs: dict, today: int, item_index: int, current: dict) -> bool:
+    """
+    Apply ASQ OP adjustment to a single item if eligible.
+    Returns True if OP changed, else False.
+    """
+    asq_cfg = dict(gs.get("asq", asq_defaults()))
+    if not asq_cfg.get("enabled", True):
+        return False
+
+    hits = int(it.get("asq_hits_period", 0))
+    usage = float(it.get("asq_usage_period", 0.0))
+    min_hits = max(0, int(asq_cfg.get("min_hits", 0)))
+
+    # Compute base/raw OP (month-end baseline)
+    base_op = calculate_op(float(it["usage_rate"]), float(it["lead_time"]), float(it["safety_allowance"]))
+    it["op_base_raw"] = base_op
+
+    # Not enough signal
+    if hits < min_hits or hits <= 0:
+        it["asq_last_value"] = 0.0
+        return False
+
+    # Average Sale Quantity (units per hit)
+    asq = safe_div(usage, hits, 0.0)
+    it["asq_last_value"] = asq
+
+    # Only adjust upward if ASQ > raw OP
+    if asq <= base_op:
+        return False
+
+    # Respect Max $ Diff guardrail
+    max_diff = float(asq_cfg.get("max_amount_diff", 0.0))
+    value_increase = (asq - base_op) * float(it["item_cost"])
+    if max_diff > 0 and value_increase > max_diff:
+        _log_exception(
+            current,
+            "ASQ_MAX_DIFF_EXCEEDED",
+            f"Skipped ASQ raise: +${value_increase:,.2f} exceeds Max $ Diff {format_money(max_diff)}",
+            item_index,
+            it,
+            today,
         )
+        return False
 
-    # fixed palette
-    BLUE = "#1f77b4"  # current
-    GREEN = "#2ca02c"  # proposed (outline)
-    RED = "#d62728"  # zero PNA
+    # Apply the raise: set OP to ASQ (rounded to 3 decimals for stability)
+    it["op"] = float(round(asq, 3))
+    # Recompute dependent planning
+    it["lp"] = calculate_lp(it["usage_rate"], gs, it["op"])
+    it["eoq"] = calculate_eoq(it["usage_rate"], it["item_cost"], gs)
+    it["oq"] = calculate_oq(it["eoq"], it["usage_rate"], gs)
+    update_planning_fields(it, gs)
 
-    df = pd.DataFrame(items).reset_index(names="idx")
-    mask = (df["pro_pna_days_frm_op"] != df["pna_days_frm_op"]) & (
-        df["pna"] <= df["lp"]
-    )
+    it["asq_last_applied_day"] = int(today)
+    return True
 
-    # base: current PNA (filled blue)
-    fig = px.scatter(
-        df,
-        x=df["idx"] + 1,
-        y="pna_days_frm_op",
-        title="Inventory Simulation",
-        labels={"x": "Items", "pna_days_frm_op": "PNA (Days from OP)"},
-    )
-    fig.update_traces(
-        mode="markers",
-        name="Current PNA Days from OP",
-        marker=dict(symbol="circle", size=8, color=BLUE),
-        legendgroup="current",
-        legendrank=1,
-    )
 
-    # proposed: outlined green
-    if mask.any():
-        df2 = df[mask]
-        fig.add_scatter(
-            x=(df2["idx"] + 1),
-            y=df2["pro_pna_days_frm_op"],
-            mode="markers",
-            name="PNA + SOQ Days from OP",
-            marker=dict(
-                symbol="circle-open",
-                size=10,
-                color=GREEN,  # for open symbols, this is the outline color
-                line=dict(color=GREEN, width=2),
-            ),
-            legendgroup="proposed",
-            legendrank=2,
-        )
+def apply_asq_month_end(current: dict) -> dict:
+    """
+    Apply ASQ OP Adjuster to all items using period counters.
+    Resets ASQ counters afterwards. Returns a small summary dict.
+    """
+    gs = current.get("global_settings", {})
+    asq_cfg = dict(gs.get("asq", asq_defaults()))
+    today = int(current.get("day", 1))
+    changed = 0
+    skipped = 0
 
-    # zero PNA: filled red
-    fig.add_scatter(
-        x=(df["idx"] + 1),
-        y=df["no_pna_days_frm_op"],
-        mode="markers",
-        name="0 PNA",
-        marker=dict(symbol="circle", size=8, color=RED),
-        legendgroup="zero",
-        legendrank=3,
-    )
+    for idx, it in enumerate(current.get("items", [])):
+        try:
+            did = _apply_asq_to_item(it, gs, today, idx, current)
+            changed += 1 if did else 0
+        except Exception as e:
+            skipped += 1
+            _log_exception(
+                current,
+                "ASQ_ERROR",
+                f"Exception during ASQ: {e}",
+                idx,
+                it,
+                today,
+            )
+        finally:
+            # Reset ASQ period counters regardless
+            it["asq_hits_period"] = 0
+            it["asq_usage_period"] = 0.0
 
-    # guides
-    fig.add_hline(y=0, line_dash="dot", annotation_text="OP")
-    fig.add_hline(y=global_settings["r_cycle"], line_dash="dot", annotation_text="LP")
+    return {"changed": changed, "skipped": skipped, "today": today, "period_days": int(asq_cfg.get("period_days", 30))}
 
-    # integers on X
-    n = len(df)
-    fig.update_xaxes(
-        tickmode="linear",
-        dtick=1,
-        tick0=1,
-        tickformat="d",
-        range=[0.5, n + 0.5],
-    )
-    fig.update_layout(yaxis_title="PNA (Days from OP)")
 
-    return fig
-
+# ──────────────────────────────────────────────────────────────────────────────
+# Upload helpers
+# ──────────────────────────────────────────────────────────────────────────────
 
 CANONICAL_COLS = [
     "usage_rate",
@@ -587,117 +712,952 @@ HEADER_ALIASES = {
 }
 
 
-app.title = "IM Sim"
+def _extract_base64(contents: str) -> bytes:
+    """Decode a base64 upload payload."""
+    if not isinstance(contents, str):
+        raise ValueError("Invalid upload payload type.")
+    _prefix, sep, b64data = contents.partition(",")
+    b64data = b64data if sep else contents
+    try:
+        return base64.b64decode(b64data, validate=False)
+    except Exception as e:
+        raise ValueError(f"Could not decode uploaded file: {e}")
 
+
+def coerce_uploaded(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Validate/normalize uploaded item dataframe to canonical numeric columns.
+    Raises with a helpful error message if mismatched headers or non-numeric data.
+    """
+    raw_cols = [str(c) for c in df.columns]
+    lower_cols = [c.strip().lower() for c in raw_cols]
+
+    mapped: list[str] = []
+    unknown: list[str] = []
+    sources_by_canon: dict[str, list[str]] = defaultdict(list)
+
+    for raw, lower in zip(raw_cols, lower_cols):
+        if lower in HEADER_ALIASES:
+            canon = HEADER_ALIASES[lower]
+            mapped.append(canon)
+            sources_by_canon[canon].append(raw)
+        else:
+            unknown.append(raw)
+
+    if unknown:
+        exp = ", ".join(sorted(set(HEADER_ALIASES.keys())))
+        raise ValueError(f"Unrecognized headers: {unknown}. Expected one of: {exp}")
+
+    dups = {k: v for k, v in sources_by_canon.items() if len(v) > 1}
+    if dups:
+        pretty = "; ".join(f"{k} ⇐ {v}" for k, v in dups.items())
+        raise ValueError(f"Duplicate logical columns after header normalization: {pretty}")
+
+    missing = [c for c in CANONICAL_COLS if c not in mapped]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
+    df2 = df.copy()
+    df2.columns = mapped
+    df2 = df2[CANONICAL_COLS].copy()
+
+    for c in CANONICAL_COLS:
+        df2[c] = pd.to_numeric(df2[c], errors="coerce")
+
+    if df2.isnull().values.any():
+        raise ValueError("All required columns must be numeric and non-empty.")
+
+    must_pos = [
+        "usage_rate",
+        "lead_time_days",
+        "item_cost",
+        "safety_allowance_pct",
+        "standard_pack",
+        "hits_per_month",
+    ]
+    if (df2[must_pos] <= 0).any().any():
+        raise ValueError("All values (except PNA) must be > 0.")
+
+    return df2
+
+
+def parse_contents(contents: str, filename: str | None, date) -> dbc.Card | dbc.Alert:
+    """
+    Build a pretty preview card for an uploaded file, or an alert if invalid.
+    """
+    try:
+        decoded = _extract_base64(contents)
+    except ValueError as e:
+        return dbc.Alert(str(e), color="danger")
+
+    try:
+        lower = (filename or "").lower()
+        if lower.endswith(".csv"):
+            raw = pd.read_csv(io.StringIO(decoded.decode("utf-8-sig")))
+        elif lower.endswith(".xls"):
+            raw = pd.read_excel(io.BytesIO(decoded), engine="xlrd")
+        elif lower.endswith(".xlsx"):
+            raw = pd.read_excel(io.BytesIO(decoded), engine="openpyxl")
+        else:
+            return dbc.Alert("The input file must be .csv, .xls, or .xlsx.", color="warning")
+        df = coerce_uploaded(raw)
+    except Exception:
+        return dbc.Alert("Problem reading file or invalid columns.", color="warning")
+
+    def _to_native(v) -> Cell:
+        """Make numpy scalars json/dash friendly."""
+        try:
+            if pd.isna(v):
+                return ""
+        except Exception:
+            pass
+        if isinstance(v, np.generic):
+            py = v.item()
+            return py if isinstance(py, (bool, int, float, str)) else str(py)
+        if isinstance(v, (bool, int, float, str)):
+            return v
+        return str(v)
+
+    typed_records: List[Row] = []
+    for rec in df.to_dict("records"):
+        out: Row = {}
+        for k, v in rec.items():
+            out[str(k)] = _to_native(v)
+        typed_records.append(out)
+
+    try:
+        ts = float(date)
+        if ts > 1e11:  # ms → s
+            ts /= 1000.0
+        when_str = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        when_str = ""
+
+    preview_cols = [str(c) for c in df.columns]
+    preview_records = typed_records[:250]
+
+    return dbc.Card(
+        dbc.CardBody(
+            [
+                html.H5(filename or "Uploaded file", className="card-title"),
+                html.H6(when_str, className="card-subtitle"),
+                html.Br(),
+                dash_table.DataTable(
+                    data=cast(Sequence[Dict[str, Cell]], preview_records), # Ignore mypy false positive
+                    columns=[{"name": c, "id": c} for c in preview_cols],
+                    page_size=15,
+                    page_action="native",
+                    style_table={"overflowX": "auto"},
+                    style_header={"backgroundColor": "rgb(30, 30, 30)", "color": "white"},
+                    style_cell={
+                        "backgroundColor": "rgb(50, 50, 50)",
+                        "color": "white",
+                        "border": "1px solid #444",
+                        "minWidth": 80,
+                        "maxWidth": 240,
+                        "whiteSpace": "normal",
+                    },
+                    style_data={"border": "1px solid #444"},
+                ),
+                html.Hr(className="my-4"),
+            ]
+        ),
+        className="mb-3",
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Demand simulation & sales
+# ──────────────────────────────────────────────────────────────────────────────
+
+def simulate_daily_hits(hpm: float) -> int:
+    """Poisson hits per day (hpm ~ monthly)."""
+    return int(_rng().poisson(max(0.0, float(hpm)) / 30.0))
+
+
+def simulate_sales(avg_sale_qty: float, standard_pack: float) -> int:
+    """Order size per hit sampled in pack-space to avoid over-demand from rounding.
+    Expected units ≈ avg_sale_qty; result is a whole number of packs."""
+    if avg_sale_qty <= 0:
+        return 0
+    pack = max(1.0, float(standard_pack))
+    lam_packs = float(avg_sale_qty) / pack
+    raw_packs = int(_rng().poisson(lam_packs))
+    return int(raw_packs * pack)
+
+
+def process_item_day(item: dict, today: int, gs: dict) -> tuple[dict, dict]:
+    """
+    Run one simulated day for a single item.
+
+    Returns (updated_item, per_item_metrics) where per_item_metrics contains:
+      orders, orders_stockout, units_ordered, units_shipped, units_backordered,
+      zero_on_hand_hits, holding_add, stockout_add, revenue_add, cogs_add,
+      purchases_add  # cost of receipts today (qty * item_cost)
+    """
+    it = dict(item)
+    metrics = {
+        "orders": 0,
+        "orders_stockout": 0,
+        "units_ordered": 0.0,
+        "units_shipped": 0.0,
+        "units_backordered": 0.0,
+        "zero_on_hand_hits": 0,
+        "holding_add": 0.0,
+        "stockout_add": 0.0,
+        "revenue_add": 0.0,
+        "cogs_add": 0.0,
+        "purchases_add": 0.0,
+    }
+
+    # Ensure ASQ period counters exist
+    it.setdefault("asq_hits_period", 0)
+    it.setdefault("asq_usage_period", 0.0)
+
+    k_cost = float(gs["k_cost"])
+    stockout_penalty = float(gs["stockout_penalty"])
+    gm = float(gs.get("gm", 0.15))
+    gm = min(max(gm, 0.0), 0.95)  # clamp
+    realization = float(gs.get("realization", 0.92))
+    realization = min(max(realization, 0.5), 1.0)  # clamp
+    price_per_unit_multiplier = 1.0 / max(1e-9, (1.0 - gm))  # price = cost / (1-gm)
+
+    # 1) Receive pipeline due today or earlier (book purchases on receipt)
+    due = [r for r in it["pipeline"] if int(r["eta_day"]) <= int(today)]
+    if due:
+        qty_in = sum(float(r["qty"]) for r in due)
+        it["on_hand"] = float(it["on_hand"]) + qty_in
+        metrics["purchases_add"] = qty_in * float(it["item_cost"])
+        it["pipeline"] = [r for r in it["pipeline"] if int(r["eta_day"]) > int(today)]
+
+    # 2) Settle backorders if any on-hand
+    if float(it["backorder"]) > 0 and float(it["on_hand"]) > 0:
+        settle = min(float(it["backorder"]), float(it["on_hand"]))
+        it["backorder"] = float(it["backorder"]) - settle
+        it["on_hand"] = float(it["on_hand"]) - settle
+
+    # 3) Demand simulation per hit
+    hpm = max(1.0, float(it["hits_per_month"]))
+    ur = max(0.0, float(it["usage_rate"]))
+    avg_sale_qty = safe_div(ur, hpm, 0.0)
+
+    on_hand_before = float(it["on_hand"])
+    orders = simulate_daily_hits(hpm)
+    stockout_any = False
+
+    for _ in range(orders):
+        q = simulate_sales(avg_sale_qty, it["standard_pack"])
+        if q <= 0:
+            continue
+        metrics["orders"] += 1
+        metrics["units_ordered"] += q
+
+        # Track ASQ signal (orders & usage)
+        it["asq_hits_period"] = int(it.get("asq_hits_period", 0)) + 1
+        it["asq_usage_period"] = float(it.get("asq_usage_period", 0.0)) + float(q)
+
+        if it["on_hand"] <= 0:
+            # full stockout
+            it["backorder"] = float(it["backorder"]) + q
+            metrics["orders_stockout"] += 1
+            metrics["zero_on_hand_hits"] += 1
+            metrics["units_backordered"] += q
+            stockout_any = True
+        elif q <= it["on_hand"]:
+            # full fill
+            it["on_hand"] = float(it["on_hand"]) - q
+            metrics["units_shipped"] += q
+        else:
+            # partial: ship what's available, backorder the rest
+            short = q - float(it["on_hand"])
+            metrics["units_shipped"] += float(it["on_hand"])
+            metrics["units_backordered"] += short
+            it["backorder"] = float(it["backorder"]) + short
+            it["on_hand"] = 0.0
+            metrics["orders_stockout"] += 1
+            stockout_any = True
+
+    on_hand_after = float(it["on_hand"])
+
+    # 4) Daily costs
+    midpoint_oh = (on_hand_before + on_hand_after) / 2.0
+    metrics["holding_add"] = midpoint_oh * float(it["item_cost"]) * (k_cost / 365.0)
+    metrics["stockout_add"] = metrics["units_backordered"] * stockout_penalty
+
+    # 5) Daily sales from shipped units
+    cogs_add = metrics["units_shipped"] * float(it["item_cost"])
+    revenue_add = cogs_add * price_per_unit_multiplier * realization
+    metrics["cogs_add"] = cogs_add
+    metrics["revenue_add"] = revenue_add
+
+    it["stockout_today"] = stockout_any
+
+    # 6) Refresh derived planning fields
+    it = update_planning_fields(it, gs)
+    return it, metrics
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PO helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def place_purchase_orders(
+    current: dict,
+    today: int,
+    gs: dict,
+    *,
+    recompute_total: bool = False,
+) -> dict:
+    """
+    Create POs using each item's current SOQ (which is 0 when PNA > LP).
+    Updates ordering cost and refreshes planning fields.
+
+    Returns:
+      {"lines": int, "total_qty": float,
+       "receipts": [{"item_index": int, "rid": str, "qty": float, "eta_day": int}, ...]}
+    """
+    items = current.get("items", [])
+    if not items:
+        return {"lines": 0, "total_qty": 0.0, "receipts": []}
+    lines = 0
+    total_qty = 0.0
+    receipts = []
+
+    for idx, it in enumerate(items):
+        qty = float(it.get("soq", 0.0))  # SOQ already encodes OP/LP policy + pack rounding
+        if qty <= 0:
+            continue
+
+        rid = str(uuid.uuid4())[:8]
+        lt  = float(it.get("lead_time", it.get("lead_time_days", 0.0)))
+        eta = int(today + math.ceil(max(1.0, lt)))
+        it.setdefault("pipeline", []).append({"id": rid, "qty": qty, "eta_day": eta})
+
+        current["costs"]["ordering"] += float(gs["r_cost"])
+        update_planning_fields(it, gs)
+
+        lines += 1
+        total_qty += qty
+        receipts.append({"item_index": idx, "rid": rid, "qty": qty, "eta_day": eta})
+
+    if recompute_total and lines:
+        c = current["costs"]
+        c["total"] = c["ordering"] + c["holding"] + c["stockout"] + c["expedite"]
+
+    return {"lines": lines, "total_qty": total_qty, "receipts": receipts}
+
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Graph
+# ──────────────────────────────────────────────────────────────────────────────
+
+def update_graph_based_on_items(items: list[dict], global_settings: dict):
+    """Create/refresh the main scatter plot with all overlayed points."""
+    if not items:
+        return px.scatter(
+            title="Inventory Simulation",
+            labels={"x": "Items", "y": "PNA (Days from OP)"},
+        )
+
+    # Colors
+    BLUE = "#1f77b4"   # current PNA
+    GREEN = "#2ca02c"  # proposed (PNA + SOQ)
+    RED = "#d62728"    # 0 PNA
+    ORANGE = "#ff7f0e" # On-Hand
+
+    df = pd.DataFrame(items).reset_index(names="idx")
+    mask = (df["pro_pna_days_frm_op"] != df["pna_days_frm_op"]) & (df["pna"] <= df["lp"])
+
+    # Base: current PNA (days from OP)
+    fig = px.scatter(
+        df,
+        x=df["idx"] + 1,
+        y="pna_days_frm_op",
+        title="Inventory Simulation",
+        labels={"x": "Items", "pna_days_frm_op": "Days from OP"},
+    )
+    fig.update_traces(
+        mode="markers",
+        name="Current PNA Days from OP",
+        marker=dict(symbol="circle", size=8, color=BLUE),
+        legendgroup="current",
+        legendrank=1,
+    )
+
+    # Proposed PNA + SOQ
+    if mask.any():
+        df2 = df[mask]
+        fig.add_scatter(
+            x=(df2["idx"] + 1),
+            y=df2["pro_pna_days_frm_op"],
+            mode="markers",
+            name="PNA + SOQ Days from OP",
+            marker=dict(symbol="circle-open", size=10, color=GREEN, line=dict(color=GREEN, width=2)),
+            legendgroup="proposed",
+            legendrank=2,
+        )
+
+    # On-Hand only (normalized to days-from-OP)
+    if "oh_days_frm_op" in df.columns:
+        fig.add_scatter(
+            x=(df["idx"] + 1),
+            y=df["oh_days_frm_op"],
+            mode="markers",
+            name="On-Hand Days from OP",
+            marker=dict(symbol="x", size=9, color=ORANGE),
+            legendgroup="onhand",
+            legendrank=2.5,
+        )
+
+    # 0 PNA (net of pipeline/backorders)
+    fig.add_scatter(
+        x=(df["idx"] + 1),
+        y=df["no_pna_days_frm_op"],
+        mode="markers",
+        name="0 PNA",
+        marker=dict(symbol="circle", size=8, color=RED),
+        legendgroup="zero",
+        legendrank=3,
+    )
+
+    # Optional: highlight items that stocked out today with a ring
+    if "stockout_today" in df.columns:
+        idxs = (df.index[df["stockout_today"] == True]).tolist()
+        if idxs:
+            fig.add_scatter(
+                x=(df.loc[idxs, "idx"] + 1),
+                y=df.loc[idxs, "pna_days_frm_op"],
+                mode="markers",
+                name="Stockout Today",
+                marker=dict(symbol="circle-open-dot", size=14, line=dict(width=2)),
+                legendgroup="alerts",
+                legendrank=0,
+            )
+
+    # Reference lines
+    fig.add_hline(y=0, line_dash="dot", annotation_text="OP")
+    fig.add_hline(y=global_settings["r_cycle"], line_dash="dot", annotation_text="LP")
+
+    # X axis: integer item #s
+    n = len(df)
+    fig.update_xaxes(tickmode="linear", dtick=1, tick0=1, tickformat="d", range=[0.5, n + 0.5])
+    fig.update_layout(yaxis_title="Days from OP")
+    return fig
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# UI Components
+# ──────────────────────────────────────────────────────────────────────────────
+
+def service_card_children(data: dict) -> list:
+    st  = data.get("service_today", new_service_bucket())
+    tot = data.get("service_totals", new_service_bucket())
+    items = data.get("items", [])
+
+    sum_oh = sum(float(i.get("on_hand", 0)) for i in items)
+    sum_oo = sum(item_on_order(i) for i in items)
+    sum_bo = sum(float(i.get("backorder", 0)) for i in items)
+
+    fill_today = None if st["orders"] == 0 else 100.0 * (st["orders"] - st["orders_stockout"]) / st["orders"]
+    fill_total = None if tot["orders"] == 0 else 100.0 * (tot["orders"] - tot["orders_stockout"]) / tot["orders"]
+    fmt = lambda x: "—" if x is None else f"{x:.1f}%"
+
+    return [dbc.ListGroup(
+        [
+            dbc.ListGroupItem(
+                f"Today: Orders {st['orders']} • Stockouts {st['orders_stockout']} • Zero-OH {st['zero_on_hand_hits']}"
+            ),
+            dbc.ListGroupItem(
+                f"Fill Rate (Cumulative): {fmt(fill_total)}  (Today: {fmt(fill_today)})"
+            ),
+            dbc.ListGroupItem(
+                dbc.Badge(
+                    f"Σ OH: {int(sum_oh)} • On-Order: {int(sum_oo)} • Backorder: {int(sum_bo)}",
+                    pill=True, color="secondary",
+                )
+            ),
+        ],
+        flush=True,
+    )]
+
+
+def costs_card_children(data: dict) -> list:
+    c = data.get("costs", new_costs_bucket())
+    total = c["ordering"] + c["holding"] + c["stockout"] + c["expedite"]
+    money = lambda x: format_money(float(x or 0.0))
+    return [dbc.ListGroup(
+        [
+            dbc.ListGroupItem(f"Total: {money(total)}"),
+            dbc.ListGroupItem(
+                f"Ordering: {money(c['ordering'])} • "
+                f"Holding: {money(c['holding'])} • "
+                f"Stockout: {money(c['stockout'])} • "
+                f"Expedite: {money(c['expedite'])}"
+            ),
+        ],
+        flush=True,
+    )]
+
+
+def sales_card_children(data: dict) -> list:
+    s = data.get("sales", new_sales_bucket()); c = data.get("costs", new_costs_bucket())
+    revenue = float(s["revenue"]); cogs = float(s["cogs"])
+    gross = revenue - cogs
+    gm_pct = None if revenue <= 0 else (100.0 * gross / revenue)
+    inv_over = float(c["total"])
+    after_gm = gross - inv_over
+    after_gm_pct = None if revenue <= 0 else (100.0 * after_gm / revenue)
+    fmtp = lambda x: "—" if x is None else f"{x:.1f}%"
+    money = lambda x: format_money(float(x or 0.0))
+
+    return [dbc.ListGroup(
+        [
+            dbc.ListGroupItem(f"Sales: {money(revenue)}"),
+            dbc.ListGroupItem(f"COGS: {money(cogs)} • GM$: {money(gross)} • GM%: {fmtp(gm_pct)}"),
+            dbc.ListGroupItem(f"GM after Inv Costs: {money(after_gm)} • %: {fmtp(after_gm_pct)}"),
+        ],
+        flush=True,
+    )]
+
+
+# === KPI STRIP HELPERS =========================================================
+
+def _fmt_pct(p: float | None) -> str:
+    return "—" if p is None else f"{p*100:.1f}%"
+
+def _color_from_thresholds(value: float | None, good: float, warn: float, reverse: bool = False) -> str:
+    """
+    Map a numeric value to a Bootstrap color.
+    reverse=False  -> higher is better   (e.g., fill rate, margin)
+    reverse=True   -> lower  is better   (e.g., bad-cost ratio)
+    """
+    if value is None:
+        return "secondary"
+    v = float(value)
+    if reverse:
+        if v <= good:  # small is good
+            return "success"
+        if v <= warn:
+            return "warning"
+        return "danger"
+    else:
+        if v >= good:  # big is good
+            return "success"
+        if v >= warn:
+            return "warning"
+        return "danger"
+
+def _kpi_card(card_id: str, title: str, big_text: str, color: str, tooltip_children) -> html.Div:
+    body = dbc.CardBody(
+        [
+            html.Div(title, className="text-muted small mb-1"),
+            html.Div(big_text, className="mb-0 fw-bold",
+                     style={"fontSize": "1.6rem", "lineHeight": "1.1"}),
+        ],
+        className="py-2 px-3",
+    )
+    card = dbc.Card(
+        body,
+        id=card_id,
+        color=color,
+        inverse=True,                 # white text on colored background
+        className="text-center shadow-sm h-100",
+        style={"minHeight": "88px"},
+    )
+    tip = dbc.Tooltip(tooltip_children, target=card_id,
+                      placement="bottom", autohide=True, className="text-start")
+    return html.Div([card, tip])
+
+def build_kpi_strip(data: dict) -> list:
+    """
+    KPI cards left→right:
+      1) Day (hover: months/years)
+      2) Fill Rate (Cumulative)
+      3) Sales (to date)
+      4) COGS (to date)
+      5) Inventory Overhead (ordering+holding+stockout+expedite)
+      6) GM% (gross margin, tooltip shows after-overhead too)
+    """
+    def _fmt_money(x): return format_money(float(x or 0.0))
+    def _fmt_pct(x):   return "—" if x is None else f"{x*100:.1f}%"
+
+    # Aggregates
+    st     = data.get("service_today", new_service_bucket())
+    tot    = data.get("service_totals", new_service_bucket())
+    costs  = data.get("costs", new_costs_bucket())
+    sales  = data.get("sales", new_sales_bucket())
+    day    = int(data.get("day", 1))
+
+    # --- Day card ---
+    months = day / 30.0
+    years  = day / 365.0
+    day_tip = html.Div([
+        html.Div(f"Simulation Day: {day}"),
+        html.Div(f"≈ {months:.1f} months (30-day)"),
+        html.Div(f"≈ {years:.2f} years (365-day)")
+    ])
+    day_card = dbc.Col(
+        _kpi_card("kpi-day", "Day", f"{day}d", "info", day_tip),
+        className="d-flex"
+    )
+
+    # --- Service (fill rate) ---
+    fill_total = None if tot["orders"] == 0 else (tot["orders"] - tot["orders_stockout"]) / tot["orders"]
+    fill_today = None if st["orders"] == 0 else (st["orders"] - st["orders_stockout"]) / st["orders"]
+    service_color = _color_from_thresholds(fill_total, good=0.95, warn=0.90, reverse=False)
+    service_tip = html.Div(
+        [
+            html.Div(f"Today — Orders: {st['orders']}, Stockouts: {st['orders_stockout']}"),
+            html.Div(f"Units — Ordered: {int(st['units_ordered'])}, Shipped: {int(st['units_shipped'])}, BO: {int(st['units_backordered'])}"),
+            html.Div(f"Zero On-Hand Hits: {st['zero_on_hand_hits']}"),
+            html.Hr(className="my-1"),
+            html.Div("Fill Rate (Today): " + _fmt_pct(fill_today)),
+            html.Div("Fill Rate (Cumulative): " + _fmt_pct(fill_total)),
+        ]
+    )
+
+    # --- P&L bits ---
+    revenue = float(sales.get("revenue", 0.0))
+    cogs    = float(sales.get("cogs", 0.0))
+    gross   = revenue - cogs
+    gm_pct  = None if revenue <= 0 else gross / max(1e-9, revenue)
+
+    inv_overhead = float(costs.get("ordering", 0.0)) + float(costs.get("holding", 0.0)) \
+                 + float(costs.get("stockout", 0.0)) + float(costs.get("expedite", 0.0))
+    after_overhead = gross - inv_overhead
+    after_overhead_pct = None if revenue <= 0 else after_overhead / max(1e-9, revenue)
+    gm_color = _color_from_thresholds(gm_pct, good=0.12, warn=0.08, reverse=False)
+
+    # Tooltips
+    cogs_tip = html.Div([html.Div(f"COGS (to date): {_fmt_money(cogs)}"),
+                         html.Small("COGS rises when units ship.")])
+    sales_tip = html.Div([html.Div(f"Revenue (to date): {_fmt_money(revenue)}"),
+                          html.Div(f"Units Sold: {int(sales.get('units_sold', 0))}")])
+    overhead_tip = html.Div(
+        [
+            html.Div(f"Ordering: {_fmt_money(costs.get('ordering', 0.0))}"),
+            html.Div(f"Holding: {_fmt_money(costs.get('holding', 0.0))}"),
+            html.Div(f"Stockout: {_fmt_money(costs.get('stockout', 0.0))}"),
+            html.Div(f"Expedite: {_fmt_money(costs.get('expedite', 0.0))}"),
+            html.Small("Overhead excludes inventory receipts."),
+        ]
+    )
+    gm_tip = html.Div(
+        [
+            html.Div(f"Gross Margin $: {_fmt_money(gross)}"),
+            html.Div(f"GM%: {_fmt_pct(gm_pct)}"),
+            html.Hr(className="my-1"),
+            html.Div(f"After Overhead $: {_fmt_money(after_overhead)}"),
+            html.Div(f"After Overhead %: {_fmt_pct(after_overhead_pct)}"),
+        ]
+    )
+
+    # Build row — note the "kpi-card" class is baked into _kpi_card above
+    return [
+        day_card,
+        dbc.Col(_kpi_card("kpi-service", "Fill Rate (Cumulative)", _fmt_pct(fill_total), service_color, service_tip),
+                className="d-flex"),
+        dbc.Col(_kpi_card("kpi-sales",   "Sales",                 _fmt_money(revenue),  "primary",      sales_tip),
+                className="d-flex"),
+        dbc.Col(_kpi_card("kpi-cogs",    "COGS (to date)",        _fmt_money(cogs),     "primary",      cogs_tip),
+                className="d-flex"),
+        dbc.Col(_kpi_card("kpi-allin",   "Inventory Overhead",    _fmt_money(inv_overhead), "primary",  overhead_tip),
+                className="d-flex"),
+        dbc.Col(_kpi_card("kpi-margin",  "GM%",                   _fmt_pct(gm_pct),     gm_color,       gm_tip),
+                className="d-flex"),
+    ]
+
+
+def build_po_overview_table(data: dict) -> list:
+    """Rows for the PO overview modal."""
+    today = data.get("day", 1)
+    rows = []
+    any_receipts = False
+    for idx, it in enumerate(data.get("items", [])):
+        for r in it.get("pipeline", []):
+            any_receipts = True
+            days_left = max(0, int(r["eta_day"]) - int(today))
+            rid = r["id"]
+            rows.append(
+                dbc.Row(
+                    [
+                        dbc.Col(html.P(str(idx + 1)), width=1),
+                        dbc.Col(html.P(str(rid)), width=2),
+                        dbc.Col(html.P(str(int(r["qty"]))), width=2),
+                        dbc.Col(html.P(str(int(r["eta_day"]))), width=2),
+                        dbc.Col(html.P(str(days_left)), width=2),
+                        dbc.Col(
+                            dbc.ButtonGroup(
+                                [
+                                    dbc.Button("Expedite -1d", id={"type": "po-expedite", "rid": rid},
+                                               size="sm", color="warning", className="me-2"),
+                                    dbc.Button("Cancel", id={"type": "po-cancel", "rid": rid},
+                                               size="sm", color="danger"),
+                                ]
+                            ),
+                            width=3,
+                        ),
+                    ],
+                    className="py-1",
+                )
+            )
+    if not any_receipts:
+        rows = [dbc.Alert("No open POs.", color="secondary")]
+
+    header = dbc.Row(
+        [
+            dbc.Col(html.Strong("Item #"), width=1),
+            dbc.Col(html.Strong("Receipt ID"), width=2),
+            dbc.Col(html.Strong("Qty"), width=2),
+            dbc.Col(html.Strong("ETA Day"), width=2),
+            dbc.Col(html.Strong("Days Left"), width=2),
+            dbc.Col(html.Strong("Actions"), width=3),
+        ],
+        className="mb-2",
+    )
+    return [header] + rows
+
+
+def build_custom_order_row(index: int, item: dict):
+    """Row builder for the custom order modal table."""
+    return dbc.Row(
+        [
+            dbc.Col(html.P(str(index + 1)), width=1),
+            dbc.Col(html.P(str(int(item.get("on_hand", 0))))),       # OH
+            dbc.Col(html.P(str(int(item_on_order(item))))),          # On-Order
+            dbc.Col(html.P(str(int(item.get("backorder", 0))))),     # BO
+            dbc.Col(html.P(str(round(item["usage_rate"])))),
+            dbc.Col(html.P(str(round(item["lead_time"])))),
+            dbc.Col(html.P(str(round(item["op"])))),
+            dbc.Col(html.P(str(round(item["lp"])))),
+            dbc.Col(html.P(str(round(item["oq"])))),
+            dbc.Col(
+                dbc.Input(
+                    value=int(round(item["soq"])),
+                    type="number",
+                    min=0,
+                    id={"type": "order-quantity", "index": index},
+                ),
+                width=2,
+            ),
+        ],
+        className="py-1",
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Layout (fixed Add Item + Excel upload inside modal; keeps ASQ + SOQ working)
+# ──────────────────────────────────────────────────────────────────────────────
 app.layout = dbc.Container(
     [
-        # Navigation Bar
+        # Top navbar
         dbc.NavbarSimple(
-            children=[
-                dbc.NavItem(dbc.NavLink("Inventory Management Simulator", href="#")),
-            ],
-            brand="CEEUS",
+            children=[dbc.NavItem(dbc.NavLink("Inventory Management Simulator", href="#"))],
+            brand="Company",
             brand_href="#",
             color="primary",
             dark=True,
+            className="py-1",
+            brand_style={"fontSize": "1rem", "fontWeight": 600},
+            style={"paddingTop": "0.25rem", "paddingBottom": "0.25rem"},
         ),
+
+        # Maintenance banner
+        html.Div(id="maintenance-banner", className="mt-3"),
+
+        # Main 2-column layout
         dbc.Row(
             [
+                # Left column: controls + params + KPIs
                 dbc.Col(
                     [
+                        # Controls
                         dbc.Card(
                             [
                                 dbc.CardHeader("Controls"),
                                 dbc.CardBody(
                                     [
-                                        dbc.Button(
-                                            "Start/Pause Simulation",
-                                            id="start-button",
-                                            n_clicks=0,
-                                            color="success",
-                                        ),
-                                        dbc.Button(
-                                            "Reset Simulation",
-                                            id="reset-button",
-                                            n_clicks=0,
-                                        ),
-                                        dbc.Button(
-                                            "Place Purchase Order",
-                                            id="po-button",
-                                            n_clicks=0,
-                                        ),
-                                        dbc.Button(
-                                            "Place Custom Order",
-                                            id="place-custom-order-button",
-                                            n_clicks=0,
-                                            color="warning",
-                                        ),
-                                        dbc.Button(
-                                            "Add Item",
-                                            id="add-item-button",
-                                            n_clicks=0,
-                                            color="info",
-                                        ),
+                                        dbc.Button("Start/Pause Simulation", id="start-button", n_clicks=0, color="success"),
+                                        dbc.Button("Reset Simulation", id="reset-button", n_clicks=0, className="ms-2"),
+                                        dbc.Button("Place Purchase Order", id="po-button", n_clicks=0, className="ms-2"),
+                                        dbc.Button("Place Custom Order", id="place-custom-order-button", n_clicks=0,
+                                                   color="warning", className="ms-2"),
+                                        dbc.Button("PO Overview", id="po-overview-button", n_clicks=0,
+                                                   color="info", className="ms-2"),
+                                        dbc.Button("Add Item", id="add-item-button", n_clicks=0,
+                                                   color="secondary", className="ms-2"),
+                                        html.Hr(className="my-2 border-secondary opacity-25"),
                                     ],
                                     className="vstack gap-2",
                                 ),
                             ],
-                            style={"margin-top": "10px"},
+                            style={"marginTop": "10px"},
                         ),
+
+                        # Parameters (collapsible like the metrics accordion)
                         dbc.Card(
                             [
-                                dbc.CardHeader("Parameters"),
+                                dbc.CardBody(
+                                    dbc.Accordion(
+                                        [
+                                            dbc.AccordionItem(
+                                                title="Parameters",
+                                                item_id="acc-params",
+                                                className="text-light",
+                                                children=[
+                                                    # --- Core parameters ---
+                                                    dbc.InputGroup(
+                                                        [dbc.InputGroupText("Review Cycle (Days):"),
+                                                        dbc.Input(id="review-cycle-input", type="number", value=14)],
+                                                        className="mb-1",
+                                                    ),
+                                                    dbc.InputGroup(
+                                                        [dbc.InputGroupText("R-Cost ($ per item ordered):"),
+                                                        dbc.Input(id="r-cost-input", type="number", value=8)],
+                                                        className="mb-1",
+                                                    ),
+                                                    dbc.InputGroup(
+                                                        [dbc.InputGroupText("K-Cost (%/yr):"),
+                                                        dbc.Input(id="k-cost-input", type="number", value=18.0)],
+                                                        className="mb-1",
+                                                    ),
+                                                    dbc.InputGroup(
+                                                        [dbc.InputGroupText("Stockout Penalty ($/unit):"),
+                                                        dbc.Input(id="stockout-penalty-input", type="number", value=5.0)],
+                                                        className="mb-1",
+                                                    ),
+                                                    dbc.InputGroup(
+                                                        [dbc.InputGroupText("Expedite Rate (% cost/unit/day):"),
+                                                        dbc.Input(id="expedite-rate-input", type="number", value=3.0)],
+                                                        className="mb-1",
+                                                    ),
+                                                    dbc.InputGroup(
+                                                        [dbc.InputGroupText("Global GM (%):"),
+                                                        dbc.Input(id="gm-input", type="number", value=15.0)],
+                                                        className="mb-1",
+                                                    ),
+
+                                                    html.Hr(className="my-1 border-secondary opacity-25"),
+
+                                                    # --- Auto-PO toggle (simple replenishment rule) ---
+                                                    dbc.Row(
+                                                        [
+                                                            dbc.Col(
+                                                                dbc.Switch(
+                                                                    id="auto-po-enabled",
+                                                                    label="Auto Purchase Orders (use SOQ when PNA ≤ LP, don't forget to click Update Parameters)",
+                                                                    value=False,
+                                                                    className="text-light",
+                                                                )
+                                                            )
+                                                        ],
+                                                        className="mb-1",
+                                                    ),
+
+                                                    # --- ASQ settings (still collapsible; button toned down to 'secondary') ---
+                                                    dbc.Button(
+                                                        "ASQ OP Adjuster Settings",
+                                                        id="toggle-asq-collapse",
+                                                        color="secondary",          # match 'Add Item'
+                                                        outline=False,
+                                                        size="sm",
+                                                        className="w-100 mb-1"
+                                                    ),
+                                                    dbc.Collapse(
+                                                        id="asq-collapse",
+                                                        is_open=False,
+                                                        className="text-light",
+                                                        children=[
+                                                            html.H6("ASQ OP Adjuster", className="mb-1"),
+                                                            dbc.Row(
+                                                                [
+                                                                    dbc.Col(
+                                                                        dbc.Switch(
+                                                                            id="asq-enabled",
+                                                                            label="Enable ASQ OP Adjuster",
+                                                                            value=True,
+                                                                            className="text-light",
+                                                                        )
+                                                                    )
+                                                                ],
+                                                                className="mb-1",
+                                                            ),
+                                                            dbc.InputGroup(
+                                                                [dbc.InputGroupText("ASQ Min Line Hits:"),
+                                                                dbc.Input(id="asq-min-hits", type="number", value=3, min=0)],
+                                                                className="mb-1",
+                                                            ),
+                                                            dbc.InputGroup(
+                                                                [dbc.InputGroupText("ASQ Max $ Diff:"),
+                                                                dbc.Input(id="asq-max-diff", type="number", value=2500.0, min=0, step=10)],
+                                                                className="mb-1",
+                                                            ),
+                                                            dbc.InputGroup(
+                                                                [dbc.InputGroupText("ASQ Period (Days):"),
+                                                                dbc.Input(id="asq-period-days", type="number", value=30, min=1)],
+                                                                className="mb-2",
+                                                            ),
+                                                            dbc.Row(
+                                                                [
+                                                                    dbc.Col(
+                                                                        dbc.Switch(
+                                                                            id="asq-include-transfers",
+                                                                            label="Include Transfers in ASQ",
+                                                                            value=False,
+                                                                            className="text-light",
+                                                                        )
+                                                                    )
+                                                                ],
+                                                                className="mb-2",
+                                                            ),
+                                                            dbc.Button(
+                                                                "Apply Month-End (ASQ) Now",
+                                                                id="apply-asq-button",
+                                                                n_clicks=0,
+                                                                color="warning",
+                                                                className="w-100 mb-1",
+                                                            ),
+                                                            dbc.Row(id="asq-apply-feedback"),
+                                                        ],
+                                                    ),
+
+                                                    dbc.Row(id="update-params-conf"),
+                                                    dbc.Button(
+                                                        "Update Parameters",
+                                                        id="update-params-button",
+                                                        n_clicks=0,
+                                                        color="primary",
+                                                        className="w-100",
+                                                    ),
+                                                ],
+                                            )
+                                        ],
+                                        start_collapsed=True,
+                                        always_open=False,
+                                        id="params-accordion",
+                                    ),
+                                    className="vstack gap-1",   # tighter vertical spacing
+                                )
+                            ],
+                            style={"marginTop": "10px"},
+                        ),
+
+                        # Simulation (status + speed) — not collapsible
+                        dbc.Card(
+                            [
+                                dbc.CardHeader("Simulation"),
                                 dbc.CardBody(
                                     [
-                                        dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText(
-                                                    "Review Cycle (Days):"
-                                                ),
-                                                dbc.Input(
-                                                    id="review-cycle-input",
-                                                    type="number",
-                                                    value=14,
-                                                ),
-                                            ]
-                                        ),
-                                        dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText("R-Cost ($):"),
-                                                dbc.Input(
-                                                    id="r-cost-input",
-                                                    type="number",
-                                                    value=8,
-                                                ),
-                                            ]
-                                        ),
-                                        dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText("K-Cost (%):"),
-                                                dbc.Input(
-                                                    id="k-cost-input",
-                                                    type="number",
-                                                    value=0.18 * 100,
-                                                ),
-                                            ]
-                                        ),
-                                        dbc.Row(id="update-params-conf"),
-                                        dbc.Button(
-                                            "Update Parameters",
-                                            id="update-params-button",
-                                            n_clicks=0,
-                                            color="primary",
-                                            className="w-100 mb-2",
-                                        ),
-                                        dbc.Label(
-                                            "Simulation Speed (ms):",
-                                            className="d-block mb-2",
-                                        ),
+                                        # Keep for callbacks but hide (Day now lives in top KPI cards)
+                                        html.Div(id="day-display", children=f"Day: {1}", style={"display": "none"}),
+
+                                        html.Div(id="sim-status", children="Status: Paused", className="mb-2"),
+
+                                        dbc.Label("Simulation Speed (ms):", className="d-block mb-1"),
                                         dcc.Slider(
                                             id="sim-speed-slider",
-                                            min=150,
-                                            max=2000,
-                                            value=600,
+                                            min=150, max=2000, value=600,
                                             marks={150: "Fast", 2000: "Slow"},
                                             step=50,
                                         ),
@@ -705,167 +1665,126 @@ app.layout = dbc.Container(
                                     className="vstack gap-2",
                                 ),
                             ],
-                            style={"margin-top": "10px"},
+                            style={"marginTop": "10px"},
                         ),
+
+                        # Metrics accordion only (Service • Costs • Sales & Margin)
                         dbc.Card(
                             [
                                 dbc.CardBody(
                                     [
-                                        html.Div(
-                                            id="day-display", children=f"Day: {1}"
+                                        dbc.Accordion(
+                                            [
+                                                dbc.AccordionItem(
+                                                    [
+                                                        html.Div(id="service-card"),
+                                                        html.Hr(className="my-2 border-secondary opacity-25"),
+                                                        html.Div(id="costs-card"),
+                                                        html.Hr(className="my-2 border-secondary opacity-25"),
+                                                        html.Div(id="sales-card"),
+                                                    ],
+                                                    title="Service • Costs • Sales & Margin",
+                                                    item_id="acc-all",
+                                                    className="text-light",
+                                                )
+                                            ],
+                                            start_collapsed=True,
+                                            always_open=False,
+                                            id="left-kpi-accordion",
                                         ),
-                                        html.Div(
-                                            id="sim-status", children="Status: Paused"
-                                        ),
-                                        html.Div(id="store-output"),
+                                        html.Div(id="store-output", style={"display": "none"}),
                                     ],
                                     className="vstack gap-2",
                                 )
                             ],
-                            style={"margin-top": "10px"},
+                            style={"marginTop": "10px"},
                         ),
+
+                        # Local stores
                         dcc.Store(id="user-data-store", storage_type="local", data={}),
                         dcc.Store(id="page-load", data=0),
                         dcc.Store(id="page-load-2", data=0),
                     ],
-                    width=2,
+                    width=3,
                 ),
-                # Right column for the graph
+
+                # Right column: KPI strip + graph
                 dbc.Col(
                     [
-                        dbc.Card(
+                        dbc.CardBody(
                             [
-                                dbc.CardHeader("Inventory Graph"),
-                                dbc.CardBody(
-                                    [
-                                        dcc.Graph(
-                                            id="inventory-graph",
-                                            style={"height": "80vh"},
-                                            figure=initial_graph(),
-                                        )
-                                    ]
+                                dbc.Row(
+                                    id="kpi-strip",
+                                    className="row-cols-2 row-cols-md-3 row-cols-lg-6 gx-3 gy-2 mb-2 align-items-stretch"
+                                ),
+                                dcc.Graph(
+                                    id="inventory-graph",
+                                    style={"height": "68vh"},
+                                    figure=px.scatter(title="Inventory Simulation"),
                                 ),
                             ]
                         )
                     ],
-                    width=10,
-                    style={"margin-top": "10px"},
+                    width=9,
+                    style={"marginTop": "10px"},
                 ),
             ]
         ),
-        dcc.Interval(
-            id="interval-component",
-            interval=600,
-            n_intervals=0,
-            max_intervals=-1,
-            disabled=True,
-        ),
+
+        # Tickers
+        dcc.Interval(id="interval-component", interval=600, n_intervals=0, max_intervals=-1, disabled=True),
+        dcc.Interval(id="shutdown-poll", interval=1000, n_intervals=0),
+
+        # Add Item modal (manual + upload back inside here)
         Modal(
             [
                 ModalHeader("Add New Item"),
                 ModalBody(
                     [
+                        # Manual add
                         dbc.Card(
                             [
                                 dbc.CardHeader("Manually Add Item"),
                                 dbc.CardBody(
                                     [
                                         dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText("Usage Rate:"),
-                                                dbc.Input(
-                                                    id="usage-rate-input",
-                                                    type="number",
-                                                    value=0,
-                                                ),
-                                            ],
-                                            style={"margin-bottom": "10px"},
+                                            [dbc.InputGroupText("Usage Rate (per month):"),
+                                             dbc.Input(id="usage-rate-input", type="number", value=20, min=1, step=1)]
                                         ),
                                         dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText("Lead Time:"),
-                                                dbc.Input(
-                                                    id="lead-time-input",
-                                                    type="number",
-                                                    value=0,
-                                                ),
-                                            ],
-                                            style={"margin-bottom": "10px"},
+                                            [dbc.InputGroupText("Lead Time (days):"),
+                                             dbc.Input(id="lead-time-input", type="number", value=30, min=1, step=1)]
                                         ),
                                         dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText("Item Cost:"),
-                                                dbc.Input(
-                                                    id="item-cost-input",
-                                                    type="number",
-                                                    value=0,
-                                                ),
-                                            ],
-                                            style={"margin-bottom": "10px"},
+                                            [dbc.InputGroupText("Item Cost ($):"),
+                                             dbc.Input(id="item-cost-input", type="number", value=100, min=0.01, step=0.01)]
                                         ),
                                         dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText("Initial PNA:"),
-                                                dbc.Input(
-                                                    id="pna-input",
-                                                    type="number",
-                                                    value=0,
-                                                ),
-                                            ],
-                                            style={"margin-bottom": "10px"},
+                                            [dbc.InputGroupText("Initial PNA (units):"),
+                                             dbc.Input(id="pna-input", type="number", value=50, min=0, step=1)]
                                         ),
                                         dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText(
-                                                    "Safety Allowance (%):"
-                                                ),
-                                                dbc.Input(
-                                                    id="safety-allowance-input",
-                                                    type="number",
-                                                    value=50,
-                                                ),
-                                            ],
-                                            style={"margin-bottom": "10px"},
+                                            [dbc.InputGroupText("Safety Allowance (%):"),
+                                             dbc.Input(id="safety-allowance-input", type="number", value=50, min=1, step=1)]
                                         ),
                                         dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText("Standard Pack:"),
-                                                dbc.Input(
-                                                    id="standard-pack-input",
-                                                    type="number",
-                                                    value=0,
-                                                ),
-                                            ],
-                                            style={"margin-bottom": "10px"},
+                                            [dbc.InputGroupText("Standard Pack:"),
+                                             dbc.Input(id="standard-pack-input", type="number", value=10, min=1, step=1)]
                                         ),
                                         dbc.InputGroup(
-                                            [
-                                                dbc.InputGroupText("Hits Per Month:"),
-                                                dbc.Input(
-                                                    id="hits-per-month-input",
-                                                    type="number",
-                                                    value=0,
-                                                ),
-                                            ],
-                                            style={"margin-bottom": "10px"},
+                                            [dbc.InputGroupText("Hits Per Month:"),
+                                             dbc.Input(id="hits-per-month-input", type="number", value=5, min=1, step=1)]
                                         ),
                                         dbc.Row(id="add-item-error"),
-                                        dbc.Button(
-                                            "Randomize",
-                                            id="randomize-button",
-                                            color="secondary",
-                                            className="me-md-2",
-                                        ),
-                                        dbc.Button(
-                                            "Add item",
-                                            id="submit-item-button",
-                                            color="primary",
-                                        ),
+                                        dbc.Button("Randomize", id="randomize-button", color="secondary", className="me-md-2"),
+                                        dbc.Button("Add item", id="submit-item-button", color="primary"),
                                     ],
                                     className="end",
                                 ),
                             ]
                         ),
+
+                        # Upload section (CSV / Excel)
                         dbc.Card(
                             [
                                 dbc.CardHeader("Upload Items"),
@@ -873,12 +1792,8 @@ app.layout = dbc.Container(
                                     [
                                         dcc.Upload(
                                             id="upload-item",
-                                            children=html.Div(
-                                                [
-                                                    "Drag and Drop or ",
-                                                    html.A("Select Files"),
-                                                ]
-                                            ),
+                                            children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
+                                            accept=".csv, .xls, .xlsx",
                                             style={
                                                 "width": "100%",
                                                 "height": "60px",
@@ -889,7 +1804,7 @@ app.layout = dbc.Container(
                                                 "textAlign": "center",
                                                 "margin": "10px",
                                             },
-                                            multiple=True,  # Allow multiple files to be uploaded
+                                            multiple=True,
                                         ),
                                         html.Div(id="output-item-upload"),
                                         dbc.Button(
@@ -897,53 +1812,51 @@ app.layout = dbc.Container(
                                             id="import-uploaded-items",
                                             color="primary",
                                             className="mt-2",
-                                            style={"display": "none"},
+                                            style={"display": "none"},  # reveals when preview validates
                                         ),
                                         html.Div(id="upload-feedback"),
                                         dcc.Store(id="upload-preview-data"),
                                     ]
                                 ),
                             ],
-                            style={"margin-top": "10px"},
+                            style={"marginTop": "10px"},
                         ),
                     ]
                 ),
             ],
             id="add-item-modal",
-            is_open=False,  # by default, the modal is not open
+            is_open=False,
             style={"maxHeight": "calc(95vh)", "overflowY": "auto"},
             size="lg",
         ),
+
+        # Custom Order modal
         Modal(
             [
                 ModalHeader("Place Custom Order"),
                 ModalBody(
                     [
                         dbc.Row(
-                            [  # This is the header row
-                                dbc.Col(html.Strong("Item Index"), width=2),
-                                dbc.Col(html.Strong("PNA")),
-                                dbc.Col(html.Strong("Usage Rate")),
+                            [
+                                dbc.Col(html.Strong("Item #"), width=1),
+                                dbc.Col(html.Strong("On Hand")),
+                                dbc.Col(html.Strong("On-Order")),
+                                dbc.Col(html.Strong("Backorder")),
+                                dbc.Col(html.Strong("Usage")),
                                 dbc.Col(html.Strong("Lead Time")),
                                 dbc.Col(html.Strong("OP")),
                                 dbc.Col(html.Strong("LP")),
                                 dbc.Col(html.Strong("OQ")),
-                                dbc.Col(html.Strong("Order Quantity"), width=2),
+                                dbc.Col(html.Strong("Order Qty"), width=2),
                             ]
                         ),
-                        html.Div(
-                            id="custom-order-items-div"
-                        ),  # This is where the items will be populated
+                        html.Div(id="custom-order-items-div"),
                     ]
                 ),
                 ModalFooter(
                     [
-                        dbc.Button(
-                            "Cancel", id="cancel-custom-order-button", color="secondary"
-                        ),
-                        dbc.Button(
-                            "Place Order", id="place-order-button", color="primary"
-                        ),
+                        dbc.Button("Cancel", id="cancel-custom-order-button", color="secondary"),
+                        dbc.Button("Place Order", id="place-order-button", color="primary"),
                     ]
                 ),
             ],
@@ -952,34 +1865,50 @@ app.layout = dbc.Container(
             style={"maxHeight": "calc(95vh)", "overflowY": "auto"},
             size="lg",
         ),
+
+        # PO Overview modal
+        Modal(
+            [
+                ModalHeader("PO Overview"),
+                ModalBody([html.Div(id="po-overview-table")]),
+                ModalFooter([dbc.Button("Close", id="po-overview-close", color="secondary")]),
+            ],
+            id="po-overview-modal",
+            is_open=False,
+            size="lg",
+            style={"maxHeight": "calc(95vh)", "overflowY": "auto"},
+        ),
     ],
     fluid=True,
 )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Callbacks
+# ──────────────────────────────────────────────────────────────────────────────
+
 @app.callback(
     Output("user-data-store", "data", allow_duplicate=True),
     Input("page-load", "data"),
     State("user-data-store", "data"),
-    prevent_initial_call="initial_duplicate",
+    prevent_initial_call=True,
 )
 def ensure_uuid_on_load(page_load, data):
+    """Ensure client-side store has a uuid when the page first loads."""
     data = data or {}
     if not data.get("uuid"):
         data["uuid"] = str(uuid.uuid4())
     return data
 
 
-# Callback to set a new UUID for each session
 @app.callback(
-    Output("user-data-store", "data"),
-    Input(
-        "user-data-store", "modified_timestamp"
-    ),  # This is an internal property of dcc.Store
+    Output("user-data-store", "data", allow_duplicate=True),
+    Input("user-data-store", "modified_timestamp"),
     State("user-data-store", "data"),
-    prevent_initial_call=True,  # Prevent running on app load
+    prevent_initial_call=True,
 )
 def set_uuid(ts, data):
+    """Fallback: set uuid when local store first changes."""
     if ts is None or (data and isinstance(data, dict) and data.get("uuid")):
         raise PreventUpdate
     base = data if isinstance(data, dict) else {}
@@ -990,53 +1919,129 @@ def set_uuid(ts, data):
         raise PreventUpdate
 
 
+def render_service_costs(data: dict):
+    """Helper to render both cards together; kept for compatibility."""
+    return service_card_children(data), costs_card_children(data)
+
+
 @app.callback(
     [
         Output("day-display", "children", allow_duplicate=True),
         Output("inventory-graph", "figure", allow_duplicate=True),
+        Output("service-card", "children", allow_duplicate=True),
+        Output("costs-card", "children", allow_duplicate=True),
+        Output("sales-card", "children", allow_duplicate=True),
+        Output("asq-apply-feedback", "children", allow_duplicate=True),
     ],
-    [Input("interval-component", "n_intervals")],
-    [State("user-data-store", "data")],
+    Input("interval-component", "n_intervals"),
+    State("user-data-store", "data"),
     prevent_initial_call=True,
 )
 def update_on_interval(n_intervals, client_data):
+    """One simulation tick: advance a day, run items in parallel, update KPIs, and apply ASQ at period end."""
     if not n_intervals or not client_data:
         raise PreventUpdate
-
     uuid_val = client_data.get("uuid")
     if not uuid_val:
         raise PreventUpdate
 
-    current_data = get_user_data(uuid_val)
-
-    if not current_data.get("is_initialized", False):
-        # If simulation is not initialized, don't proceed
+    current = get_user_data(uuid_val)
+    if not current.get("is_initialized", False) or not current.get("items"):
         raise PreventUpdate
 
-    if not current_data or "items" not in current_data or not current_data["items"]:
-        # If there are no items, don't proceed
-        raise PreventUpdate
+    # Advance day
+    today = int(current.get("day", 1)) + 1
+    current["day"] = today
 
-    # Update the day count
-    day_count = current_data.get("day", 1) + 1
-    current_data["day"] = day_count
+    gs = current["global_settings"]
+    asq_cfg = dict(gs.get("asq", asq_defaults()))
+    period_days = max(1, int(asq_cfg.get("period_days", 30)))
+
+    # Reset today's service
+    current["service_today"] = new_service_bucket()
+    holding_today = 0.0
+    stockout_today_cost = 0.0
+    revenue_today = 0.0
+    cogs_today = 0.0
+    purchases_today = 0.0
 
     # Process each item
-    futures = [executor.submit(process_item, item) for item in current_data["items"]]
-    current_data["items"] = [future.result() for future in futures]
+    futures = [executor.submit(process_item_day, item, today, gs) for item in current["items"]]
+    new_items = []
+    for fut in futures:
+        it, met = fut.result()
+        new_items.append(it)
 
-    # Update the graph based on the processed items
-    fig = update_graph_based_on_items(
-        current_data["items"], current_data["global_settings"]
+        # Aggregate service
+        for k in [
+            "orders",
+            "orders_stockout",
+            "units_ordered",
+            "units_shipped",
+            "units_backordered",
+            "zero_on_hand_hits",
+        ]:
+            current["service_today"][k] += met[k]
+            current["service_totals"][k] += met[k]
+
+        # Aggregate costs & sales
+        holding_today += met["holding_add"]
+        stockout_today_cost += met["stockout_add"]
+        revenue_today += met["revenue_add"]
+        cogs_today += met["cogs_add"]
+        purchases_today += met.get("purchases_add", 0.0)
+
+    current["items"] = new_items
+
+    # Auto-PO rule: when enabled, place SOQ orders automatically
+    if gs.get("auto_po_enabled", False):
+        _ = place_purchase_orders(
+            current=current,
+            today=today,
+            gs=gs,
+            recompute_total=False,  # total recomputed below
+        )
+
+    # Update costs
+    current["costs"]["holding"] += holding_today
+    current["costs"]["stockout"] += stockout_today_cost
+    current["costs"]["purchases"] += purchases_today
+    current["costs"]["total"] = (
+        current["costs"]["ordering"]
+        + current["costs"]["holding"]
+        + current["costs"]["stockout"]
+        + current["costs"]["expedite"]
     )
 
-    # Save updated data back to user-data-store (this will depend on your implementation of set_user_data)
-    set_user_data(uuid_val, current_data)
+    # Update sales
+    current.setdefault("sales", new_sales_bucket())
+    current["sales"]["revenue"] += revenue_today
+    current["sales"]["cogs"] += cogs_today
+    current["sales"]["units_sold"] += current["service_today"]["units_shipped"]
 
-    # Construct the day display string
-    day_display = f"Day: {day_count}"
+    # Month-end ASQ application (every N days)
+    asq_feedback = dash.no_update
+    if today % period_days == 0:
+        summary = apply_asq_month_end(current)
+        asq_feedback = dbc.Alert(
+            f"ASQ month-end applied — OP raised on {summary['changed']} item(s).",
+            color="info",
+            duration=4000,
+        )
 
-    return day_display, fig
+    # Persist + redraw
+    fig = update_graph_based_on_items(current["items"], gs)
+    set_user_data(uuid_val, current)
+    save_data()
+
+    return (
+        f"Day: {today}",
+        fig,
+        service_card_children(current),
+        costs_card_children(current),
+        sales_card_children(current),
+        asq_feedback,
+    )
 
 
 @app.callback(
@@ -1046,29 +2051,27 @@ def update_on_interval(n_intervals, client_data):
         Output("start-button", "children"),
         Output("start-button", "color"),
     ],
-    [Input("start-button", "n_clicks")],
-    [State("user-data-store", "data"), State("interval-component", "disabled")],
+    Input("start-button", "n_clicks"),
+    State("user-data-store", "data"),
+    State("interval-component", "disabled"),
     prevent_initial_call=True,
 )
 def toggle_simulation(n_clicks, client_data, is_disabled):
+    """Start/pause the simulation clock."""
     if not n_clicks or not client_data:
         raise PreventUpdate
-
     uuid_val = (client_data or {}).get("uuid")
     if not uuid_val:
         raise PreventUpdate
 
-    current_data = get_user_data(uuid_val)
+    current = get_user_data(uuid_val)
 
-    # Toggle the simulation status based on whether it is currently paused or running.
     if is_disabled:
-        # If the simulation is currently disabled/paused, start it.
-        current_data["is_initialized"] = True
-        set_user_data(uuid_val, current_data)
+        current["is_initialized"] = True
+        set_user_data(uuid_val, current)
         save_data()
         return "Status: Running", False, "Pause Simulation", "warning"
     else:
-        # If the simulation is running, pause it.
         return "Status: Paused", True, "Resume Simulation", "success"
 
 
@@ -1082,35 +2085,39 @@ def toggle_simulation(n_clicks, client_data, is_disabled):
         Output("start-button", "children", allow_duplicate=True),
         Output("start-button", "color", allow_duplicate=True),
         Output("start-button", "disabled", allow_duplicate=True),
+        Output("service-card", "children", allow_duplicate=True),
+        Output("costs-card", "children", allow_duplicate=True),
+        Output("sales-card", "children", allow_duplicate=True),
+        Output("asq-apply-feedback", "children", allow_duplicate=True),
     ],
-    [Input("reset-button", "n_clicks")],
-    [State("user-data-store", "data")],
+    Input("reset-button", "n_clicks"),
+    State("user-data-store", "data"),
     prevent_initial_call=True,
 )
 def reset_simulation(n_clicks, client_data):
+    """Reset the whole simulation/session to defaults (keep same uuid)."""
     if not n_clicks:
         raise PreventUpdate
 
-    # fresh defaults
     default_data = get_default_data()
-    default_data["day"] = 1
-    # keep the same session bucket
     uuid_val = (client_data or {}).get("uuid", "__anon__")
     set_user_data(uuid_val, default_data)
     save_data()
 
-    # empty/initial figure
-    fig = initial_graph(default_data)
-
+    fig = update_graph_based_on_items(default_data["items"], default_data["global_settings"])
     return (
-        f"Day: {default_data['day']}",  # day-display
-        fig,  # inventory-graph
-        "Status: Paused",  # sim-status
-        default_data,  # user-data-store
-        True,  # interval disabled (paused)
-        "Start Simulation",  # start-button text
-        "success",  # start-button color
-        False,  # start-button enabled
+        f"Day: {default_data['day']}",
+        fig,
+        "Status: Paused",
+        default_data,
+        True,
+        "Start Simulation",
+        "success",
+        False,
+        service_card_children(default_data),
+        costs_card_children(default_data),
+        sales_card_children(default_data),
+        dash.no_update,
     )
 
 
@@ -1119,6 +2126,9 @@ def reset_simulation(n_clicks, client_data):
         Output("add-item-modal", "is_open"),
         Output("add-item-error", "children"),
         Output("inventory-graph", "figure", allow_duplicate=True),
+        Output("service-card", "children", allow_duplicate=True),
+        Output("costs-card", "children", allow_duplicate=True),
+        Output("sales-card", "children", allow_duplicate=True),
     ],
     [Input("add-item-button", "n_clicks"), Input("submit-item-button", "n_clicks")],
     [
@@ -1147,67 +2157,48 @@ def handle_add_item_and_update_graph(
     hits_per_month,
     client_data,
 ):
+    """Open add-item modal or accept a new item and refresh graph/KPIs."""
     if ctx.triggered_id is None:
-        return is_open, dash.no_update, dash.no_update
+        raise PreventUpdate
 
-    button_id = ctx.triggered_id
-    if button_id == "add-item-button":
-        # Toggle modal without validating inputs
-        return not is_open, dash.no_update, dash.no_update
+    if ctx.triggered_id == "add-item-button":
+        return (not is_open), dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
-    if button_id == "submit-item-button":
-        # Validate inputs
-        all_inputs = [
-            usage_rate,
-            lead_time,
-            item_cost,
-            pna,
-            safety_allowance,
-            standard_pack,
-            hits_per_month,
-        ]
+    if ctx.triggered_id == "submit-item-button":
+        all_inputs = [usage_rate, lead_time, item_cost, pna, safety_allowance, standard_pack, hits_per_month]
         if any(i is None for i in all_inputs):
             return (
                 is_open,
-                dbc.Alert(
-                    "All fields must be filled out!", color="warning", duration=4000
-                ),
+                dbc.Alert("All fields must be filled out!", color="warning", duration=4000),
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
                 dash.no_update,
             )
-
-        if any(
-            i <= 0
-            for i in [
-                usage_rate,
-                lead_time,
-                item_cost,
-                safety_allowance,
-                standard_pack,
-                hits_per_month,
-            ]
-        ):
+        if any(i <= 0 for i in [usage_rate, lead_time, item_cost, safety_allowance, standard_pack, hits_per_month]):
             return (
                 is_open,
-                dbc.Alert(
-                    "All item parameters except PNA must be greater than 0!",
-                    color="warning",
-                    duration=4000,
-                ),
+                dbc.Alert("All params except PNA must be > 0!", color="warning", duration=4000),
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
                 dash.no_update,
             )
 
-        # Add the new item
         uuid_val = (client_data or {}).get("uuid")
         if not uuid_val:
             return (
                 is_open,
                 dbc.Alert("Session not initialized.", color="danger", duration=4000),
                 dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
             )
-        current_data = get_user_data(uuid_val)
-        gs = current_data.get("global_settings", create_global_settings())
 
-        # Build item from modal inputs (safety_allowance is provided as percent in the UI)
+        current = get_user_data(uuid_val)
+        gs = current.get("global_settings", get_default_data()["global_settings"])
+
         item = create_inventory_item(
             usage_rate=usage_rate,
             lead_time=lead_time,
@@ -1218,20 +2209,12 @@ def handle_add_item_and_update_graph(
             global_settings=gs,
             hits_per_month=max(1.0, hits_per_month),
         )
-
-        current_data.setdefault("items", []).append(item)
-        set_user_data(uuid_val, current_data)
-
-        # Update the graph
-        fig = update_graph_based_on_items(
-            current_data["items"], current_data["global_settings"]
-        )
-
-        set_user_data(uuid_val, current_data)
+        current.setdefault("items", []).append(item)
+        set_user_data(uuid_val, current)
         save_data()
 
-        # Close the modal and clear any error message, then return the updated graph
-        return False, None, fig
+        fig = update_graph_based_on_items(current["items"], current["global_settings"])
+        return False, None, fig, service_card_children(current), costs_card_children(current), sales_card_children(current)
 
     raise PreventUpdate
 
@@ -1240,122 +2223,198 @@ def handle_add_item_and_update_graph(
     [
         Output("update-params-conf", "children"),
         Output("inventory-graph", "figure", allow_duplicate=True),
-    ],  # Assuming this is the ID of your graph
-    [Input("update-params-button", "n_clicks")],
+        Output("service-card", "children", allow_duplicate=True),
+        Output("costs-card", "children", allow_duplicate=True),
+        Output("sales-card", "children", allow_duplicate=True),
+    ],
+    Input("update-params-button", "n_clicks"),
     [
         State("review-cycle-input", "value"),
         State("r-cost-input", "value"),
         State("k-cost-input", "value"),
+        State("stockout-penalty-input", "value"),
+        State("expedite-rate-input", "value"),
+        State("gm-input", "value"),
+        State("auto-po-enabled", "value"),
+        # ASQ settings
+        State("asq-enabled", "value"),
+        State("asq-min-hits", "value"),
+        State("asq-max-diff", "value"),
+        State("asq-period-days", "value"),
+        State("asq-include-transfers", "value"),
         State("user-data-store", "data"),
     ],
     prevent_initial_call=True,
 )
-def update_parameters(n_clicks, review_cycle, r_cost, k_cost, client_data):
+def update_parameters(
+    n_clicks,
+    review_cycle,
+    r_cost,
+    k_cost_pct,
+    stockout_penalty,
+    expedite_rate_pct,
+    gm_pct,
+    auto_po_enabled,
+    asq_enabled,
+    asq_min_hits,
+    asq_max_diff,
+    asq_period_days,
+    asq_include_transfers,
+    client_data,
+):
+    """Apply global parameter changes (including ASQ config) and recompute planning."""
     if not n_clicks:
         raise PreventUpdate
+    
+    if auto_po_enabled is None:
+        auto_po_enabled = False
 
-    # Input validation
-    if review_cycle is None or r_cost is None or k_cost is None:
+    if None in (review_cycle, r_cost, k_cost_pct, stockout_penalty, expedite_rate_pct, gm_pct,
+                asq_min_hits, asq_max_diff, asq_period_days):
         return (
-            dbc.Alert(
-                "Please fill out all parameters!", color="warning", duration=4000
-            ),
-            dash.no_update,
+            dbc.Alert("Please fill out all parameters!", color="warning", duration=4000),
+            dash.no_update, dash.no_update, dash.no_update, dash.no_update,
         )
 
-    if review_cycle <= 0 or r_cost <= 0 or k_cost <= 0:
+    if (
+        review_cycle <= 0
+        or r_cost <= 0
+        or k_cost_pct <= 0
+        or stockout_penalty < 0
+        or expedite_rate_pct < 0
+        or gm_pct < 0 or gm_pct >= 100
+        or asq_min_hits < 0
+        or asq_max_diff < 0
+        or asq_period_days <= 0
+    ):
         return (
-            dbc.Alert(
-                "All parameters must be greater than 0!", color="danger", duration=4000
-            ),
-            dash.no_update,
+            dbc.Alert("Invalid parameter values.", color="danger", duration=4000),
+            dash.no_update, dash.no_update, dash.no_update, dash.no_update,
         )
 
-    # Extract the UUID from client_data and get the current data
     uuid_val = (client_data or {}).get("uuid")
     if not uuid_val:
         raise PreventUpdate
 
-    current_data = get_user_data(uuid_val)
-    if "global_settings" not in current_data:
+    current = get_user_data(uuid_val)
+    if "global_settings" not in current:
         return (
             dbc.Alert("Global settings not found.", color="danger", duration=4000),
-            dash.no_update,
+            dash.no_update, dash.no_update, dash.no_update, dash.no_update,
         )
 
-    # Update global settings with new values
-    current_data["global_settings"] = update_global_settings(
-        current_data["global_settings"],
-        review_cycle,
-        r_cost,
-        k_cost
-        / 100,  # Assuming k_cost was provided as a percentage and needs to be converted to a decimal
+    # Standard globals
+    current["global_settings"] = update_global_settings(
+        current["global_settings"],
+        int(review_cycle),
+        float(r_cost),
+        float(k_cost_pct) / 100.0,         # % → decimal
+        float(stockout_penalty),
+        float(expedite_rate_pct) / 100.0,  # % → decimal
+        float(gm_pct) / 100.0,             # % → decimal
     )
 
-    # Save the updated global settings back to the user's data store
-    set_user_data(uuid_val, current_data)
+    current["global_settings"]["auto_po_enabled"] = bool(auto_po_enabled)
 
-    # Update all items based on the new global settings
-    if "items" in current_data:
-        for i, item in enumerate(current_data["items"]):
-            current_data["items"][i] = update_gs_related_values(
-                item, current_data["global_settings"]
-            )
+    # ASQ config
+    current["global_settings"]["asq"] = {
+        "enabled": bool(asq_enabled),
+        "min_hits": int(asq_min_hits),
+        "include_transfers": bool(asq_include_transfers),
+        "max_amount_diff": float(asq_max_diff),
+        "period_days": int(asq_period_days),
+    }
 
-        set_user_data(uuid_val, current_data)
-        # Now update the graph based on the updated items
-        fig = update_graph_based_on_items(
-            current_data["items"], current_data["global_settings"]
-        )
-    else:
-        fig = dash.no_update  # Or set to an empty figure if no items exist
+    # Recompute planning fields for all items (OP unchanged here)
+    if current.get("items"):
+        current["items"] = [update_gs_related_values(it, current["global_settings"]) for it in current["items"]]
 
-    set_user_data(uuid_val, current_data)
+    set_user_data(uuid_val, current)
     save_data()
 
-    # Provide user feedback
+    fig = update_graph_based_on_items(current["items"], current["global_settings"])
     return (
-        dbc.Alert("Parameters updated successfully!", color="success", duration=4000),
+        dbc.Alert("Parameters updated!", color="success", duration=3000),
         fig,
+        service_card_children(current),
+        costs_card_children(current),
+        sales_card_children(current),
     )
 
 
 @app.callback(
-    Output("inventory-graph", "figure", allow_duplicate=True),
-    [Input("po-button", "n_clicks")],
-    [State("user-data-store", "data")],
+    [
+        Output("asq-apply-feedback", "children", allow_duplicate=True),
+        Output("inventory-graph", "figure", allow_duplicate=True),
+        Output("service-card", "children", allow_duplicate=True),
+        Output("costs-card", "children", allow_duplicate=True),
+        Output("sales-card", "children", allow_duplicate=True),
+    ],
+    Input("apply-asq-button", "n_clicks"),
+    State("user-data-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_apply_asq_now(n_clicks, client_data):
+    """Manually trigger month-end ASQ application."""
+    if not n_clicks:
+        raise PreventUpdate
+    uuid_val = (client_data or {}).get("uuid")
+    if not uuid_val:
+        raise PreventUpdate
+    current = get_user_data(uuid_val)
+    if not current.get("items"):
+        return dbc.Alert("No items to adjust.", color="secondary", duration=3000), dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+    summary = apply_asq_month_end(current)
+    set_user_data(uuid_val, current)
+    save_data()
+    fig = update_graph_based_on_items(current["items"], current["global_settings"])
+    alert = dbc.Alert(
+        f"ASQ applied — OP raised on {summary['changed']} item(s).",
+        color="info",
+        duration=4000,
+    )
+    return alert, fig, service_card_children(current), costs_card_children(current), sales_card_children(current)
+
+
+@app.callback(
+    [
+        Output("inventory-graph", "figure", allow_duplicate=True),
+        Output("costs-card", "children", allow_duplicate=True),
+        Output("service-card", "children", allow_duplicate=True),
+        Output("sales-card", "children", allow_duplicate=True),
+    ],
+    Input("po-button", "n_clicks"),
+    State("user-data-store", "data"),
     prevent_initial_call=True,
 )
 def handle_purchase_order(n_clicks, client_data):
+    """Manual: user presses the button → place SOQs once."""
     if not n_clicks:
         raise PreventUpdate
-
-    # Extract the UUID from client_data and get the current data
     uuid_val = (client_data or {}).get("uuid")
     if not uuid_val:
         raise PreventUpdate
 
-    current_data = get_user_data(uuid_val)
-    if not current_data or "items" not in current_data or not current_data["items"]:
+    current = get_user_data(uuid_val)
+    if not current.get("items"):
         raise PreventUpdate
 
-    # Increase the PNA of each item by its SOQ and update item details accordingly
-    for i, item in enumerate(current_data["items"]):
-        item["pna"] += item["soq"]
-        current_data["items"][i] = update_pna_related_values(item)
+    gs = current["global_settings"]
+    today = int(current["day"])
 
-    # Save the updated item data back to the user's data store
-    set_user_data(uuid_val, current_data)
-
-    # Now update the graph based on the updated items
-    fig = update_graph_based_on_items(
-        current_data["items"], current_data["global_settings"]
+    _ = place_purchase_orders(
+        current=current,
+        today=today,
+        gs=gs,
+        recompute_total=True,  # reflect ordering cost immediately in the UI
     )
 
-    set_user_data(uuid_val, current_data)
+    set_user_data(uuid_val, current)
     save_data()
 
-    return fig
+    fig = update_graph_based_on_items(current["items"], current["global_settings"])
+    return fig, costs_card_children(current), service_card_children(current), sales_card_children(current)
 
 
 @app.callback(
@@ -1368,6 +2427,9 @@ def handle_purchase_order(n_clicks, client_data):
         Output("start-button", "children", allow_duplicate=True),
         Output("start-button", "color", allow_duplicate=True),
         Output("start-button", "disabled", allow_duplicate=True),
+        Output("costs-card", "children", allow_duplicate=True),
+        Output("service-card", "children", allow_duplicate=True),
+        Output("sales-card", "children", allow_duplicate=True),
     ],
     [
         Input("place-custom-order-button", "n_clicks"),
@@ -1389,51 +2451,36 @@ def handle_custom_order_and_modal_actions(
     client_data,
     is_interval_disabled,
 ):
-
+    """Handle open/close custom order modal and placing custom POs."""
     if ctx.triggered_id is None:
-        return (
-            dash.no_update,
-            dash.no_update,
-            False,
-            dash.no_update,
-            is_interval_disabled,
-            dash.no_update,
-            dash.no_update,
-            dash.no_update,
-        )
+        raise PreventUpdate
 
     uuid_val = (client_data or {}).get("uuid")
     if not uuid_val:
-        return (
-            dash.no_update,
-            dash.no_update,
-            False,
-            dash.no_update,
-            is_interval_disabled,
-            dash.no_update,
-            dash.no_update,
-            dash.no_update,
-        )
+        raise PreventUpdate
 
-    current_data = get_user_data(uuid_val)
-    items = current_data.get("items", [])
-    item_rows = [build_row(index, item) for index, item in enumerate(items)]
+    current = get_user_data(uuid_val)
+    items = current.get("items", [])
+    rows = [build_custom_order_row(index, it) for index, it in enumerate(items)]
 
+    # Open modal
     if ctx.triggered_id == "place-custom-order-button":
-        # Open modal AND pause sim; set button to "Resume Simulation"
         return (
             dash.no_update,
-            item_rows,
+            rows,
             True,
             "Status: Paused",
             True,
             "Resume Simulation",
             "success",
             True,
+            costs_card_children(current),
+            service_card_children(current),
+            sales_card_children(current),
         )
 
-    elif ctx.triggered_id == "cancel-custom-order-button":
-        # Close modal and keep it paused (consistent with your choice)
+    # Cancel modal
+    if ctx.triggered_id == "cancel-custom-order-button":
         return (
             dash.no_update,
             dash.no_update,
@@ -1443,209 +2490,116 @@ def handle_custom_order_and_modal_actions(
             "Resume Simulation",
             "success",
             False,
+            costs_card_children(current),
+            service_card_children(current),
+            sales_card_children(current),
         )
 
-    elif ctx.triggered_id == "place-order-button":
+    # Place custom orders
+    if ctx.triggered_id == "place-order-button":
         if not items:
             return (
                 dash.no_update,
-                dbc.Alert("No items available for ordering.", color="warning"),
+                dbc.Alert("No items available.", color="warning"),
                 True,
                 "Status: Paused",
                 True,
                 "Resume Simulation",
                 "success",
                 True,
+                costs_card_children(current),
+                service_card_children(current),
+                sales_card_children(current),
             )
 
-        for index, quantity in enumerate(order_quantities):
-            if quantity is None or float(quantity) < 0:
-                item_rows = update_custom_order_items_div(
-                    items, order_quantities, error_index=index
-                )
-                return (
-                    dash.no_update,
-                    item_rows,
-                    True,
-                    "Status: Paused",
-                    True,
-                    "Resume Simulation",
-                    "success",
-                    True,
-                )
+        gs = current["global_settings"]
+        today = current["day"]
+        changed = False
 
-        for index, quantity in enumerate(order_quantities):
-            q = float(quantity)
-            item = items[index]
-            item["pna"] += q
-            items[index] = update_pna_related_values(item)
+        for index, qty in enumerate(order_quantities or []):
+            if qty is None:
+                continue
+            q = max(0.0, float(qty))
+            if q <= 0:
+                continue
+            it = items[index]
+            q = round_to_pack(q, it["standard_pack"])
+            if q <= 0:
+                continue
 
-        set_user_data(uuid_val, current_data)
+            rid = str(uuid.uuid4())[:8]
+            eta = int(today + math.ceil(max(1.0, float(it["lead_time"]))))
+            it["pipeline"].append({"id": rid, "qty": q, "eta_day": eta})
+            current["costs"]["ordering"] += float(gs["r_cost"])
+            update_planning_fields(it, gs)
+            changed = True
+
+        if changed:
+            current["costs"]["total"] = (
+                current["costs"]["ordering"]
+                + current["costs"]["holding"]
+                + current["costs"]["stockout"]
+                + current["costs"]["expedite"]
+            )
+
+        set_user_data(uuid_val, current)
         save_data()
-        fig = update_graph_based_on_items(items, current_data["global_settings"])
-
-        # Close the modal and keep paused; set button to "Resume Simulation"
+        fig = update_graph_based_on_items(items, current["global_settings"])
         return (
             fig,
-            item_rows,
+            rows,
             False,
             "Status: Paused",
             True,
             "Resume Simulation",
             "success",
             False,
+            costs_card_children(current),
+            service_card_children(current),
+            sales_card_children(current),
         )
 
-    # If no custom order is placed, do not update anything
-    return (
-        dash.no_update,
-        dash.no_update,
-        dash.no_update,
-        dash.no_update,
-        dash.no_update,
-        dash.no_update,
-        dash.no_update,
-        dash.no_update,
-    )
+    raise PreventUpdate
 
 
-def update_custom_order_items_div(items, order_quantities, error_index=None):
-    item_rows = []
-    for index, item in enumerate(items):
-        row = build_row(index, item)
-        if index == error_index:
-            # Add an error message or styling to the row
-            row = html.Div(
-                [row, dbc.Alert("Invalid quantity!", color="danger", duration=4000)]
-            )
-        item_rows.append(row)
-    return item_rows
-
-
-def build_row(index, item):
-    # This helper function builds a single row of item data
-    return dbc.Row(
-        [
-            dbc.Col(html.P(str(index + 1)), width=2),
-            dbc.Col(html.P(str(round(item["pna"])))),
-            dbc.Col(html.P(str(round(item["usage_rate"])))),
-            dbc.Col(html.P(str(round(item["lead_time"])))),
-            dbc.Col(html.P(str(round(item["op"])))),
-            dbc.Col(html.P(str(round(item["lp"])))),
-            dbc.Col(html.P(str(round(item["oq"])))),
-            dbc.Col(
-                dbc.Input(
-                    value=round(item["soq"]),
-                    id={"type": "order-quantity", "index": index},
-                )
-            ),
-        ]
-    )
-
-
-@app.callback(
-    [
-        Output("review-cycle-input", "value"),
-        Output("r-cost-input", "value"),
-        Output("k-cost-input", "value"),
-        Output("page-load-2", "data"),
-    ],
-    [Input("update-params-button", "n_clicks")],
-    [State("user-data-store", "data"), State("page-load-2", "data")],
-)
-def update_input_values_from_data_store(n_clicks, data, page_load):
-    data = data or {}
-    if page_load == 0:
-        uuid_val = data.get("uuid")
-        current_data = get_user_data(uuid_val) if uuid_val else get_default_data()
-        global_settings = current_data.get("global_settings", {})
-        return (
-            global_settings.get("r_cycle", 14),
-            global_settings.get("r_cost", 8),
-            global_settings.get("k_cost", 0.18) * 100,
-            1,
-        )  # Return defaults if not found
-    if not n_clicks:
-        raise PreventUpdate
-    uuid_val = data.get("uuid")
-    current_data = get_user_data(uuid_val) if uuid_val else get_default_data()
-    # Extract the global settings
-    global_settings = current_data.get("global_settings", {})
-    return (
-        global_settings.get("r_cycle", 14),
-        global_settings.get("r_cost", 8),
-        global_settings.get("k_cost", 0.18) * 100,
-        dash.no_update,
-    )  # Return defaults if not found
-
-
-@app.callback(
-    [
-        Output("usage-rate-input", "value"),
-        Output("lead-time-input", "value"),
-        Output("item-cost-input", "value"),
-        Output("pna-input", "value"),
-        Output("safety-allowance-input", "value"),
-        Output("standard-pack-input", "value"),
-        Output("hits-per-month-input", "value"),
-    ],
-    [Input("randomize-button", "n_clicks")],
-)
-def randomize_item_values(n):
-    if not n:
-        raise PreventUpdate
-
-    rng = _rng()
-    usage = int(rng.integers(1, 101))
-    lead = 0
-    while lead < 7:
-        lead = int(abs(rng.normal(30, 30)))
-    cost = max(1, int(abs(rng.normal(100, 100))))
-    safety_pct = 50 if lead < 60 else max(1, int(round(3000 / lead)))
-    pack = int(
-        rng.choice([1, 5, 10, 20, 25, 40, 50], p=[0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1])
-    )
-    pna = int(
-        round(
-            usage * (lead / 30.0)
-            + ((usage * (lead / 30.0)) * (safety_pct / 100.0))
-            + pack
-        )
-    )
-    hpm = max(1, int(rng.poisson(5)))
-
-    return usage, lead, cost, pna, safety_pct, pack, hpm
-
-
+# Page-load to seed graph + KPIs
 @app.callback(
     [
         Output("day-display", "children"),
         Output("inventory-graph", "figure"),
         Output("page-load", "data"),
-    ],  # Assuming 'page-load' is a dcc.Store component
-    [Input("page-load", "data")],  # Triggers when 'page-load' data changes
-    [State("user-data-store", "data")],
+        Output("service-card", "children"),
+        Output("costs-card", "children"),
+        Output("sales-card", "children"),
+    ],
+    Input("page-load", "data"),
+    State("user-data-store", "data"),
 )
 def handle_page_load(page_load, client_data):
+    """Initial render: fetch user data, draw graph, seed KPI cards."""
     if page_load == 0:
-        # Assuming get_user_data function fetches the current user's data
-        current_data = (
-            get_user_data(client_data["uuid"])
-            if client_data and "uuid" in client_data
-            else {"day": 1}
+        current = (
+            get_user_data(client_data["uuid"]) if client_data and "uuid" in client_data
+            else get_default_data()
         )
-        day_count = current_data.get("day", 1)
-        fig = initial_graph(
-            current_data
-        )  # Assuming initial_graph is a function that creates the initial graph figure
-
-        # Update 'page-load' to 1 so this initialization doesn't run again
-        return f"Day: {day_count}", fig, 1
+        day_count = current.get("day", 1)
+        fig = update_graph_based_on_items(
+            current.get("items", []),
+            current.get("global_settings", get_default_data()["global_settings"]),
+        )
+        return (
+            f"Day: {day_count}",
+            fig,
+            1,
+            service_card_children(current),
+            costs_card_children(current),
+            sales_card_children(current),
+        )
     else:
-        # If 'page-load' is not 0, do not update anything
         raise PreventUpdate
 
 
+# Upload flow
 @callback(
     [
         Output("output-item-upload", "children"),
@@ -1657,25 +2611,22 @@ def handle_page_load(page_load, client_data):
     State("upload-item", "last_modified"),
 )
 def update_output(list_of_contents, list_of_names, list_of_dates):
+    """Preview uploaded files and enable 'Import items' when valid."""
     if not list_of_contents:
         raise PreventUpdate
 
-    cards = [
-        parse_contents(c, n, d)
-        for c, n, d in zip(list_of_contents, list_of_names, list_of_dates)
-    ]
-
+    cards = [parse_contents(c, n, d) for c, n, d in zip(list_of_contents, list_of_names, list_of_dates)]
     frames = []
     errors = []
 
     for contents, name in zip(list_of_contents, list_of_names):
         try:
-            decoded = _extract_base64(contents)  # robust base64 extractor
+            decoded = _extract_base64(contents)
             lower = (name or "").lower()
             if lower.endswith(".csv"):
                 df = pd.read_csv(io.StringIO(decoded.decode("utf-8-sig")))
             elif lower.endswith(".xls"):
-                df = pd.read_excel(io.BytesIO(decoded), engine="xlrd")  # ✅ .xls → xlrd
+                df = pd.read_excel(io.BytesIO(decoded), engine="xlrd")
             elif lower.endswith(".xlsx"):
                 df = pd.read_excel(io.BytesIO(decoded), engine="openpyxl")
             else:
@@ -1688,33 +2639,17 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
         try:
             df_num = coerce_uploaded(df)
         except Exception as e:
-            # ✅ always return 3 outputs
-            return (
-                cards + [dbc.Alert(f"'{name}': {e}", color="warning")],
-                None,
-                {"display": "none"},
-            )
+            return (cards + [dbc.Alert(f"'{name}': {e}", color="warning")], None, {"display": "none"})
 
         frames.append(df_num)
 
     if errors:
-        return (
-            cards + [dbc.Alert("; ".join(errors), color="warning")],
-            None,
-            {"display": "none"},
-        )
-
+        return (cards + [dbc.Alert("; ".join(errors), color="warning")], None, {"display": "none"})
     if not frames:
-        return (
-            cards + [dbc.Alert("No valid rows found.", color="warning")],
-            None,
-            {"display": "none"},
-        )
+        return (cards + [dbc.Alert("No valid rows found.", color="warning")], None, {"display": "none"})
 
     combined = pd.concat(frames, ignore_index=True)
     ready = html.Div(f"Ready to import {len(combined)} rows.", className="mb-2")
-
-    # ✅ show the existing button by clearing the style
     return cards + [ready], combined.to_dict("records"), {}
 
 
@@ -1722,6 +2657,9 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
     [
         Output("inventory-graph", "figure", allow_duplicate=True),
         Output("upload-feedback", "children"),
+        Output("service-card", "children", allow_duplicate=True),
+        Output("costs-card", "children", allow_duplicate=True),
+        Output("sales-card", "children", allow_duplicate=True),
     ],
     Input("import-uploaded-items", "n_clicks"),
     State("upload-preview-data", "data"),
@@ -1729,23 +2667,42 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
     prevent_initial_call=True,
 )
 def import_uploaded_items(n_clicks, rows, client_data):
+    """Ingest validated rows and create inventory items."""
     if not n_clicks:
         raise PreventUpdate
     if not rows:
-        return dash.no_update, dbc.Alert("No data to import.", color="warning")
+        return (
+            dash.no_update,
+            dbc.Alert("No data to import.", color="warning"),
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+        )
 
     uuid_val = (client_data or {}).get("uuid")
     if not uuid_val:
-        return dash.no_update, dbc.Alert("Session not initialized.", color="danger")
+        return (
+            dash.no_update,
+            dbc.Alert("Session not initialized.", color="danger"),
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+        )
 
-    current_data = get_user_data(uuid_val)
-    gs = current_data.get("global_settings", create_global_settings())
+    current = get_user_data(uuid_val)
+    gs = current.get("global_settings", get_default_data()["global_settings"])
 
     df = pd.DataFrame(rows)
     try:
         df = coerce_uploaded(df)
     except Exception as e:
-        return dash.no_update, dbc.Alert(f"Import error: {e}", color="danger")
+        return (
+            dash.no_update,
+            dbc.Alert(f"Import error: {e}", color="danger"),
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+        )
 
     new_items = []
     for row_num, (_, rec) in enumerate(df.iterrows(), start=1):
@@ -1762,17 +2719,25 @@ def import_uploaded_items(n_clicks, rows, client_data):
             )
             new_items.append(item)
         except Exception as e:
-            return dash.no_update, dbc.Alert(
-                f"Row {row_num} import error: {e}", color="danger"
+            return (
+                dash.no_update,
+                dbc.Alert(f"Row {row_num} import error: {e}", color="danger"),
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
             )
 
-    current_data.setdefault("items", []).extend(new_items)
-    set_user_data(uuid_val, current_data)
-    fig = update_graph_based_on_items(current_data["items"], gs)
+    current.setdefault("items", []).extend(new_items)
+    set_user_data(uuid_val, current)
     save_data()
 
-    return fig, dbc.Alert(
-        f"Imported {len(new_items)} items successfully.", color="success"
+    fig = update_graph_based_on_items(current["items"], gs)
+    return (
+        fig,
+        dbc.Alert(f"Imported {len(new_items)} items successfully.", color="success"),
+        service_card_children(current),
+        costs_card_children(current),
+        sales_card_children(current),
     )
 
 
@@ -1781,15 +2746,122 @@ def import_uploaded_items(n_clicks, rows, client_data):
     Input("sim-speed-slider", "value"),
 )
 def set_sim_speed(ms):
+    """Update the tick interval from the speed slider."""
     if ms is None:
         raise PreventUpdate
-    # dcc.Interval expects milliseconds
     return int(ms)
 
 
-# use curl -X POST http://127.0.0.1:8050/shutdown to save server data
+@app.callback(
+    Output("asq-collapse", "is_open"),
+    Input("toggle-asq-collapse", "n_clicks"),
+    State("asq-collapse", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_asq_collapse(n, is_open):
+    if not n:
+        raise PreventUpdate
+    return not is_open
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PO Overview actions
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.callback(
+    [
+        Output("po-overview-modal", "is_open"),
+        Output("po-overview-table", "children"),
+        Output("inventory-graph", "figure", allow_duplicate=True),
+        Output("costs-card", "children", allow_duplicate=True),
+    ],
+    [
+        Input("po-overview-button", "n_clicks"),
+        Input("po-overview-close", "n_clicks"),
+        Input({"type": "po-expedite", "rid": ALL}, "n_clicks"),
+        Input({"type": "po-cancel", "rid": ALL}, "n_clicks"),
+    ],
+    State("user-data-store", "data"),
+    prevent_initial_call=True,
+)
+def po_overview_handler(open_clicks, close_clicks, expedite_clicks, cancel_clicks, client_data):
+    """Open/close the PO overview and handle expedite/cancel row actions."""
+    uuid_val = (client_data or {}).get("uuid")
+    if not uuid_val:
+        raise PreventUpdate
+    current = get_user_data(uuid_val)
+    is_open = dash.no_update
+
+    trig = ctx.triggered_id
+    if trig is None:
+        raise PreventUpdate
+
+    if trig == "po-overview-button":
+        is_open = True
+    elif trig == "po-overview-close":
+        is_open = False
+    else:
+        # Row action
+        if isinstance(trig, dict) and "rid" in trig:
+            rid = trig["rid"]
+            gs = current["global_settings"]
+            today = int(current["day"])
+
+            for it in current.get("items", []):
+                pip = it.get("pipeline", [])
+                for r in list(pip):
+                    if r["id"] == rid:
+                        if trig.get("type") == "po-expedite":
+                            # Expedite by 1 day if possible (eta >= today+2)
+                            if int(r["eta_day"]) > (today + 1):
+                                r["eta_day"] = max(r["eta_day"] - 1, today + 1)
+                                # Expedite fee = qty * cost * rate * days(=1)
+                                fee = float(r["qty"]) * float(it["item_cost"]) * float(gs["expedite_rate"]) * 1.0
+                                current["costs"]["expedite"] += fee
+                                current["costs"]["total"] = (
+                                    current["costs"]["ordering"]
+                                    + current["costs"]["holding"]
+                                    + current["costs"]["stockout"]
+                                    + current["costs"]["expedite"]
+                                )
+                        elif trig.get("type") == "po-cancel":
+                            # Remove receipt; PNA drops
+                            it["pipeline"] = [x for x in pip if x["id"] != rid]
+                            update_planning_fields(it, gs)
+                        break
+
+    set_user_data(uuid_val, current)
+    save_data()
+    fig = update_graph_based_on_items(current["items"], current["global_settings"])
+    table_children = build_po_overview_table(current)
+    return is_open, table_children, fig, costs_card_children(current)
+
+
+# === KPI STRIP RENDER ==========================================================
+@app.callback(
+    Output("kpi-strip", "children"),
+    Input("inventory-graph", "figure"),
+    State("user-data-store", "data"),
+)
+def render_kpi_strip(_fig, client_data):
+    """
+    Build the KPI row whenever the graph refreshes.
+    (All actions that change data already update the graph, so KPIs stay in sync.)
+    """
+    uuid_val = (client_data or {}).get("uuid")
+    current = get_user_data(uuid_val) if uuid_val else get_default_data()
+    return build_kpi_strip(current)
+# ==============================================================================
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Utility endpoints
+# ──────────────────────────────────────────────────────────────────────────────
+
 @server.route("/shutdown", methods=["POST"])
 def shutdown():
+    if os.environ.get("ALLOW_DEV_SHUTDOWN") != "1":
+        return abort(404)
     save_data()
     func = request.environ.get("werkzeug.server.shutdown")
     if func is None:
@@ -1798,5 +2870,161 @@ def shutdown():
     return "Server shutting down..."
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Randomizer (add-item helper)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.callback(
+    [
+        Output("usage-rate-input", "value"),
+        Output("lead-time-input", "value"),
+        Output("item-cost-input", "value"),
+        Output("pna-input", "value"),
+        Output("safety-allowance-input", "value"),
+        Output("standard-pack-input", "value"),
+        Output("hits-per-month-input", "value"),
+    ],
+    Input("randomize-button", "n_clicks"),
+)
+def randomize_item_values(n):
+    """Populate the add-item form with a plausible random item."""
+    if not n:
+        raise PreventUpdate
+    rng = _rng()
+    usage = int(rng.integers(1, 101))
+    lead = 0
+    while lead < 7:
+        lead = int(abs(rng.normal(30, 30)))  # keep it at least a week
+    cost = max(1, int(abs(rng.normal(100, 100))))
+    safety_pct = 50 if lead < 60 else max(1, int(round(3000 / lead)))
+    pack = int(rng.choice([1, 5, 10, 20, 25, 40, 50], p=[0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1]))
+    pna = int(round(usage * (lead / 30.0) + ((usage * (lead / 30.0)) * (safety_pct / 100.0)) + pack))
+    hpm = max(1, int(rng.poisson(5)))
+    return usage, lead, cost, pna, safety_pct, pack, hpm
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Shutdown scheduler (admin utility)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.callback(
+    [
+        Output("maintenance-banner", "children"),
+        Output("sim-status", "children", allow_duplicate=True),
+        Output("interval-component", "disabled", allow_duplicate=True),
+        Output("start-button", "children", allow_duplicate=True),
+        Output("start-button", "color", allow_duplicate=True),
+        Output("start-button", "disabled", allow_duplicate=True),
+    ],
+    Input("shutdown-poll", "n_intervals"),
+    prevent_initial_call=True,
+)
+def maintenance_heartbeat(_n):
+    # Snapshot the state (avoid long lock time)
+    with _store_lock:
+        st = dict(_shutdown_state)
+
+    if not st.get("active"):
+        # No maintenance scheduled: clear banner, leave everything else alone
+        return html.Div(), dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+    now = time.time()
+    remaining = max(0.0, st["at"] - now)
+    mins = int(remaining // 60)
+    secs = int(remaining % 60)
+
+    banner = dbc.Card(
+        dbc.CardBody(
+            [
+                html.Div(
+                    [
+                        html.Span("⚠️ ", className="me-1"),
+                        html.Strong(st["message"]),
+                        html.Span(f" — shutting down in {mins:02d}:{secs:02d}", className="ms-1"),
+                    ],
+                    className="mb-1"
+                ),
+                html.Small(
+                    "Your session will auto-save and pause. Please finish any edits.",
+                    className="text-muted"
+                ),
+            ],
+            role="status",
+            className="py-2 px-3",
+        ),
+        className="shadow-sm border border-danger text-danger bg-transparent"
+    )
+
+    # Default: only show banner, don't touch sim until final minute
+    sim_status = dash.no_update
+    interval_disabled = dash.no_update
+    start_text = dash.no_update
+    start_color = dash.no_update
+    start_disabled = dash.no_update
+
+    # In the final minute: pause/lock controls so users don't lose work mid-tick
+    if remaining <= 60:
+        sim_status = "Status: Paused (maintenance)"
+        interval_disabled = True
+        start_text = "Disabled for Maintenance"
+        start_color = "secondary"
+        start_disabled = True
+
+    # Time to shut down: pause everything, persist, then hit /shutdown
+    if remaining <= 0.5 and not st.get("closing"):
+        gentle_stop_all_sessions()
+        with _store_lock:
+            _shutdown_state["closing"] = True
+        try:
+            # Fire-and-forget; works with your existing @server.route('/shutdown')
+            requests.post(SHUTDOWN_URL, timeout=1)
+        except Exception:
+            # In prod (gunicorn/uwsgi), /shutdown may not exist. Orchestrator should SIGTERM.
+            pass
+
+    return banner, sim_status, interval_disabled, start_text, start_color, start_disabled
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Background shutdown watchdog (works even with no UI sessions)
+# ──────────────────────────────────────────────────────────────────────────────
+import threading
+
+_watchdog_started = False
+
+def _shutdown_watchdog():
+    while True:
+        time.sleep(1.0)
+        with _store_lock:
+            st = dict(_shutdown_state)
+        if not st.get("active"):
+            continue
+        remaining = st["at"] - time.time()
+        if remaining <= 0.5 and not st.get("closing"):
+            gentle_stop_all_sessions()
+            with _store_lock:
+                _shutdown_state["closing"] = True
+            try:
+                requests.post(SHUTDOWN_URL, timeout=1)
+            except Exception:
+                pass
+
+def _start_watchdog_once():
+    global _watchdog_started
+    if _watchdog_started:
+        return
+    t = threading.Thread(target=_shutdown_watchdog, daemon=True)
+    t.start()
+    _watchdog_started = True
+
+# Start watchdog in the reloader child (dev) OR whenever debug env isn't on
+if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or os.environ.get("FLASK_DEBUG") not in ("1", "true", "True"):
+    _start_watchdog_once()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Entrypoint
+# ──────────────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
+    # threaded=True lets callbacks run concurrently (e.g., futures above)
     app.run(debug=True, threaded=True)
