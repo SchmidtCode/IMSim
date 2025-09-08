@@ -1,5 +1,8 @@
 # IMSim (Inventory Management Simulator)
 
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://imsim.pythonanywhere.com/)
+**Live demo:** https://imsim.pythonanywhere.com/
+
 A lightweight simulator to experiment with inventory policies. It models **PNA** (Projected Net Available) in **days from OP** (Order Point), with live ticks, item uploads, and quick ordering actions. Built with **Dash 3.2.0**.
 
 **Highlights**

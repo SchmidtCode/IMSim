@@ -65,6 +65,24 @@ from dash_bootstrap_templates import load_figure_template
 # Infra / Globals
 # ──────────────────────────────────────────────────────────────────────────────
 
+# Data directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+# GitHub repo link (for footer)
+GH_URL = os.environ.get("IMSIM_GITHUB_URL", "https://github.com/SchmidtCode/IMSim")
+# Footer styles (bottom-right; visible/hidden variants)
+GH_FOOTER_STYLE_VISIBLE = {
+    "position": "fixed",
+    "bottom": "12px",
+    "right": "12px",
+    "maxWidth": "360px",
+    "zIndex": 1050,
+    "opacity": 0.9,
+}
+GH_FOOTER_STYLE_HIDDEN = {**GH_FOOTER_STYLE_VISIBLE, "display": "none"}
+
+# Thread pool for background tasks
 executor = ThreadPoolExecutor(max_workers=4)
 _store_lock = RLock()
 _thread_local = local()
@@ -183,9 +201,8 @@ def get_default_data() -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def save_data():
-    """Persist all users' blobs to disk (simple JSON)."""
-    os.makedirs("data", exist_ok=True)
-    with _store_lock, open("data/user_data.json", "w") as f:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with _store_lock, open(os.path.join(DATA_DIR, "user_data.json"), "w") as f:
         json.dump(user_data_store, f)
 
 
@@ -196,9 +213,9 @@ def set_user_data(user_id: str, data: dict):
 
 
 def load_data() -> dict:
-    """Load store from disk on boot (no migration)."""
-    if os.path.exists("data/user_data.json"):
-        with open("data/user_data.json", "r") as f:
+    path = os.path.join(DATA_DIR, "user_data.json")
+    if os.path.exists(path):
+        with open(path, "r") as f:
             return json.load(f)
     return {}
 
@@ -1445,6 +1462,51 @@ def build_custom_order_row(index: int, item: dict):
         className="py-1",
     )
 
+# Github Link Card
+def github_footer_card() -> html.Div:
+    return html.Div(
+        dbc.Card(
+            dbc.CardBody(
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            html.Small(
+                                [
+                                    "To learn more, visit ",
+                                    html.A(
+                                        "SchmidtCode/IMSim on GitHub",
+                                        href=GH_URL,
+                                        target="_blank",
+                                        rel="noopener noreferrer",
+                                        className="link-light",
+                                    ),
+                                    ".",
+                                ],
+                                className="text-muted",
+                            ),
+                            className="pe-2",
+                        ),
+                        dbc.Col(
+                            dbc.Button(
+                                "Hide",
+                                id="gh-footer-hide",
+                                size="sm",
+                                color="secondary",
+                                outline=True,
+                            ),
+                            width="auto",
+                            className="text-end",
+                        ),
+                    ],
+                    className="g-2 align-items-center",
+                )
+            ),
+            className="shadow-sm border-0 bg-dark",
+        ),
+        id="gh-footer",
+        style=GH_FOOTER_STYLE_VISIBLE,
+    )
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Layout (fixed Add Item + Excel upload inside modal; keeps ASQ + SOQ working)
@@ -1454,7 +1516,7 @@ app.layout = dbc.Container(
         # Top navbar
         dbc.NavbarSimple(
             children=[dbc.NavItem(dbc.NavLink("Inventory Management Simulator", href="#"))],
-            brand="Company",
+            brand="IMSim",
             brand_href="#",
             color="primary",
             dark=True,
@@ -1703,10 +1765,11 @@ app.layout = dbc.Container(
                         # Local stores
                         dcc.Store(id="user-data-store", storage_type="local", data={}),
                         dcc.Store(id="page-load", data=0),
-                        dcc.Store(id="page-load-2", data=0),
+                        dcc.Store(id="gh-footer-store", storage_type="local", data=True),
                     ],
                     width=3,
                 ),
+                github_footer_card(),
 
                 # Right column: KPI strip + graph
                 dbc.Col(
@@ -2901,6 +2964,28 @@ def randomize_item_values(n):
     pna = int(round(usage * (lead / 30.0) + ((usage * (lead / 30.0)) * (safety_pct / 100.0)) + pack))
     hpm = max(1, int(rng.poisson(5)))
     return usage, lead, cost, pna, safety_pct, pack, hpm
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GitHub footer (hide/show, persist state)
+# ──────────────────────────────────────────────────────────────────────────────
+# Hide button -> persist hidden state
+@app.callback(
+    Output("gh-footer-store", "data"),
+    Input("gh-footer-hide", "n_clicks"),
+    prevent_initial_call=True,
+)
+def hide_footer(n):
+    if not n:
+        raise PreventUpdate
+    return False  # store "hidden"
+
+# Store -> apply visibility style
+@app.callback(
+    Output("gh-footer", "style"),
+    Input("gh-footer-store", "data"),
+)
+def set_footer_visibility(is_visible):
+    return GH_FOOTER_STYLE_VISIBLE if (is_visible is not False) else GH_FOOTER_STYLE_HIDDEN
 
 
 # ──────────────────────────────────────────────────────────────────────────────
