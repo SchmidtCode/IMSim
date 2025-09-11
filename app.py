@@ -44,6 +44,7 @@ import os
 import uuid
 import time
 import requests
+import copy
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from threading import RLock, local
@@ -160,6 +161,12 @@ def new_sales_bucket() -> dict:
     }
 
 
+def new_analytics_bucket() -> dict:
+    # day-summed inventory value at cost using daily midpoint OH
+    return {"inv_value_daysum": 0.0}
+
+
+
 def asq_defaults() -> dict:
     """Default ASQ adjuster configuration."""
     return {
@@ -181,7 +188,7 @@ def get_default_data() -> dict:
             "stockout_penalty": 5.0,  # $ per unit short
             "expedite_rate": 0.03,    # fraction of item_cost per unit per day expedited
             "gm": 0.15,               # default GM (15%)
-            "realization": 0.95,      # realized price fraction (e.g., promos, leakage)
+            "realization": 1.0,      # realized price fraction (e.g., promos, leakage)
             "asq": asq_defaults(),    # NEW: ASQ adjuster config
             "auto_po_enabled": False,   # when True, system places orders each tick
         },
@@ -192,7 +199,8 @@ def get_default_data() -> dict:
         "service_totals": new_service_bucket(),
         "costs": new_costs_bucket(),
         "sales": new_sales_bucket(),
-        "exception_center": [],  # NEW: simple exception log
+        "exception_center": [],
+        "analytics": new_analytics_bucket(),
     }
 
 
@@ -224,17 +232,15 @@ user_data_store = load_data()
 
 
 def get_user_data(user_id: str) -> dict:
-    """Get a user's blob (initialize if missing)."""
     with _store_lock:
         if user_data_store.get(user_id) is None:
             user_data_store[user_id] = get_default_data()
-        # Backfill ASQ defaults for older saves
         gs = user_data_store[user_id].setdefault("global_settings", {})
         gs.setdefault("asq", asq_defaults())
         gs.setdefault("auto_po_enabled", False)
-        return user_data_store[user_id]
+        user_data_store[user_id].setdefault("analytics", new_analytics_bucket())
+        return copy.deepcopy(user_data_store[user_id])
     
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Shutdown helpers
 # ──────────────────────────────────────────────────────────────────────────────
@@ -426,30 +432,40 @@ def compute_item_pna(item: dict) -> float:
 def update_planning_fields(item: dict, global_settings: dict) -> dict:
     """
     Update all derived fields after any physical/planning change.
-    Includes:
-      - pna, pna_days, pna_days_frm_op
-      - oh_days_frm_op (on-hand normalized to days-from-OP)
-      - soq, surplus_line, proposed_pna, pro_pna_days_frm_op
-      - no_pna_days_frm_op (for 0 PNA plotting)
+
+    OP-normalized (Days from OP):
+      - pna_days_frm_op      : (PNA - OP) converted to days
+      - ats_days_frm_op      : (On-Hand - OP) converted to days (ATS = Available to Sell)
+      - pro_pna_days_frm_op  : (PNA + SOQ - OP) in days
+      - no_pna_days_frm_op   : (0 - OP) in days  (the '0 PNA' guide)
+
+    We keep legacy fields other code may rely on.
     """
     item["pna"] = compute_item_pna(item)
-    ur = max(0.0, float(item["usage_rate"]))
-    daily_ur = max(1e-9, float(item.get("daily_ur", safe_div(ur, 30.0, 0.0))))
 
-    # Days of supply metrics
-    item["pna_days"] = safe_div(item["pna"], daily_ur, 0.0)
-    item["pna_days_frm_op"] = safe_div((item["pna"] - item["op"]), max(1e-9, ur), 0.0) * 30.0
+    ur = max(0.0, float(item.get("usage_rate", 0.0)))
+    daily_ur = float(item.get("daily_ur", safe_div(ur, 30.0, 0.0)))
+    if daily_ur <= 0:
+        daily_ur = 1e-9
 
-    # On-hand (not PNA) normalized to days-from-OP (for "close to stockout" read)
     on_hand = max(0.0, float(item.get("on_hand", 0.0)))
-    item["oh_days_frm_op"] = safe_div((on_hand - item["op"]), max(1e-9, ur), 0.0) * 30.0
+
+    # --- OP-normalized days ---
+    item["pna_days_frm_op"] = safe_div((item["pna"] - item["op"]), max(1e-9, ur), 0.0) * 30.0
+    item["oh_days_frm_op"]  = safe_div((on_hand   - item["op"]), max(1e-9, ur), 0.0) * 30.0
+    item["ats_days_frm_op"] = item["oh_days_frm_op"]  # alias for graph/legend rename
 
     # Ordering math
     item["soq"] = calculate_soq(item["pna"], item["lp"], item["op"], item["oq"], item["standard_pack"])
     item["surplus_line"] = calculate_surplus_line(item["lp"], item["eoq"])
     item["proposed_pna"] = item["pna"] + item["soq"]
+
+    # Proposed/zero anchors in OP-normalized days
     item["pro_pna_days_frm_op"] = safe_div((item["proposed_pna"] - item["op"]), max(1e-9, ur), 0.0) * 30.0
-    item["no_pna_days_frm_op"] = safe_div((0.0 - item["op"]), max(1e-9, ur), 0.0) * 30.0
+    item["no_pna_days_frm_op"]  = safe_div((0.0 - item["op"]),           max(1e-9, ur), 0.0) * 30.0
+
+    # (Optional: keep absolute-day variants around if you reference them elsewhere)
+    item["pna_days"] = safe_div(item["pna"], daily_ur, 0.0)
 
     return item
 
@@ -504,7 +520,7 @@ def create_inventory_item(
     pna = max(0.0, float(pna))
     safety_allowance = max(0.0, float(safety_allowance))
     standard_pack = max(1.0, float(standard_pack))
-    hits_per_month = max(1.0, float(hits_per_month))
+    hits_per_month = max(0.01, float(hits_per_month))
 
     daily_ur = safe_div(usage_rate, 30.0, 0.0)
 
@@ -925,6 +941,7 @@ def process_item_day(item: dict, today: int, gs: dict) -> tuple[dict, dict]:
         "revenue_add": 0.0,
         "cogs_add": 0.0,
         "purchases_add": 0.0,
+        "inv_value_mid_add": 0.0,
     }
 
     # Ensure ASQ period counters exist
@@ -954,7 +971,7 @@ def process_item_day(item: dict, today: int, gs: dict) -> tuple[dict, dict]:
         it["on_hand"] = float(it["on_hand"]) - settle
 
     # 3) Demand simulation per hit
-    hpm = max(1.0, float(it["hits_per_month"]))
+    hpm = max(0.01, float(it.get("hits_per_month", 0.0)))
     ur = max(0.0, float(it["usage_rate"]))
     avg_sale_qty = safe_div(ur, hpm, 0.0)
 
@@ -1000,6 +1017,7 @@ def process_item_day(item: dict, today: int, gs: dict) -> tuple[dict, dict]:
     midpoint_oh = (on_hand_before + on_hand_after) / 2.0
     metrics["holding_add"] = midpoint_oh * float(it["item_cost"]) * (k_cost / 365.0)
     metrics["stockout_add"] = metrics["units_backordered"] * stockout_penalty
+    metrics["inv_value_mid_add"] = midpoint_oh * float(it["item_cost"])
 
     # 5) Daily sales from shipped units
     cogs_add = metrics["units_shipped"] * float(it["item_cost"])
@@ -1070,75 +1088,87 @@ def place_purchase_orders(
 # ──────────────────────────────────────────────────────────────────────────────
 
 def update_graph_based_on_items(items: list[dict], global_settings: dict):
-    """Create/refresh the main scatter plot with all overlayed points."""
+    """Refresh main scatter with OP-normalized 'Days from OP' axis."""
+    import plotly.graph_objects as go
+
     if not items:
-        return px.scatter(
-            title="Inventory Simulation",
-            labels={"x": "Items", "y": "PNA (Days from OP)"},
-        )
+        fig = px.scatter(title="Inventory Simulation",
+                         labels={"x": "Items", "y": "Days from OP"})
+        fig.add_hline(y=0, line_dash="dot", annotation_text="OP")
+        fig.add_hline(y=global_settings["r_cycle"], line_dash="dot", annotation_text="LP")
+        fig.update_layout(legend_title_text="", legend_tracegroupgap=6)
+        return fig
 
     # Colors
-    BLUE = "#1f77b4"   # current PNA
-    GREEN = "#2ca02c"  # proposed (PNA + SOQ)
-    RED = "#d62728"    # 0 PNA
-    ORANGE = "#ff7f0e" # On-Hand
+    BLUE   = "#1f77b4"   # PNA (current)
+    GREEN  = "#2ca02c"   # PNA + SOQ (proposed)
+    ORANGE = "#ff7f0e"   # ATS (Available to Sell)
+    RED    = "#d62728"   # 0 PNA guide
 
     df = pd.DataFrame(items).reset_index(names="idx")
-    mask = (df["pro_pna_days_frm_op"] != df["pna_days_frm_op"]) & (df["pna"] <= df["lp"])
 
-    # Base: current PNA (days from OP)
-    fig = px.scatter(
-        df,
-        x=df["idx"] + 1,
-        y="pna_days_frm_op",
-        title="Inventory Simulation",
-        labels={"x": "Items", "pna_days_frm_op": "Days from OP"},
-    )
-    fig.update_traces(
-        mode="markers",
-        name="Current PNA Days from OP",
-        marker=dict(symbol="circle", size=8, color=BLUE),
-        legendgroup="current",
-        legendrank=1,
-    )
+    # Proposed point shown when it actually changes and item is at/under LP policy range
+    mask_proposed = (df.get("pro_pna_days_frm_op") != df.get("pna_days_frm_op")) & (df["pna"] <= df["lp"])
 
-    # Proposed PNA + SOQ
-    if mask.any():
-        df2 = df[mask]
-        fig.add_scatter(
-            x=(df2["idx"] + 1),
-            y=df2["pro_pna_days_frm_op"],
-            mode="markers",
-            name="PNA + SOQ Days from OP",
-            marker=dict(symbol="circle-open", size=10, color=GREEN, line=dict(color=GREEN, width=2)),
-            legendgroup="proposed",
-            legendrank=2,
-        )
+    hover_tmpl = "Item = %{x}<br>Days from OP = %{y:.1f}<extra>%{fullData.name}</extra>"
 
-    # On-Hand only (normalized to days-from-OP)
-    if "oh_days_frm_op" in df.columns:
-        fig.add_scatter(
-            x=(df["idx"] + 1),
-            y=df["oh_days_frm_op"],
-            mode="markers",
-            name="On-Hand Days from OP",
-            marker=dict(symbol="x", size=9, color=ORANGE),
-            legendgroup="onhand",
-            legendrank=2.5,
-        )
+    fig = go.Figure()
+    fig.update_layout(title="Inventory Simulation", xaxis_title="Items", yaxis_title="Days from OP")
 
-    # 0 PNA (net of pipeline/backorders)
+    # 1) PNA — bigger blue dots (keep this bigger)
     fig.add_scatter(
         x=(df["idx"] + 1),
-        y=df["no_pna_days_frm_op"],
+        y=df["pna_days_frm_op"],
         mode="markers",
-        name="0 PNA",
-        marker=dict(symbol="circle", size=8, color=RED),
-        legendgroup="zero",
-        legendrank=3,
+        name="PNA",
+        marker=dict(symbol="circle", size=14, color=BLUE),  # bigger PNA only
+        legendgroup="pna",
+        legendrank=1,
+        hovertemplate=hover_tmpl,
     )
 
-    # Optional: highlight items that stocked out today with a ring
+    # 2) Proposed PNA + SOQ — revert to original size
+    if mask_proposed.any():
+        dfp = df[mask_proposed]
+        fig.add_scatter(
+            x=(dfp["idx"] + 1),
+            y=dfp["pro_pna_days_frm_op"],
+            mode="markers",
+            name="PNA + SOQ",
+            marker=dict(symbol="circle-open", size=8, line=dict(color=GREEN, width=2)),  # back to normal
+            line=dict(color=GREEN),
+            legendgroup="proposed",
+            legendrank=2,
+            hovertemplate=hover_tmpl,
+        )
+
+    # 3) ATS (Available to Sell) — revert to original size
+    if "ats_days_frm_op" in df.columns:
+        fig.add_scatter(
+            x=(df["idx"] + 1),
+            y=df["ats_days_frm_op"],
+            mode="markers",
+            name="Available to Sell",
+            marker=dict(symbol="x", size=8, color=ORANGE),  # back to normal
+            legendgroup="ats",
+            legendrank=3,
+            hovertemplate=hover_tmpl,
+        )
+
+    # 4) 0 PNA guide — keep at normal size
+    if "no_pna_days_frm_op" in df.columns:
+        fig.add_scatter(
+            x=(df["idx"] + 1),
+            y=df["no_pna_days_frm_op"],
+            mode="markers",
+            name="0 PNA",
+            marker=dict(symbol="circle", size=8, color=RED),  # normal
+            legendgroup="zero",
+            legendrank=4,
+            hovertemplate=hover_tmpl,
+        )
+
+    # Optional ring to call out items that stocked out today (around their PNA dot)
     if "stockout_today" in df.columns:
         idxs = (df.index[df["stockout_today"] == True]).tolist()
         if idxs:
@@ -1147,21 +1177,25 @@ def update_graph_based_on_items(items: list[dict], global_settings: dict):
                 y=df.loc[idxs, "pna_days_frm_op"],
                 mode="markers",
                 name="Stockout Today",
-                marker=dict(symbol="circle-open-dot", size=14, line=dict(width=2)),
+                marker=dict(symbol="circle-open-dot", size=16, line=dict(width=2)),
                 legendgroup="alerts",
                 legendrank=0,
+                hovertemplate=hover_tmpl,
             )
 
-    # Reference lines
+    # Reference lines: OP baseline at 0d, LP line at review-cycle days
     fig.add_hline(y=0, line_dash="dot", annotation_text="OP")
     fig.add_hline(y=global_settings["r_cycle"], line_dash="dot", annotation_text="LP")
 
-    # X axis: integer item #s
+    # X axis as integer item #s
     n = len(df)
     fig.update_xaxes(tickmode="linear", dtick=1, tick0=1, tickformat="d", range=[0.5, n + 0.5])
-    fig.update_layout(yaxis_title="Days from OP")
-    return fig
 
+    # Legend polish
+    fig.update_layout(legend_title_text="", legend_tracegroupgap=6)
+
+    return fig
+ 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # UI Components
@@ -1172,9 +1206,10 @@ def service_card_children(data: dict) -> list:
     tot = data.get("service_totals", new_service_bucket())
     items = data.get("items", [])
 
-    sum_oh = sum(float(i.get("on_hand", 0)) for i in items)
-    sum_oo = sum(item_on_order(i) for i in items)
-    sum_bo = sum(float(i.get("backorder", 0)) for i in items)
+    # ATS = Available to Sell = on_hand
+    sum_ats = sum(float(i.get("on_hand", 0)) for i in items)
+    sum_oo  = sum(item_on_order(i) for i in items)
+    sum_bo  = sum(float(i.get("backorder", 0)) for i in items)
 
     fill_today = None if st["orders"] == 0 else 100.0 * (st["orders"] - st["orders_stockout"]) / st["orders"]
     fill_total = None if tot["orders"] == 0 else 100.0 * (tot["orders"] - tot["orders_stockout"]) / tot["orders"]
@@ -1183,14 +1218,14 @@ def service_card_children(data: dict) -> list:
     return [dbc.ListGroup(
         [
             dbc.ListGroupItem(
-                f"Today: Orders {st['orders']} • Stockouts {st['orders_stockout']} • Zero-OH {st['zero_on_hand_hits']}"
+                f"Today: Orders {st['orders']} • Stockouts {st['orders_stockout']} • Zero ATS {st['zero_on_hand_hits']}"
             ),
             dbc.ListGroupItem(
                 f"Fill Rate (Cumulative): {fmt(fill_total)}  (Today: {fmt(fill_today)})"
             ),
             dbc.ListGroupItem(
                 dbc.Badge(
-                    f"Σ OH: {int(sum_oh)} • On-Order: {int(sum_oo)} • Backorder: {int(sum_bo)}",
+                    f"Σ Available to Sell: {int(sum_ats)} • On-Order: {int(sum_oo)} • Backorder: {int(sum_bo)}",
                     pill=True, color="secondary",
                 )
             ),
@@ -1265,7 +1300,7 @@ def _color_from_thresholds(value: float | None, good: float, warn: float, revers
             return "warning"
         return "danger"
 
-def _kpi_card(card_id: str, title: str, big_text: str, color: str, tooltip_children) -> html.Div:
+def _kpi_card(card_id: str, title: str, big_text: str, color: str, tooltip_children, tooltip_style=None) -> html.Div:
     body = dbc.CardBody(
         [
             html.Div(title, className="text-muted small mb-1"),
@@ -1278,35 +1313,32 @@ def _kpi_card(card_id: str, title: str, big_text: str, color: str, tooltip_child
         body,
         id=card_id,
         color=color,
-        inverse=True,                 # white text on colored background
+        inverse=True,
         className="text-center shadow-sm h-100",
         style={"minHeight": "88px"},
     )
-    tip = dbc.Tooltip(tooltip_children, target=card_id,
-                      placement="bottom", autohide=True, className="text-start")
+    tip = dbc.Tooltip(
+        tooltip_children,
+        target=card_id,
+        placement="bottom",
+        autohide=True,
+        className="text-start",
+        # make it wider
+        style=tooltip_style or {}
+    )
     return html.Div([card, tip])
 
+
 def build_kpi_strip(data: dict) -> list:
-    """
-    KPI cards left→right:
-      1) Day (hover: months/years)
-      2) Fill Rate (Cumulative)
-      3) Sales (to date)
-      4) COGS (to date)
-      5) Inventory Overhead (ordering+holding+stockout+expedite)
-      6) GM% (gross margin, tooltip shows after-overhead too)
-    """
     def _fmt_money(x): return format_money(float(x or 0.0))
     def _fmt_pct(x):   return "—" if x is None else f"{x*100:.1f}%"
 
-    # Aggregates
     st     = data.get("service_today", new_service_bucket())
     tot    = data.get("service_totals", new_service_bucket())
     costs  = data.get("costs", new_costs_bucket())
     sales  = data.get("sales", new_sales_bucket())
     day    = int(data.get("day", 1))
 
-    # --- Day card ---
     months = day / 30.0
     years  = day / 365.0
     day_tip = html.Div([
@@ -1314,31 +1346,85 @@ def build_kpi_strip(data: dict) -> list:
         html.Div(f"≈ {months:.1f} months (30-day)"),
         html.Div(f"≈ {years:.2f} years (365-day)")
     ])
-    day_card = dbc.Col(
-        _kpi_card("kpi-day", "Day", f"{day}d", "info", day_tip),
-        className="d-flex"
-    )
+    day_card = dbc.Col(_kpi_card("kpi-day", "Day", f"{day}d", "info", day_tip), className="d-flex")
 
-    # --- Service (fill rate) ---
     fill_total = None if tot["orders"] == 0 else (tot["orders"] - tot["orders_stockout"]) / tot["orders"]
-    fill_today = None if st["orders"] == 0 else (st["orders"] - st["orders_stockout"]) / st["orders"]
+    fill_today = None if st["orders"]  == 0 else (st["orders"]  - st["orders_stockout"])  / st["orders"]
     service_color = _color_from_thresholds(fill_total, good=0.95, warn=0.90, reverse=False)
+
     service_tip = html.Div(
         [
-            html.Div(f"Today — Orders: {st['orders']}, Stockouts: {st['orders_stockout']}"),
-            html.Div(f"Units — Ordered: {int(st['units_ordered'])}, Shipped: {int(st['units_shipped'])}, BO: {int(st['units_backordered'])}"),
-            html.Div(f"Zero On-Hand Hits: {st['zero_on_hand_hits']}"),
+            html.Div(html.Strong("Today")),
+            html.Div(
+                f"Orders: {st['orders']} • Stockouts: {st['orders_stockout']} • Zero ATS Hits: {st['zero_on_hand_hits']}"
+            ),
+            html.Div(
+                f"Units — Ordered: {int(st['units_ordered'])} • Shipped: {int(st['units_shipped'])} • Backordered: {int(st['units_backordered'])}"
+            ),
+            html.Hr(className="my-1"),
+            html.Div(html.Strong("Cumulative")),
+            html.Div(
+                f"Orders: {tot['orders']} • Stockouts: {tot['orders_stockout']} • Zero ATS Hits: {tot['zero_on_hand_hits']}"
+            ),
+            html.Div(
+                f"Units — Ordered: {int(tot['units_ordered'])} • Shipped: {int(tot['units_shipped'])} • Backordered: {int(tot['units_backordered'])}"
+            ),
             html.Hr(className="my-1"),
             html.Div("Fill Rate (Today): " + _fmt_pct(fill_today)),
             html.Div("Fill Rate (Cumulative): " + _fmt_pct(fill_total)),
         ]
     )
 
-    # --- P&L bits ---
     revenue = float(sales.get("revenue", 0.0))
     cogs    = float(sales.get("cogs", 0.0))
     gross   = revenue - cogs
     gm_pct  = None if revenue <= 0 else gross / max(1e-9, revenue)
+
+    # === Avg Inventory at Cost (to-date) ===
+    analytics = data.get("analytics", new_analytics_bucket())
+    day = int(data.get("day", 1))
+    avg_inv_cost = None
+    if day > 0:
+        inv_daysum = float(analytics.get("inv_value_daysum", 0.0))
+        avg_inv_cost = inv_daysum / day if inv_daysum > 0 else None
+
+    # === GMROI (standard) ===
+    gm_dollars = gross
+    gmroi = None if not avg_inv_cost or avg_inv_cost <= 0 else (gm_dollars / avg_inv_cost)
+    gmroi_color = _color_from_thresholds(gmroi, good=2.5, warn=1.5, reverse=False)
+
+    gmroi_tip = html.Div(
+        [
+            html.Div(html.Strong("GMROI (Gross Profit ÷ Avg Inventory at Cost)")),
+            html.Div(f"Gross Profit: {_fmt_money(gm_dollars)}"),
+            html.Div(f"Avg Inventory @ Cost: {_fmt_money(avg_inv_cost or 0.0)}"),
+            html.Div(f"GMROI: {'—' if gmroi is None else f'{gmroi:.2f}x'}"),
+            html.Hr(className="my-1"),
+            html.Small("Avg inventory is computed from daily midpoint on-hand × cost."),
+            html.Br(),
+            html.Small("If you prefer AvgInv ÷ Gross Profit, invert this value."),
+        ]
+    )
+
+    # === Inventory Turns (annualized) & TEI ===
+    turns = None
+    if avg_inv_cost and avg_inv_cost > 0 and day > 0:
+        turns = (cogs / avg_inv_cost) * (365.0 / day)
+
+    tei = None if (turns is None or gm_pct is None) else (turns * gm_pct)
+    tei_color = _color_from_thresholds(tei, good=2.0, warn=1.0, reverse=False)
+
+    tei_tip = html.Div(
+        [
+            html.Div(html.Strong("Turn & Earn (TEI) = Turns × GM%")),
+            html.Div(f"Turns (annualized): {'—' if turns is None else f'{turns:.2f}x'}"),
+            html.Div(f"GM%: {_fmt_pct(gm_pct)}"),
+            html.Div(f"TEI: {'—' if tei is None else f'{tei:.2f}'}"),
+            html.Hr(className="my-1"),
+            html.Small("Turns = (COGS ÷ Avg Inventory) × (365 ÷ days run)."),
+        ]
+    )
+
 
     inv_overhead = float(costs.get("ordering", 0.0)) + float(costs.get("holding", 0.0)) \
                  + float(costs.get("stockout", 0.0)) + float(costs.get("expedite", 0.0))
@@ -1346,7 +1432,6 @@ def build_kpi_strip(data: dict) -> list:
     after_overhead_pct = None if revenue <= 0 else after_overhead / max(1e-9, revenue)
     gm_color = _color_from_thresholds(gm_pct, good=0.12, warn=0.08, reverse=False)
 
-    # Tooltips
     cogs_tip = html.Div([html.Div(f"COGS (to date): {_fmt_money(cogs)}"),
                          html.Small("COGS rises when units ship.")])
     sales_tip = html.Div([html.Div(f"Revenue (to date): {_fmt_money(revenue)}"),
@@ -1370,19 +1455,14 @@ def build_kpi_strip(data: dict) -> list:
         ]
     )
 
-    # Build row — note the "kpi-card" class is baked into _kpi_card above
     return [
-        day_card,
-        dbc.Col(_kpi_card("kpi-service", "Fill Rate (Cumulative)", _fmt_pct(fill_total), service_color, service_tip),
-                className="d-flex"),
-        dbc.Col(_kpi_card("kpi-sales",   "Sales",                 _fmt_money(revenue),  "primary",      sales_tip),
-                className="d-flex"),
-        dbc.Col(_kpi_card("kpi-cogs",    "COGS (to date)",        _fmt_money(cogs),     "primary",      cogs_tip),
-                className="d-flex"),
-        dbc.Col(_kpi_card("kpi-allin",   "Inventory Overhead",    _fmt_money(inv_overhead), "primary",  overhead_tip),
-                className="d-flex"),
-        dbc.Col(_kpi_card("kpi-margin",  "GM%",                   _fmt_pct(gm_pct),     gm_color,       gm_tip),
-                className="d-flex"),
+        day_card,dbc.Col(_kpi_card("kpi-service", "Fill Rate (Cumulative)", _fmt_pct(fill_total), service_color, service_tip, tooltip_style={"maxWidth": "520px", "--bs-tooltip-max-width": "520px"}),className="d-flex"),
+        dbc.Col(_kpi_card("kpi-sales",   "Sales",                 _fmt_money(revenue),  "primary",      sales_tip),  className="d-flex"),
+        dbc.Col(_kpi_card("kpi-cogs",    "COGS (to date)",        _fmt_money(cogs),     "primary",      cogs_tip),   className="d-flex"),
+        dbc.Col(_kpi_card("kpi-allin",   "Inventory Overhead",    _fmt_money(inv_overhead), "primary",  overhead_tip), className="d-flex"),
+        dbc.Col(_kpi_card("kpi-margin",  "GM%",                   _fmt_pct(gm_pct),     gm_color,       gm_tip),     className="d-flex"),
+        dbc.Col(_kpi_card("kpi-gmroi",   "GMROI",               ("—" if gmroi is None else f"{gmroi:.2f}x"), gmroi_color, gmroi_tip, tooltip_style={"maxWidth":"520px"}), className="d-flex"),
+        dbc.Col(_kpi_card("kpi-tei",     "Turn & Earn (TEI)",   ("—" if tei   is None else f"{tei:.2f}"),    tei_color,   tei_tip,   tooltip_style={"maxWidth":"520px"}), className="d-flex"),
     ]
 
 
@@ -1599,6 +1679,20 @@ app.layout = dbc.Container(
                                                         dbc.Input(id="gm-input", type="number", value=15.0)],
                                                         className="mb-1",
                                                     ),
+                                                    dbc.InputGroup(
+                                                        [
+                                                            dbc.InputGroupText("Realization (% of list):"),
+                                                            dbc.Input(
+                                                                id="realization-input",
+                                                                type="number",
+                                                                value=100.0,    # default 100%
+                                                                min=50,         # matches clamp in process_item_day (0.5–1.0)
+                                                                max=100,
+                                                                step=1
+                                                            ),
+                                                        ],
+                                                        className="mb-1",
+                                                    ),
 
                                                     html.Hr(className="my-1 border-secondary opacity-25"),
 
@@ -1778,7 +1872,7 @@ app.layout = dbc.Container(
                             [
                                 dbc.Row(
                                     id="kpi-strip",
-                                    className="row-cols-2 row-cols-md-3 row-cols-lg-6 gx-3 gy-2 mb-2 align-items-stretch"
+                                    className="row-cols-2 row-cols-md-3 row-cols-lg-auto gx-3 gy-2 mb-2 align-items-stretch"
                                 ),
                                 dcc.Graph(
                                     id="inventory-graph",
@@ -1836,7 +1930,7 @@ app.layout = dbc.Container(
                                         ),
                                         dbc.InputGroup(
                                             [dbc.InputGroupText("Hits Per Month:"),
-                                             dbc.Input(id="hits-per-month-input", type="number", value=5, min=1, step=1)]
+                                             dbc.Input(id="hits-per-month-input", type="number", value=5, min=0.01, step=0.01)]
                                         ),
                                         dbc.Row(id="add-item-error"),
                                         dbc.Button("Randomize", id="randomize-button", color="secondary", className="me-md-2"),
@@ -1902,7 +1996,7 @@ app.layout = dbc.Container(
                         dbc.Row(
                             [
                                 dbc.Col(html.Strong("Item #"), width=1),
-                                dbc.Col(html.Strong("On Hand")),
+                                dbc.Col(html.Strong("Available to Sell")),
                                 dbc.Col(html.Strong("On-Order")),
                                 dbc.Col(html.Strong("Backorder")),
                                 dbc.Col(html.Strong("Usage")),
@@ -2027,6 +2121,7 @@ def update_on_interval(n_intervals, client_data):
     revenue_today = 0.0
     cogs_today = 0.0
     purchases_today = 0.0
+    inv_mid_today_value = 0.0
 
     # Process each item
     futures = [executor.submit(process_item_day, item, today, gs) for item in current["items"]]
@@ -2053,6 +2148,7 @@ def update_on_interval(n_intervals, client_data):
         revenue_today += met["revenue_add"]
         cogs_today += met["cogs_add"]
         purchases_today += met.get("purchases_add", 0.0)
+        inv_mid_today_value += met.get("inv_value_mid_add", 0.0)
 
     current["items"] = new_items
 
@@ -2081,6 +2177,10 @@ def update_on_interval(n_intervals, client_data):
     current["sales"]["revenue"] += revenue_today
     current["sales"]["cogs"] += cogs_today
     current["sales"]["units_sold"] += current["service_today"]["units_shipped"]
+
+    # Update analytics (for avg inventory at cost)  ← ADD HERE
+    current.setdefault("analytics", new_analytics_bucket())
+    current["analytics"]["inv_value_daysum"] += inv_mid_today_value
 
     # Month-end ASQ application (every N days)
     asq_feedback = dash.no_update
@@ -2270,7 +2370,7 @@ def handle_add_item_and_update_graph(
             safety_allowance=safety_allowance / 100.0,
             standard_pack=standard_pack,
             global_settings=gs,
-            hits_per_month=max(1.0, hits_per_month),
+            hits_per_month=float(hits_per_month),
         )
         current.setdefault("items", []).append(item)
         set_user_data(uuid_val, current)
@@ -2298,6 +2398,7 @@ def handle_add_item_and_update_graph(
         State("stockout-penalty-input", "value"),
         State("expedite-rate-input", "value"),
         State("gm-input", "value"),
+        State("realization-input", "value"),
         State("auto-po-enabled", "value"),
         # ASQ settings
         State("asq-enabled", "value"),
@@ -2317,6 +2418,7 @@ def update_parameters(
     stockout_penalty,
     expedite_rate_pct,
     gm_pct,
+    realization_pct,
     auto_po_enabled,
     asq_enabled,
     asq_min_hits,
@@ -2332,8 +2434,10 @@ def update_parameters(
     if auto_po_enabled is None:
         auto_po_enabled = False
 
-    if None in (review_cycle, r_cost, k_cost_pct, stockout_penalty, expedite_rate_pct, gm_pct,
-                asq_min_hits, asq_max_diff, asq_period_days):
+    if None in (
+        review_cycle, r_cost, k_cost_pct, stockout_penalty, expedite_rate_pct,
+        gm_pct, realization_pct, asq_min_hits, asq_max_diff, asq_period_days
+    ):
         return (
             dbc.Alert("Please fill out all parameters!", color="warning", duration=4000),
             dash.no_update, dash.no_update, dash.no_update, dash.no_update,
@@ -2346,6 +2450,7 @@ def update_parameters(
         or stockout_penalty < 0
         or expedite_rate_pct < 0
         or gm_pct < 0 or gm_pct >= 100
+        or realization_pct < 50 or realization_pct > 100
         or asq_min_hits < 0
         or asq_max_diff < 0
         or asq_period_days <= 0
@@ -2376,6 +2481,8 @@ def update_parameters(
         float(expedite_rate_pct) / 100.0,  # % → decimal
         float(gm_pct) / 100.0,             # % → decimal
     )
+
+    current["global_settings"]["realization"] = float(realization_pct) / 100.0
 
     current["global_settings"]["auto_po_enabled"] = bool(auto_po_enabled)
 
@@ -2778,7 +2885,7 @@ def import_uploaded_items(n_clicks, rows, client_data):
                 safety_allowance=float(rec["safety_allowance_pct"]) / 100.0,
                 standard_pack=float(rec["standard_pack"]),
                 global_settings=gs,
-                hits_per_month=max(1.0, float(rec["hits_per_month"])),
+                hits_per_month=float(rec["hits_per_month"]),
             )
             new_items.append(item)
         except Exception as e:
