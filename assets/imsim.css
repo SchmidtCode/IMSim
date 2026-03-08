@@ -1,0 +1,225 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap");
+
+:root {
+  --imsim-bg: #f4f1ea;
+  --imsim-surface: rgba(255, 255, 255, 0.82);
+  --imsim-surface-strong: #fffdf8;
+  --imsim-ink: #132238;
+  --imsim-muted: #536277;
+  --imsim-line: rgba(19, 34, 56, 0.12);
+  --imsim-teal: #0f766e;
+  --imsim-orange: #f97316;
+  --imsim-blue: #2563eb;
+  --imsim-shadow: 0 24px 60px rgba(19, 34, 56, 0.12);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 35%),
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.14), transparent 34%),
+    linear-gradient(180deg, #fbf8f2 0%, var(--imsim-bg) 100%);
+  color: var(--imsim-ink);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+.imsim-shell {
+  max-width: 1600px;
+}
+
+.hero-row {
+  align-items: stretch;
+}
+
+.hero-kicker,
+.panel-label,
+.metric-label,
+.footer-title {
+  color: var(--imsim-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero-title,
+.panel-title {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.hero-title {
+  font-size: clamp(2.6rem, 4vw, 4.4rem);
+  line-height: 0.95;
+  max-width: 12ch;
+}
+
+.hero-copy {
+  color: var(--imsim-muted);
+  font-size: 1.04rem;
+  line-height: 1.6;
+  max-width: 60ch;
+  margin: 1rem 0 1.35rem;
+}
+
+.hero-actions .btn {
+  border-radius: 999px;
+  padding-inline: 1rem;
+}
+
+.shell-card,
+.metric-card,
+.footer-card {
+  background: var(--imsim-surface);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--imsim-line);
+  border-radius: 24px;
+  box-shadow: var(--imsim-shadow);
+}
+
+.session-card {
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 247, 236, 0.92));
+}
+
+.panel-title {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.panel-title-small {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+}
+
+.status-value {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-top: 0.3rem;
+}
+
+.status-copy {
+  color: var(--imsim-muted);
+}
+
+.metric-card .card-body {
+  min-height: 136px;
+}
+
+.metric-value {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  margin-top: 0.55rem;
+}
+
+.metric-subtitle {
+  color: var(--imsim-muted);
+  margin-top: 0.5rem;
+}
+
+.metric-good {
+  border-top: 5px solid var(--imsim-teal);
+}
+
+.metric-warn {
+  border-top: 5px solid var(--imsim-orange);
+}
+
+.metric-neutral {
+  border-top: 5px solid var(--imsim-blue);
+}
+
+.upload-shell {
+  border: 2px dashed rgba(15, 118, 110, 0.35);
+  border-radius: 20px;
+  padding: 2rem 1rem;
+  text-align: center;
+  background: rgba(15, 118, 110, 0.04);
+  cursor: pointer;
+}
+
+.preview-card,
+.exception-card {
+  border-radius: 18px;
+  border: 1px solid var(--imsim-line);
+  background: var(--imsim-surface-strong);
+  margin-bottom: 0.85rem;
+}
+
+.exception-stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.inventory-table {
+  --bs-table-striped-bg: rgba(15, 118, 110, 0.05);
+  --bs-table-hover-bg: rgba(37, 99, 235, 0.06);
+  font-size: 0.92rem;
+}
+
+.custom-order-head,
+.custom-order-row,
+.po-header,
+.po-row {
+  align-items: center;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--imsim-line);
+}
+
+.footer-card {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: 280px;
+  z-index: 1050;
+}
+
+.footer-hide {
+  padding: 0;
+  margin-top: 0.5rem;
+}
+
+.maintenance-card {
+  margin-bottom: 1.25rem;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.card,
+.btn,
+.form-control,
+.input-group-text,
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table {
+  border-radius: 16px;
+}
+
+.btn-primary {
+  background-color: var(--imsim-teal);
+  border-color: var(--imsim-teal);
+}
+
+.btn-warning {
+  background-color: var(--imsim-orange);
+  border-color: var(--imsim-orange);
+  color: #fff;
+}
+
+.btn-dark {
+  background-color: #18283e;
+  border-color: #18283e;
+}
+
+@media (max-width: 991.98px) {
+  .footer-card {
+    position: static;
+    width: auto;
+    margin-top: 1rem;
+  }
+
+  .hero-title {
+    max-width: none;
+  }
+}
