@@ -10,7 +10,7 @@ from dash import ALL, Input, Output, State, ctx, html
 from dash.exceptions import PreventUpdate
 
 from .models import default_state
-from .repository import FileSessionRepository
+from .repository import SessionRepository
 from .services.asq import apply_asq_month_end
 from .services.planning import (
     create_inventory_item,
@@ -38,7 +38,7 @@ from .ui.components import (
 )
 
 
-def register_callbacks(app, repository: FileSessionRepository, maintenance: MaintenanceController):
+def register_callbacks(app, repository: SessionRepository, maintenance: MaintenanceController):
     def _require_session(client_data: dict | None):
         session_id = (client_data or {}).get("uuid")
         if not session_id:

@@ -33,6 +33,10 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/imsim"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"assets" = "assets"
+"examples" = "examples"
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]

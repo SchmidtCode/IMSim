@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import imsim.config as config_module
+from imsim.config import IMSimConfig
 from imsim.models import SimulationState
 from imsim.repository import FileSessionRepository
 
@@ -31,10 +35,7 @@ def test_shutdown_endpoint_disabled_by_default(client):
 
 
 def test_admin_token_is_enforced(tmp_path):
-    from pathlib import Path
-
     from imsim.app import create_app
-    from imsim.config import IMSimConfig
 
     repo_root = Path.cwd()
     app = create_app(
@@ -62,3 +63,44 @@ def test_admin_token_is_enforced(tmp_path):
     assert ok.status_code == 200
     payload = ok.get_json()
     assert payload["active"] is True
+
+
+def test_config_from_env_uses_checkout_root(monkeypatch, tmp_path):
+    repo_root = tmp_path / "repo"
+    package_dir = repo_root / "src" / "imsim"
+    package_dir.mkdir(parents=True)
+    (repo_root / "pyproject.toml").write_text("[project]\nname = 'imsim'\n", encoding="utf-8")
+    (repo_root / "assets").mkdir()
+    (repo_root / "examples").mkdir()
+    fake_file = package_dir / "config.py"
+    fake_file.write_text("# test fixture\n", encoding="utf-8")
+
+    monkeypatch.setattr(config_module, "__file__", str(fake_file))
+    monkeypatch.delenv("IMSIM_DATA_DIR", raising=False)
+
+    config = IMSimConfig.from_env()
+
+    assert config.repo_root == repo_root
+    assert config.assets_dir == repo_root / "assets"
+    assert config.examples_dir == repo_root / "examples"
+    assert config.session_dir == repo_root / "var" / "sessions"
+
+
+def test_config_from_env_uses_installed_distribution_root(monkeypatch, tmp_path):
+    site_packages = tmp_path / "venv" / "lib" / "python3.11" / "site-packages"
+    package_dir = site_packages / "imsim"
+    package_dir.mkdir(parents=True)
+    (site_packages / "assets").mkdir()
+    (site_packages / "examples").mkdir()
+    fake_file = package_dir / "config.py"
+    fake_file.write_text("# installed package fixture\n", encoding="utf-8")
+
+    monkeypatch.setattr(config_module, "__file__", str(fake_file))
+    monkeypatch.delenv("IMSIM_DATA_DIR", raising=False)
+
+    config = IMSimConfig.from_env()
+
+    assert config.repo_root == site_packages
+    assert config.assets_dir == site_packages / "assets"
+    assert config.examples_dir == site_packages / "examples"
+    assert config.session_dir == site_packages / "var" / "sessions"

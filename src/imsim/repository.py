@@ -3,9 +3,22 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from threading import RLock
+from typing import Protocol
 
 from .config import IMSimConfig
 from .models import SimulationState, default_state
+
+
+class SessionRepository(Protocol):
+    def get_or_create(self, session_id: str) -> SimulationState: ...
+
+    def save(self, session_id: str, state: SimulationState) -> None: ...
+
+    def reset(self, session_id: str) -> SimulationState: ...
+
+    def pause_all(self) -> None: ...
+
+    def persist_all(self) -> None: ...
 
 
 class FileSessionRepository:

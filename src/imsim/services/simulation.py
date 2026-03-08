@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..models import InventoryItem, Receipt, ServiceMetrics, SimulationState
-from ..repository import FileSessionRepository
+from ..repository import SessionRepository
 from .asq import apply_asq_month_end
 from .planning import round_to_pack, safe_div, update_planning_fields
 
@@ -252,7 +252,7 @@ class MaintenanceState:
 
 
 class MaintenanceController:
-    def __init__(self, repository: FileSessionRepository, allow_dev_shutdown: bool):
+    def __init__(self, repository: SessionRepository, allow_dev_shutdown: bool):
         self._repository = repository
         self._allow_dev_shutdown = allow_dev_shutdown
         self._state = MaintenanceState()
