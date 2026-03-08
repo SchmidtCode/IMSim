@@ -15,29 +15,93 @@ def _items_frame(items: list[InventoryItem]) -> pd.DataFrame:
     return pd.DataFrame([item.to_dict() for item in items]).reset_index(names="idx")
 
 
-def build_inventory_figure(state: SimulationState) -> go.Figure:
+def _figure_theme(theme: str) -> dict[str, str]:
+    if theme == "dark":
+        return {
+            "plot_bg": "rgba(13, 24, 38, 0.94)",
+            "surface": "#17273d",
+            "text": "#e6eefc",
+            "muted": "#9aabc6",
+            "line": "rgba(214, 228, 255, 0.14)",
+            "guide": "rgba(148, 163, 184, 0.7)",
+            "pna": "#2dd4bf",
+            "proposed": "#fb923c",
+            "ats": "#60a5fa",
+            "zero": "#f87171",
+        }
+    return {
+        "plot_bg": "rgba(255,255,255,0.55)",
+        "surface": "#fffdf8",
+        "text": "#132238",
+        "muted": "#536277",
+        "line": "rgba(19, 34, 56, 0.12)",
+        "guide": "rgba(19, 34, 56, 0.55)",
+        "pna": "#0f766e",
+        "proposed": "#f97316",
+        "ats": "#2563eb",
+        "zero": "#dc2626",
+    }
+
+
+def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.Figure:
+    colors = _figure_theme(theme)
     if not state.items:
         fig = go.Figure()
         fig.update_layout(
-            title="Inventory Signal Map",
+            title={"text": "Inventory Signal Map", "font": {"color": colors["text"], "size": 28}},
             xaxis_title="Item",
             yaxis_title="Days from OP",
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(255,255,255,0.55)",
+            plot_bgcolor=colors["plot_bg"],
+            font={"color": colors["text"]},
+            hoverlabel={
+                "bgcolor": colors["surface"],
+                "bordercolor": colors["line"],
+                "font": {"color": colors["text"]},
+            },
         )
-        fig.add_hline(y=0, line_dash="dot", annotation_text="OP")
-        fig.add_hline(y=state.global_settings.r_cycle, line_dash="dot", annotation_text="LP")
+        fig.add_hline(
+            y=0,
+            line_dash="dot",
+            line_color=colors["guide"],
+            annotation_text="OP",
+            annotation_font_color=colors["text"],
+        )
+        fig.add_hline(
+            y=state.global_settings.r_cycle,
+            line_dash="dot",
+            line_color=colors["guide"],
+            annotation_text="LP",
+            annotation_font_color=colors["text"],
+        )
+        fig.update_xaxes(
+            color=colors["text"],
+            gridcolor=colors["line"],
+            linecolor=colors["line"],
+        )
+        fig.update_yaxes(
+            color=colors["text"],
+            gridcolor=colors["line"],
+            linecolor=colors["line"],
+        )
         return fig
 
     df = _items_frame(state.items)
     fig = go.Figure()
     fig.update_layout(
-        title="Inventory Signal Map",
+        title={"text": "Inventory Signal Map", "font": {"color": colors["text"], "size": 28}},
         xaxis_title="Item",
         yaxis_title="Days from OP",
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(255,255,255,0.55)",
+        plot_bgcolor=colors["plot_bg"],
+        font={"color": colors["text"]},
         legend_title_text="",
+        legend={"font": {"color": colors["text"]}},
+        hoverlabel={
+            "bgcolor": colors["surface"],
+            "bordercolor": colors["line"],
+            "font": {"color": colors["text"]},
+        },
         margin={"l": 24, "r": 24, "t": 72, "b": 28},
     )
     hover = "Item %{x}<br>%{y:.1f} days<extra>%{fullData.name}</extra>"
@@ -47,7 +111,7 @@ def build_inventory_figure(state: SimulationState) -> go.Figure:
         y=df["pna_days_frm_op"],
         mode="markers",
         name="PNA",
-        marker={"size": 14, "color": "#0f766e"},
+        marker={"size": 14, "color": colors["pna"]},
         hovertemplate=hover,
     )
 
@@ -59,7 +123,11 @@ def build_inventory_figure(state: SimulationState) -> go.Figure:
             y=dfp["pro_pna_days_frm_op"],
             mode="markers",
             name="PNA + SOQ",
-            marker={"size": 10, "symbol": "circle-open", "line": {"width": 2, "color": "#f97316"}},
+            marker={
+                "size": 10,
+                "symbol": "circle-open",
+                "line": {"width": 2, "color": colors["proposed"]},
+            },
             hovertemplate=hover,
         )
 
@@ -68,7 +136,7 @@ def build_inventory_figure(state: SimulationState) -> go.Figure:
         y=df["ats_days_frm_op"],
         mode="markers",
         name="Available to Sell",
-        marker={"size": 9, "symbol": "x", "color": "#2563eb"},
+        marker={"size": 9, "symbol": "x", "color": colors["ats"]},
         customdata=df["ats_days_to_stockout"],
         hovertemplate="Item %{x}<br>%{customdata:.1f} days to stockout<extra>ATS</extra>",
     )
@@ -77,7 +145,7 @@ def build_inventory_figure(state: SimulationState) -> go.Figure:
         y=df["no_pna_days_frm_op"],
         mode="markers",
         name="0 PNA",
-        marker={"size": 8, "color": "#dc2626"},
+        marker={"size": 8, "color": colors["zero"]},
         hovertemplate=hover,
     )
 
@@ -88,18 +156,47 @@ def build_inventory_figure(state: SimulationState) -> go.Figure:
             y=stockouts["pna_days_frm_op"],
             mode="markers",
             name="Stockout Today",
-            marker={"size": 18, "symbol": "circle-open-dot", "line": {"width": 2}},
+            marker={
+                "size": 18,
+                "symbol": "circle-open-dot",
+                "line": {"width": 2, "color": colors["zero"]},
+            },
             hovertemplate=hover,
         )
 
-    fig.add_hline(y=0, line_dash="dot", annotation_text="OP")
-    fig.add_hline(y=state.global_settings.r_cycle, line_dash="dot", annotation_text="LP")
+    fig.add_hline(
+        y=0,
+        line_dash="dot",
+        line_color=colors["guide"],
+        annotation_text="OP",
+        annotation_font_color=colors["text"],
+    )
+    fig.add_hline(
+        y=state.global_settings.r_cycle,
+        line_dash="dot",
+        line_color=colors["guide"],
+        annotation_text="LP",
+        annotation_font_color=colors["text"],
+    )
     fig.update_xaxes(
         tickmode="linear",
         dtick=1,
         tick0=1,
         tickformat="d",
         range=[0.5, len(df) + 0.5],
+        color=colors["text"],
+        gridcolor=colors["line"],
+        linecolor=colors["line"],
+        title_font={"color": colors["text"]},
+        tickfont={"color": colors["text"]},
+    )
+    fig.update_yaxes(
+        color=colors["text"],
+        gridcolor=colors["line"],
+        linecolor=colors["line"],
+        title_font={"color": colors["text"]},
+        tickfont={"color": colors["text"]},
+        zerolinecolor=colors["guide"],
     )
     return fig
 
@@ -385,12 +482,15 @@ def build_inventory_table(state: SimulationState):
         return dbc.Alert(
             "No items loaded yet. Add an item or import a sample workbook.", color="secondary"
         )
-    return dbc.Table.from_dataframe(
-        pd.DataFrame(rows),
-        striped=True,
-        bordered=False,
-        hover=True,
-        class_name="inventory-table",
+    return html.Div(
+        dbc.Table.from_dataframe(
+            pd.DataFrame(rows),
+            striped=True,
+            bordered=False,
+            hover=True,
+            class_name="inventory-table",
+        ),
+        className="table-scroll-shell",
     )
 
 

@@ -1,6 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap");
 
 :root {
+  --imsim-bg-top: #fbf8f2;
   --imsim-bg: #f4f1ea;
   --imsim-surface: rgba(255, 255, 255, 0.82);
   --imsim-surface-strong: #fffdf8;
@@ -11,19 +12,63 @@
   --imsim-orange: #f97316;
   --imsim-blue: #2563eb;
   --imsim-shadow: 0 24px 60px rgba(19, 34, 56, 0.12);
+  --imsim-bg-accent-a: rgba(15, 118, 110, 0.18);
+  --imsim-bg-accent-b: rgba(249, 115, 22, 0.14);
+  --imsim-graph-bg: rgba(255, 255, 255, 0.55);
+  --imsim-session-bg: linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 247, 236, 0.92));
+  --imsim-maintenance-bg: rgba(255, 255, 255, 0.88);
+  --imsim-upload-bg: rgba(15, 118, 110, 0.04);
+  --imsim-table-stripe: rgba(15, 118, 110, 0.05);
+  --imsim-table-hover: rgba(37, 99, 235, 0.06);
 }
 
 body {
-  background:
-    radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 35%),
-    radial-gradient(circle at top right, rgba(249, 115, 22, 0.14), transparent 34%),
-    linear-gradient(180deg, #fbf8f2 0%, var(--imsim-bg) 100%);
-  color: var(--imsim-ink);
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  margin: 0;
+}
+
+.imsim-theme {
+  min-height: 100vh;
+  color: var(--imsim-ink);
+  background:
+    radial-gradient(circle at top left, var(--imsim-bg-accent-a), transparent 35%),
+    radial-gradient(circle at top right, var(--imsim-bg-accent-b), transparent 34%),
+    linear-gradient(180deg, var(--imsim-bg-top) 0%, var(--imsim-bg) 100%);
+}
+
+.theme-dark {
+  --imsim-bg-top: #08111d;
+  --imsim-bg: #0c1523;
+  --imsim-surface: rgba(13, 24, 38, 0.82);
+  --imsim-surface-strong: rgba(18, 31, 49, 0.94);
+  --imsim-ink: #e6eefc;
+  --imsim-muted: #9aabc6;
+  --imsim-line: rgba(214, 228, 255, 0.14);
+  --imsim-shadow: 0 26px 70px rgba(2, 8, 18, 0.48);
+  --imsim-bg-accent-a: rgba(15, 118, 110, 0.24);
+  --imsim-bg-accent-b: rgba(37, 99, 235, 0.18);
+  --imsim-graph-bg: rgba(10, 19, 32, 0.7);
+  --imsim-session-bg: linear-gradient(180deg, rgba(18, 31, 49, 0.96), rgba(13, 24, 38, 0.92));
+  --imsim-maintenance-bg: rgba(18, 31, 49, 0.92);
+  --imsim-upload-bg: rgba(15, 118, 110, 0.09);
+  --imsim-table-stripe: rgba(15, 118, 110, 0.1);
+  --imsim-table-hover: rgba(37, 99, 235, 0.14);
 }
 
 .imsim-shell {
   max-width: 1600px;
+}
+
+.session-card-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.theme-toggle-button {
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .hero-row {
@@ -49,22 +94,39 @@ body {
 }
 
 .hero-title {
-  font-size: clamp(2.6rem, 4vw, 4.4rem);
-  line-height: 0.95;
-  max-width: 12ch;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1;
+  margin-bottom: 0.35rem;
+  max-width: none;
 }
 
 .hero-copy {
   color: var(--imsim-muted);
-  font-size: 1.04rem;
-  line-height: 1.6;
-  max-width: 60ch;
-  margin: 1rem 0 1.35rem;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  max-width: 48ch;
+  margin: 0.35rem 0 0;
 }
 
 .hero-actions .btn {
   border-radius: 999px;
   padding-inline: 1rem;
+}
+
+.hero-banner-card .card-body {
+  padding-block: 1.4rem;
+}
+
+.hero-actions-wrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hero-actions-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
 }
 
 .shell-card,
@@ -78,7 +140,7 @@ body {
 }
 
 .session-card {
-  background: linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 247, 236, 0.92));
+  background: var(--imsim-session-bg);
 }
 
 .panel-title {
@@ -102,6 +164,14 @@ body {
 
 .status-copy {
   color: var(--imsim-muted);
+}
+
+.speed-readout {
+  color: var(--imsim-ink);
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0.2rem 0 0.65rem;
 }
 
 .metric-card .card-body {
@@ -137,7 +207,7 @@ body {
   border-radius: 20px;
   padding: 2rem 1rem;
   text-align: center;
-  background: rgba(15, 118, 110, 0.04);
+  background: var(--imsim-upload-bg);
   cursor: pointer;
 }
 
@@ -155,9 +225,24 @@ body {
 }
 
 .inventory-table {
-  --bs-table-striped-bg: rgba(15, 118, 110, 0.05);
-  --bs-table-hover-bg: rgba(37, 99, 235, 0.06);
+  --bs-table-striped-bg: var(--imsim-table-stripe);
+  --bs-table-hover-bg: var(--imsim-table-hover);
   font-size: 0.92rem;
+  margin-bottom: 0;
+  min-width: 860px;
+}
+
+.inventory-table th,
+.inventory-table td {
+  padding: 0.85rem 0.75rem;
+  white-space: nowrap;
+}
+
+.table-scroll-shell {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.35rem;
+  scrollbar-width: thin;
 }
 
 .custom-order-head,
@@ -185,15 +270,136 @@ body {
 .maintenance-card {
   margin-bottom: 1.25rem;
   border: 1px solid rgba(220, 38, 38, 0.2);
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--imsim-maintenance-bg);
 }
 
 .card,
 .btn,
 .form-control,
 .input-group-text,
+.form-select,
+.form-check-input,
 .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table {
   border-radius: 16px;
+}
+
+.theme-dark .card,
+.theme-dark .list-group-item,
+.theme-dark .input-group-text,
+.theme-dark .form-control,
+.theme-dark .form-select,
+.theme-dark .form-check-input,
+.theme-dark .form-range,
+.theme-dark .modal-content,
+.theme-dark .table,
+.theme-dark .alert {
+  background-color: var(--imsim-surface-strong);
+  border-color: var(--imsim-line);
+  color: var(--imsim-ink);
+}
+
+.theme-dark .list-group-item,
+.theme-dark .table,
+.theme-dark .table th,
+.theme-dark .table td {
+  color: var(--imsim-ink);
+}
+
+.theme-dark .text-muted {
+  color: var(--imsim-muted) !important;
+}
+
+.theme-dark .btn-light {
+  background-color: #22344b;
+  border-color: #22344b;
+  color: #e6eefc;
+}
+
+.theme-dark .btn-secondary {
+  background-color: #33485f;
+  border-color: #33485f;
+}
+
+.theme-dark .btn-dark {
+  background-color: #dfe9fb;
+  border-color: #dfe9fb;
+  color: #112338;
+}
+
+.theme-dark .btn-close {
+  filter: invert(1);
+}
+
+.theme-dark .upload-shell {
+  border-color: rgba(94, 234, 212, 0.35);
+}
+
+.theme-dark .rc-slider-mark-text {
+  color: var(--imsim-muted);
+}
+
+.rc-slider-rail {
+  background-color: rgba(83, 98, 119, 0.22);
+  height: 6px;
+}
+
+.rc-slider-track {
+  background-color: var(--imsim-blue);
+  height: 6px;
+}
+
+.rc-slider-handle {
+  background-color: var(--imsim-surface-strong);
+  border: 3px solid var(--imsim-blue);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+  height: 18px;
+  margin-top: -6px;
+  opacity: 1;
+  width: 18px;
+}
+
+.rc-slider-handle:focus-visible {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.22);
+}
+
+.rc-slider-tooltip-inner {
+  background-color: var(--imsim-surface-strong);
+  border: 1px solid var(--imsim-line);
+  border-radius: 12px;
+  box-shadow: var(--imsim-shadow);
+  color: var(--imsim-ink);
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.rc-slider-tooltip-arrow {
+  border-top-color: var(--imsim-surface-strong) !important;
+}
+
+.theme-dark .rc-slider-rail {
+  background-color: rgba(214, 228, 255, 0.18);
+}
+
+.theme-dark .rc-slider-track {
+  background-color: #5eead4;
+}
+
+.theme-dark .rc-slider-handle {
+  background-color: #132238;
+  border-color: #5eead4;
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.16);
+}
+
+.theme-dark .rc-slider-tooltip-inner {
+  background-color: #132238;
+  border-color: rgba(214, 228, 255, 0.2);
+  color: #e6eefc;
+  box-shadow: 0 18px 40px rgba(2, 8, 18, 0.38);
+}
+
+.theme-dark .rc-slider-tooltip-arrow {
+  border-top-color: #132238 !important;
 }
 
 .btn-primary {
@@ -212,6 +418,10 @@ body {
   border-color: #18283e;
 }
 
+.js-plotly-plot .plotly .main-svg {
+  border-radius: 20px;
+}
+
 @media (max-width: 991.98px) {
   .footer-card {
     position: static;
@@ -221,5 +431,15 @@ body {
 
   .hero-title {
     max-width: none;
+  }
+
+  .hero-actions-wrap,
+  .hero-actions-compact {
+    justify-content: flex-start;
+  }
+
+  .session-card-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
