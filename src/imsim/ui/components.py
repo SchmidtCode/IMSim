@@ -55,6 +55,161 @@ def _figure_theme(theme: str) -> dict[str, str]:
 
 def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.Figure:
     colors = _figure_theme(theme)
+    level = active_level(state)
+    if level is not None and level.index == 1:
+        history = state.history or []
+        fig = go.Figure()
+        fig.update_layout(
+            title={
+                "text": "On-hand inventory over time",
+                "font": {"color": colors["text"], "size": 28},
+            },
+            xaxis_title="Day",
+            yaxis_title="Units",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor=colors["plot_bg"],
+            font={"color": colors["text"]},
+            legend_title_text="",
+            legend={"font": {"color": colors["text"]}},
+            hoverlabel={
+                "bgcolor": colors["surface"],
+                "bordercolor": colors["line"],
+                "font": {"color": colors["text"]},
+            },
+            margin={"l": 24, "r": 24, "t": 72, "b": 28},
+        )
+        if history:
+            days = [point.day for point in history]
+            on_hand = [point.total_on_hand for point in history]
+            backorder = [point.total_backorder for point in history]
+            fig.add_scatter(
+                x=days,
+                y=on_hand,
+                mode="lines+markers",
+                name="On Hand",
+                line={"width": 3, "color": colors["pna"]},
+                marker={"size": 8, "color": colors["pna"]},
+                hovertemplate="Day %{x}<br>On hand %{y:.1f}<extra></extra>",
+            )
+            fig.add_scatter(
+                x=days,
+                y=backorder,
+                mode="lines+markers",
+                name="Backorder",
+                line={"width": 3, "dash": "dash", "color": colors["zero"]},
+                marker={"size": 7, "color": colors["zero"]},
+                hovertemplate="Day %{x}<br>Backorder %{y:.1f}<extra></extra>",
+            )
+        fig.add_hline(
+            y=0,
+            line_dash="dot",
+            line_color=colors["guide"],
+            annotation_text="Zero on hand",
+            annotation_font_color=colors["text"],
+        )
+        fig.update_xaxes(
+            tickmode="linear",
+            dtick=1,
+            color=colors["text"],
+            gridcolor=colors["line"],
+            linecolor=colors["line"],
+            title_font={"color": colors["text"]},
+            tickfont={"color": colors["text"]},
+        )
+        fig.update_yaxes(
+            color=colors["text"],
+            gridcolor=colors["line"],
+            linecolor=colors["line"],
+            title_font={"color": colors["text"]},
+            tickfont={"color": colors["text"]},
+            rangemode="tozero",
+        )
+        return fig
+    if level is not None and level.index == 2:
+        history = state.history or []
+        fig = go.Figure()
+        fig.update_layout(
+            title={
+                "text": "Basic reorder quantities over time",
+                "font": {"color": colors["text"], "size": 28},
+            },
+            xaxis_title="Day",
+            yaxis_title="Units",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor=colors["plot_bg"],
+            font={"color": colors["text"]},
+            legend_title_text="",
+            legend={"font": {"color": colors["text"]}},
+            hoverlabel={
+                "bgcolor": colors["surface"],
+                "bordercolor": colors["line"],
+                "font": {"color": colors["text"]},
+            },
+            margin={"l": 24, "r": 24, "t": 72, "b": 28},
+        )
+        if history:
+            days = [point.day for point in history]
+            fig.add_scatter(
+                x=days,
+                y=[point.total_on_hand for point in history],
+                mode="lines+markers",
+                name="On Hand",
+                line={"width": 3, "color": colors["pna"]},
+                marker={"size": 8, "color": colors["pna"]},
+                hovertemplate="Day %{x}<br>On hand %{y:.1f}<extra></extra>",
+            )
+            fig.add_scatter(
+                x=days,
+                y=[point.total_on_order for point in history],
+                mode="lines+markers",
+                name="On Order",
+                line={"width": 3, "color": colors["ats"]},
+                marker={"size": 8, "color": colors["ats"]},
+                hovertemplate="Day %{x}<br>On order %{y:.1f}<extra></extra>",
+            )
+            fig.add_scatter(
+                x=days,
+                y=[point.total_pna for point in history],
+                mode="lines+markers",
+                name="PNA",
+                line={"width": 3, "color": colors["proposed"]},
+                marker={"size": 8, "color": colors["proposed"]},
+                hovertemplate="Day %{x}<br>PNA %{y:.1f}<extra></extra>",
+            )
+            fig.add_scatter(
+                x=days,
+                y=[point.total_backorder for point in history],
+                mode="lines+markers",
+                name="Backorder",
+                line={"width": 3, "dash": "dash", "color": colors["zero"]},
+                marker={"size": 7, "color": colors["zero"]},
+                hovertemplate="Day %{x}<br>Backorder %{y:.1f}<extra></extra>",
+            )
+        fig.add_hline(
+            y=0,
+            line_dash="dot",
+            line_color=colors["guide"],
+            annotation_text="Zero",
+            annotation_font_color=colors["text"],
+        )
+        fig.update_xaxes(
+            tickmode="linear",
+            dtick=1,
+            color=colors["text"],
+            gridcolor=colors["line"],
+            linecolor=colors["line"],
+            title_font={"color": colors["text"]},
+            tickfont={"color": colors["text"]},
+        )
+        fig.update_yaxes(
+            color=colors["text"],
+            gridcolor=colors["line"],
+            linecolor=colors["line"],
+            title_font={"color": colors["text"]},
+            tickfont={"color": colors["text"]},
+            rangemode="tozero",
+        )
+        return fig
     if not state.items:
         fig = go.Figure()
         fig.update_layout(
@@ -212,11 +367,54 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
 
 
 def service_card_children(state: SimulationState) -> list:
+    level = active_level(state)
     today = state.service_today
     totals = state.service_totals
     ats = sum(item.on_hand for item in state.items)
     on_order = sum(item_on_order(item) for item in state.items)
     backorder = sum(item.backorder for item in state.items)
+    if level is not None and level.index == 1 and state.items:
+        item = state.items[0]
+        return [
+            dbc.ListGroup(
+                [
+                    dbc.ListGroupItem(f"Current on hand: {item.on_hand:.1f} units"),
+                    dbc.ListGroupItem(f"Daily usage: {item.daily_ur:.1f} units/day"),
+                    dbc.ListGroupItem(f"Backorder: {item.backorder:.1f} units"),
+                    dbc.ListGroupItem(
+                        "Inventory is depleted."
+                        if item.on_hand <= 0
+                        else "Inventory is still available to ship."
+                    ),
+                ],
+                flush=True,
+            )
+        ]
+    if level is not None and level.index == 2 and state.items:
+        item = state.items[0]
+        on_order = item_on_order(item)
+        reserved = 0.0
+        committed = 0.0
+        received = 0.0
+        return [
+            dbc.ListGroup(
+                [
+                    dbc.ListGroupItem(f"On hand: {item.on_hand:.1f} units"),
+                    dbc.ListGroupItem(f"Reserved: {reserved:.1f} units"),
+                    dbc.ListGroupItem(f"Committed: {committed:.1f} units"),
+                    dbc.ListGroupItem(f"Backordered: {item.backorder:.1f} units"),
+                    dbc.ListGroupItem(f"On order: {on_order:.1f} units"),
+                    dbc.ListGroupItem(f"Received: {received:.1f} units"),
+                    dbc.ListGroupItem(
+                        "PNA = "
+                        f"{item.on_hand:.1f} - {reserved:.1f} - {committed:.1f} - "
+                        f"{item.backorder:.1f} + {on_order:.1f} + {received:.1f} = "
+                        f"{item.pna:.1f}"
+                    ),
+                ],
+                flush=True,
+            )
+        ]
     fill_today = (
         None if today.orders == 0 else 100.0 * (today.orders - today.orders_stockout) / today.orders
     )
@@ -486,6 +684,7 @@ def build_inventory_table(state: SimulationState):
         "soq": ("soq", "SOQ"),
         "safety_allowance": ("safety_allowance", "Safety %"),
         "days_to_op": ("days_to_op", "Days to OP"),
+        "daily_usage": ("daily_usage", "Daily Usage"),
     }
     rows = []
     for index, item in enumerate(state.items, start=1):
@@ -504,6 +703,7 @@ def build_inventory_table(state: SimulationState):
                 "soq": round(item.soq, 2),
                 "safety_allowance": round(item.safety_allowance * 100.0, 1),
                 "days_to_op": round(item.ats_days_frm_op, 2),
+                "daily_usage": round(item.daily_ur, 2),
             }
         )
     if not rows:
@@ -648,6 +848,31 @@ def lesson_tutorial_children(state: SimulationState) -> list:
     level = active_level(state)
     if level is None:
         return [dbc.Alert("Select a lesson from the academy menu.", color="secondary")]
+    if level.index == 2 and state.items:
+        item = state.items[0]
+        on_order = item_on_order(item)
+        reserved = 0.0
+        committed = 0.0
+        received = 0.0
+        return [
+            html.Div(level.formula, className="lesson-formula-chip"),
+            html.Div(
+                (
+                    "This lesson keeps Reserved, Committed, and Received at 0 so the "
+                    "purchasing view stays simple."
+                ),
+                className="helper-copy mb-2",
+            ),
+            html.Div(
+                (
+                    "Current PNA = "
+                    f"{item.on_hand:.1f} - {reserved:.1f} - {committed:.1f} - "
+                    f"{item.backorder:.1f} + {on_order:.1f} + {received:.1f} = {item.pna:.1f}"
+                ),
+                className="lesson-formula-chip",
+            ),
+            html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
+        ]
     return [
         html.Div(level.formula, className="lesson-formula-chip"),
         html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
@@ -659,21 +884,39 @@ def lesson_objective_children(state: SimulationState) -> list:
     if level is None:
         return [dbc.Alert("No active lesson.", color="secondary")]
     evaluation = evaluate_active_lesson(state)
-    fill = fill_rate(state)
-    fill_value = "n/a" if fill is None else f"{fill * 100:.1f}%"
     after_overhead = after_overhead_pct(state)
     after_value = "n/a" if after_overhead is None else f"{after_overhead * 100:.1f}%"
     headline = f"{lesson_days_remaining(state)} day(s) remaining"
     if evaluation is not None and evaluation.completed:
         headline = "Lesson window closed"
     rows = list(evaluation.metric_rows if evaluation is not None else ())
-    rows.insert(0, f"Current fill rate: {fill_value}")
-    if after_overhead is not None:
+    if "fill_rate_min" in level.win_conditions:
+        fill = fill_rate(state)
+        fill_value = "n/a" if fill is None else f"{fill * 100:.1f}%"
+        rows.insert(0, f"Current fill rate: {fill_value}")
+    if after_overhead is not None and "after_overhead_min" in level.win_conditions:
         rows.append(f"Current after-overhead GM: {after_value}")
-    return [
+    children: list = []
+    if state.training.lesson_status in {"passed", "failed"} and (
+        state.training.last_result_title or state.training.last_result_message
+    ):
+        children.append(
+            dbc.Alert(
+                [
+                    html.Strong(state.training.last_result_title or "Lesson update"),
+                    html.Div(state.training.last_result_message),
+                ],
+                color="success" if state.training.lesson_status == "passed" else "warning",
+                class_name="academy-result-alert",
+            )
+        )
+    children.extend(
+        [
         html.Div(headline, className="lesson-objective-headline"),
         html.Ul([html.Li(row) for row in rows], className="lesson-copy-list"),
-    ]
+        ]
+    )
+    return children
 
 
 def lesson_locked_children(state: SimulationState) -> list:

@@ -97,7 +97,12 @@ def build_layout(config: IMSimConfig):
                 dcc.Store(id="theme-store", storage_type="local", data="light"),
                 dcc.Store(id="ui-refresh", data=0),
                 dcc.Interval(id="interval-component", interval=1000, disabled=True),
-                dcc.Interval(id="shutdown-poll", interval=1000, n_intervals=0),
+                dcc.Interval(
+                    id="shutdown-poll",
+                    interval=1000,
+                    n_intervals=0,
+                    disabled=not (config.admin_token or config.allow_dev_shutdown),
+                ),
                 html.Div(id="maintenance-banner"),
                 html.Div(
                     [
@@ -721,6 +726,7 @@ def build_layout(config: IMSimConfig):
                                                         html.H3(
                                                             "Inventory signal map",
                                                             className="panel-title",
+                                                            id="graph-panel-title",
                                                         ),
                                                         dcc.Graph(id="inventory-graph", figure={}),
                                                     ]

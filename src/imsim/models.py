@@ -155,6 +155,26 @@ class AnalyticsMetrics:
 
 
 @dataclass(slots=True)
+class HistoryPoint:
+    day: int
+    total_on_hand: float
+    total_on_order: float
+    total_backorder: float
+    total_pna: float
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> HistoryPoint:
+        data = data or {}
+        return cls(
+            day=int(data.get("day", 1)),
+            total_on_hand=float(data.get("total_on_hand", 0.0)),
+            total_on_order=float(data.get("total_on_order", 0.0)),
+            total_backorder=float(data.get("total_backorder", 0.0)),
+            total_pna=float(data.get("total_pna", 0.0)),
+        )
+
+
+@dataclass(slots=True)
 class ExceptionRecord:
     day: int
     item_index: int
@@ -310,6 +330,7 @@ class SimulationState:
     sales: SalesMetrics = field(default_factory=SalesMetrics)
     exception_center: list[ExceptionRecord] = field(default_factory=list)
     analytics: AnalyticsMetrics = field(default_factory=AnalyticsMetrics)
+    history: list[HistoryPoint] = field(default_factory=list)
     training: TrainingProfile = field(default_factory=TrainingProfile)
 
     @classmethod
@@ -328,6 +349,7 @@ class SimulationState:
                 ExceptionRecord.from_dict(rec) for rec in data.get("exception_center", [])
             ],
             analytics=AnalyticsMetrics.from_dict(data.get("analytics")),
+            history=[HistoryPoint.from_dict(point) for point in data.get("history", [])],
             training=TrainingProfile.from_dict(data.get("training")),
         )
 
@@ -338,6 +360,21 @@ class SimulationState:
         data = asdict(self)
         data["items"] = [item.to_dict() for item in self.items]
         return data
+
+    def record_history(self) -> None:
+        point = HistoryPoint(
+            day=int(self.day),
+            total_on_hand=sum(item.on_hand for item in self.items),
+            total_on_order=sum(
+                sum(receipt.qty for receipt in item.pipeline) for item in self.items
+            ),
+            total_backorder=sum(item.backorder for item in self.items),
+            total_pna=sum(item.pna for item in self.items),
+        )
+        if self.history and self.history[-1].day == point.day:
+            self.history[-1] = point
+            return
+        self.history.append(point)
 
 
 def default_state() -> SimulationState:

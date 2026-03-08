@@ -4,6 +4,7 @@ from pathlib import Path
 
 import imsim.config as config_module
 from imsim.app import create_app
+from imsim.callbacks import _triggered_click_count
 from imsim.config import IMSimConfig
 from imsim.models import SimulationState
 from imsim.repository import (
@@ -87,6 +88,19 @@ def test_dash_layout_and_admin_status(client):
 def test_shutdown_endpoint_disabled_by_default(client):
     response = client.post("/shutdown")
     assert response.status_code == 404
+
+
+def test_triggered_click_count_ignores_recreated_buttons():
+    click_map = {
+        "academy-level-1-button": 0,
+        "academy-reset-progress-button": None,
+        "return-to-menu-button": 2,
+    }
+
+    assert _triggered_click_count("academy-level-1-button", click_map) == 0
+    assert _triggered_click_count("academy-reset-progress-button", click_map) == 0
+    assert _triggered_click_count("return-to-menu-button", click_map) == 2
+    assert _triggered_click_count(None, click_map) == 0
 
 
 def test_admin_token_is_enforced(tmp_path):

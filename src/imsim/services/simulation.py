@@ -179,6 +179,7 @@ def tick_state(state: SimulationState) -> dict[str, int]:
     state.sales.cogs += cogs_today
     state.sales.units_sold += state.service_today.units_shipped
     state.analytics.inv_value_daysum += inventory_mid_value
+    state.record_history()
 
     asq_changed = 0
     if state.day % max(1, state.global_settings.asq.period_days) == 0:

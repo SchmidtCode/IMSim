@@ -57,6 +57,14 @@ from .ui.components import (
 )
 
 
+def _triggered_click_count(
+    triggered_id: str | dict | None, click_map: dict[str, int | None]
+) -> int:
+    if not isinstance(triggered_id, str):
+        return 0
+    return int(click_map.get(triggered_id) or 0)
+
+
 def register_callbacks(app, repository: SessionRepository, maintenance: MaintenanceController):
     def _require_session(client_data: dict | None):
         session_id = (client_data or {}).get("uuid")
@@ -79,12 +87,19 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
     ) -> tuple[str, str]:
         mode = "Simulation" if state.training.current_view == "simulator" else "Lesson"
         if disabled:
-            return "Disabled for Maintenance", _button_class("secondary", "button-pill")
+            label = "Lesson Complete" if state.training.current_view == "lesson" else "Disabled"
+            return label, _button_class("secondary", "button-pill")
         if running:
             return f"Pause {mode}", _button_class("warning", "button-pill")
         if resumable:
             return f"Resume {mode}", _button_class("success", "button-pill")
         return f"Start {mode}", _button_class("success", "button-pill")
+
+    def _lesson_terminal(state) -> bool:
+        return (
+            state.training.current_view == "lesson"
+            and state.training.lesson_status in {"passed", "failed"}
+        )
 
     def _panel_style(enabled: bool) -> dict[str, str]:
         return {} if enabled else {"display": "none"}
@@ -201,6 +216,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Input("academy-level-4-button", "n_clicks"),
             Input("academy-level-5-button", "n_clicks"),
             Input("academy-level-6-button", "n_clicks"),
+            Input("academy-level-7-button", "n_clicks"),
             Input("academy-simulator-button", "n_clicks"),
             Input("return-to-menu-button", "n_clicks"),
             Input("simulator-return-button", "n_clicks"),
@@ -217,6 +233,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         _level_4,
         _level_5,
         _level_6,
+        _level_7,
         _open_simulator,
         _lesson_return,
         _simulator_return,
@@ -226,6 +243,26 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
     ):
         trig = ctx.triggered_id
         if trig is None:
+            raise PreventUpdate
+        click_count = _triggered_click_count(
+            trig,
+            {
+                "academy-level-1-button": _level_1,
+                "academy-level-2-button": _level_2,
+                "academy-level-3-button": _level_3,
+                "academy-level-4-button": _level_4,
+                "academy-level-5-button": _level_5,
+                "academy-level-6-button": _level_6,
+                "academy-level-7-button": _level_7,
+                "academy-simulator-button": _open_simulator,
+                "return-to-menu-button": _lesson_return,
+                "simulator-return-button": _simulator_return,
+                "academy-reset-progress-button": _reset_progress,
+            },
+        )
+        # The academy cards are re-rendered while hidden; ignore remounted buttons
+        # that appear as triggered inputs with a zero click count.
+        if click_count <= 0:
             raise PreventUpdate
         session_id, state = _require_session(client_data)
         if trig == "academy-reset-progress-button":
@@ -292,6 +329,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("start-button", "disabled", allow_duplicate=True),
             Output("reset-button", "children", allow_duplicate=True),
             Output("po-button", "children"),
+            Output("graph-panel-title", "children"),
             Output("inventory-panel-title", "children"),
             Output("actions-panel", "style"),
             Output("policy-panel", "style"),
@@ -316,6 +354,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("academy-level-4-card", "children"),
             Output("academy-level-5-card", "children"),
             Output("academy-level-6-card", "children"),
+            Output("academy-level-7-card", "children"),
             Output("academy-simulator-card", "children"),
             Output("academy-simulator-button", "disabled"),
             Output("advanced-sandbox-copy", "children"),
@@ -347,10 +386,28 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             experience_title = "Lesson control deck"
             experience_copy = "Use the academy menu to start a lesson."
         reset_label = "Reset Sandbox" if is_simulator else "Restart Lesson"
+        lesson_terminal = _lesson_terminal(state)
         po_label = (
             "Place SOQ Order"
-            if (is_simulator or (level is not None and level.index >= 5))
+            if (is_simulator or (level is not None and level.index >= 6))
             else "Place Guided Reorder"
+        )
+        graph_title = (
+            "On-hand lesson trend"
+            if level is not None and level.index == 1
+            else (
+                "Basic reorder signal"
+                if level is not None and level.index == 2
+                else "Inventory signal map"
+            )
+        )
+        start_label, start_class = _start_button_state(
+            state,
+            running=state.is_initialized,
+            disabled=lesson_terminal,
+            resumable=(
+                not state.is_initialized and state.day > 1 and not is_menu and not lesson_terminal
+            ),
         )
         simulator_copy = (
             (
@@ -399,21 +456,14 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                     )
                 )
             ),
-            _start_button_state(
-                state,
-                running=state.is_initialized,
-                resumable=(not state.is_initialized and state.day > 1 and not is_menu),
-            )[0],
-            _start_button_state(
-                state,
-                running=state.is_initialized,
-                resumable=(not state.is_initialized and state.day > 1 and not is_menu),
-            )[1],
-            False,
+            start_label,
+            start_class,
+            lesson_terminal,
             reset_label,
             po_label,
+            graph_title,
             "Planner grid"
-            if is_simulator or (level is not None and level.index >= 5)
+            if is_simulator or (level is not None and level.index >= 6)
             else "Lesson items",
             _panel_style("actions" in panels),
             _panel_style("policy" in panels),
@@ -438,6 +488,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             academy_level_card_children(4, state),
             academy_level_card_children(5, state),
             academy_level_card_children(6, state),
+            academy_level_card_children(7, state),
             simulator_unlock_children(state),
             not state.training.simulator_unlocked,
             sandbox_copy,
@@ -539,7 +590,11 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 else "Status: Lesson failed"
             )
             interval_disabled = True
-            button_label, button_class = _start_button_state(state, running=False)
+            button_label, button_class = _start_button_state(
+                state,
+                running=False,
+                disabled=True,
+            )
         return (
             f"Day: {state.day}",
             build_inventory_figure(state, _theme_name(theme)),
@@ -570,6 +625,8 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             raise PreventUpdate
         session_id, state = _require_session(client_data)
         if state.training.current_view == "main_menu" or not state.items:
+            raise PreventUpdate
+        if _lesson_terminal(state):
             raise PreventUpdate
         if is_disabled:
             state.is_initialized = True

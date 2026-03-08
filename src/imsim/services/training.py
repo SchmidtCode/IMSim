@@ -106,24 +106,29 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
     LevelDefinition(
         index=1,
         level_id="level-1",
-        title="On Hand and Fill Rate",
-        summary="Watch one item drain down and learn why on-hand inventory and fill rate matter.",
-        formula="OP = usage x lead time",
+        title="On Hand and Usage",
+        summary=(
+            "Watch one item drain down day by day so you can see how usage "
+            "pulls physical inventory toward zero."
+        ),
+        formula="Tomorrow's on hand = today's on hand - daily usage",
         tutorial_steps=(
             "On hand is the physical stock available to ship right now.",
-            "Fill rate tracks how often demand is met without a stockout.",
-            "The first order point ignores safety stock so the signal stays easy to read.",
+            "Usage consumes that stock each day, even before you learn reordering controls.",
+            (
+                "Once on hand reaches zero, the next demand becomes backorder "
+                "because nothing is left to ship."
+            ),
         ),
         locked_features=(
             (
                 "Reordering stays locked in this lesson "
-                "so the focus stays on stock position "
-                "and service."
+                "so the focus stays on the inventory drain curve."
             ),
-            "The signal map, costs, and advanced controls unlock later.",
+            "Fill rate, order points, costs, and advanced controls unlock later.",
         ),
         demand_mode="deterministic",
-        day_window=15,
+        day_window=20,
         scenario=(
             ScenarioItem(
                 usage_rate=60,
@@ -135,15 +140,64 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
                 hits_per_month=30,
             ),
         ),
-        visible_panels=frozenset({"service", "inventory", "session"}),
-        visible_columns=("item", "on_hand", "usage_rate", "lead_time", "op"),
+        visible_panels=frozenset({"graph", "service", "inventory", "session"}),
+        visible_columns=("item", "on_hand", "daily_usage", "backorder"),
         allowed_actions=frozenset(),
-        win_conditions={"fill_rate_min": 0.98, "no_final_stockout": True},
+        win_conditions={"on_hand_zero_close": True, "backorder_min": 2.0},
         global_settings=_settings(),
     ),
     LevelDefinition(
         index=2,
         level_id="level-2",
+        title="Basic Ordering and PNA",
+        summary=(
+            "Manage one item with a guided reorder button and learn how "
+            "on hand, on order, and PNA move together."
+        ),
+        formula="PNA = On Hand - Reserved - Committed - Backordered + On Order + Received",
+        tutorial_steps=(
+            "PNA shows your full inventory position, not just what is sitting on the shelf.",
+            (
+                "When you place an order, on order goes up immediately "
+                "even before the receipt arrives."
+            ),
+            "Use the guided reorder when the item drifts near its order point.",
+        ),
+        locked_features=(
+            "Custom quantities stay locked until the ordering-controls lesson.",
+            "Safety stock, costs, and ASQ stay hidden so the focus stays on basic replenishment.",
+        ),
+        demand_mode="deterministic",
+        day_window=18,
+        scenario=(
+            ScenarioItem(
+                usage_rate=60,
+                lead_time=10,
+                item_cost=28,
+                initial_pna=24,
+                safety_allowance_pct=0,
+                standard_pack=5,
+                hits_per_month=30,
+            ),
+        ),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
+        visible_columns=(
+            "item",
+            "daily_usage",
+            "on_hand",
+            "on_order",
+            "backorder",
+            "pna",
+            "op",
+            "soq",
+        ),
+        allowed_actions=frozenset({"guided_po"}),
+        win_conditions={"guided_order_min": 1, "close_at_or_above_op": True},
+        global_settings=_settings(),
+    ),
+    LevelDefinition(
+        index=3,
+        level_id="level-3",
         title="Simple Order Point",
         summary=(
             "Manage a small group of items with a guided reorder "
@@ -153,7 +207,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         tutorial_steps=(
             "Usage and lead time combine into a reorder point for each item.",
             "In this perfect-world lesson, reordering early enough is usually enough.",
-            "The goal is to close the lesson with every item protected above its reorder point.",
+            "Fill rate now matters because missed demand becomes lost service.",
         ),
         locked_features=(
             "Custom quantities stay locked until the ordering-controls lesson.",
@@ -197,8 +251,8 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         global_settings=_settings(),
     ),
     LevelDefinition(
-        index=3,
-        level_id="level-3",
+        index=4,
+        level_id="level-4",
         title="Ordering Controls",
         summary=(
             "Introduce custom quantities, on-order inventory, and "
@@ -274,8 +328,8 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         global_settings=_settings(),
     ),
     LevelDefinition(
-        index=4,
-        level_id="level-4",
+        index=5,
+        level_id="level-5",
         title="Real-World OP",
         summary=(
             "Bring in variability, safety stock, and PNA so the "
@@ -348,8 +402,8 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         global_settings=_settings(stockout_penalty=6.5, gm=0.18),
     ),
     LevelDefinition(
-        index=5,
-        level_id="level-5",
+        index=6,
+        level_id="level-6",
         title="Review Cycle and PO Management",
         summary=(
             "Open the signal map, SOQ logic, and PO actions so the "
@@ -448,8 +502,8 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         ),
     ),
     LevelDefinition(
-        index=6,
-        level_id="level-6",
+        index=7,
+        level_id="level-7",
         title="Certification",
         summary=(
             "Run the full dashboard and prove you can balance service, "
@@ -666,6 +720,15 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
         target = float(level.win_conditions["fill_rate_min"])
         current = "n/a" if current_fill is None else f"{current_fill * 100:.1f}%"
         rows.append(f"Fill rate: {current} / target {target * 100:.1f}%")
+    if level.win_conditions.get("on_hand_zero_close"):
+        rows.append(
+            "On hand reached zero: "
+            + ("yes" if sum(item.on_hand for item in state.items) <= 0 else "not yet")
+        )
+    if "backorder_min" in level.win_conditions:
+        target = float(level.win_conditions["backorder_min"])
+        backorder_total = sum(item.backorder for item in state.items)
+        rows.append(f"Backorder observed: {backorder_total:.0f} / target {target:.0f}")
     if level.win_conditions.get("no_final_stockout"):
         rows.append(
             "Final-day stockout: "
@@ -678,6 +741,9 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
     if level.win_conditions.get("close_at_or_above_op"):
         safe_count = sum(1 for item in state.items if item.on_hand >= item.op)
         rows.append(f"Items closing at/above OP: {safe_count}/{len(state.items)}")
+    if "guided_order_min" in level.win_conditions:
+        needed = int(level.win_conditions["guided_order_min"])
+        rows.append(f"Guided reorders used: {state.training.guided_orders_placed}/{needed}")
     if "manual_custom_order_min" in level.win_conditions:
         needed = int(level.win_conditions["manual_custom_order_min"])
         rows.append(f"Manual custom orders used: {state.training.custom_orders_placed}/{needed}")
@@ -712,10 +778,21 @@ def evaluate_active_lesson(state: SimulationState) -> LessonEvaluation | None:
     if "fill_rate_min" in level.win_conditions:
         current_fill = fill_rate(state) or 0.0
         checks.append(current_fill >= float(level.win_conditions["fill_rate_min"]))
+    if level.win_conditions.get("on_hand_zero_close"):
+        checks.append(sum(item.on_hand for item in state.items) <= 0)
+    if "backorder_min" in level.win_conditions:
+        checks.append(
+            sum(item.backorder for item in state.items)
+            >= float(level.win_conditions["backorder_min"])
+        )
     if level.win_conditions.get("no_final_stockout"):
         checks.append(not any(item.stockout_today for item in state.items))
     if level.win_conditions.get("close_at_or_above_op"):
         checks.append(all(item.on_hand >= item.op for item in state.items))
+    if "guided_order_min" in level.win_conditions:
+        checks.append(
+            state.training.guided_orders_placed >= int(level.win_conditions["guided_order_min"])
+        )
     if "manual_custom_order_min" in level.win_conditions:
         checks.append(
             state.training.custom_orders_placed
@@ -734,11 +811,17 @@ def evaluate_active_lesson(state: SimulationState) -> LessonEvaluation | None:
 
     passed = all(checks)
     if passed:
+        message = "Next content is now unlocked in the academy menu."
+        if level.level_id == "level-1":
+            message = (
+                "On hand is gone and demand is now turning into backorder. "
+                "Restart the lesson or return to the academy for level 2."
+            )
         return LessonEvaluation(
             True,
             True,
             f"{level.title} complete",
-            "Next content is now unlocked in the academy menu.",
+            message,
             rows,
         )
     return LessonEvaluation(
@@ -760,8 +843,6 @@ def apply_lesson_evaluation(
     profile.lesson_status = "passed" if evaluation.passed else "failed"
     profile.last_result_title = evaluation.title
     profile.last_result_message = evaluation.message
-    profile.current_view = "main_menu"
-    profile.active_level_id = None
     state.is_initialized = False
     if not evaluation.passed:
         return evaluation
@@ -814,6 +895,7 @@ def _state_for_scenario(
                 hits_per_month=item.hits_per_month,
             )
         )
+    state.record_history()
     return state
 
 
@@ -841,7 +923,7 @@ def build_simulator_state(profile: TrainingProfile | None = None) -> SimulationS
     progress.last_result_message = ""
     progress.guided_orders_placed = 0
     progress.custom_orders_placed = 0
-    certification = LEVELS_BY_ID["level-6"]
+    certification = LEVELS_BY_ID["level-7"]
     return _state_for_scenario(
         profile=progress,
         scenario=certification.scenario,
