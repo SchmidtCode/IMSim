@@ -48,6 +48,21 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
     def _theme_name(theme: str | None) -> str:
         return "dark" if theme == "dark" else "light"
 
+    def _button_class(variant: str, extra: str = "") -> str:
+        return " ".join(
+            part for part in ["imsim-button", f"button-{variant}", extra] if part
+        )
+
+    def _start_button_state(*, running: bool, disabled: bool = False) -> tuple[str, str]:
+        if disabled:
+            return "Disabled for Maintenance", _button_class("secondary", "button-pill")
+        if running:
+            return "Pause Simulation", _button_class("warning", "button-pill")
+        return "Start Simulation", _button_class("success", "button-pill")
+
+    def _toggle_enabled(value) -> bool:
+        return bool(value and "enabled" in value)
+
     @app.callback(
         Output("user-data-store", "data"),
         Input("page-load", "data"),
@@ -73,19 +88,18 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("app-theme", "className"),
             Output("app-theme", "data-bs-theme"),
             Output("theme-toggle", "children"),
-            Output("theme-toggle", "color"),
+            Output("theme-toggle", "className"),
         ],
         Input("theme-store", "data"),
     )
     def apply_theme(theme):
         current_theme = "dark" if theme == "dark" else "light"
         next_label = "Light mode" if current_theme == "dark" else "Dark mode"
-        button_color = "light" if current_theme == "dark" else "secondary"
         return (
             f"imsim-theme theme-{current_theme}",
             current_theme,
             next_label,
-            button_color,
+            _button_class("ghost", "theme-toggle-button button-sm"),
         )
 
     @app.callback(
@@ -183,7 +197,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("sim-status", "children", allow_duplicate=True),
             Output("interval-component", "disabled", allow_duplicate=True),
             Output("start-button", "children"),
-            Output("start-button", "color"),
+            Output("start-button", "className"),
         ],
         Input("start-button", "n_clicks"),
         State("user-data-store", "data"),
@@ -197,10 +211,13 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         if is_disabled:
             state.is_initialized = True
             repository.save(session_id, state)
-            return "Status: Running", False, "Pause Simulation", "warning"
+            label, class_name = _start_button_state(running=True)
+            return "Status: Running", False, label, class_name
         state.is_initialized = False
         repository.save(session_id, state)
-        return "Status: Paused", True, "Resume Simulation", "success"
+        return "Status: Paused", True, "Resume Simulation", _button_class(
+            "success", "button-pill"
+        )
 
     @app.callback(
         [
@@ -210,7 +227,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("user-data-store", "data", allow_duplicate=True),
             Output("interval-component", "disabled", allow_duplicate=True),
             Output("start-button", "children", allow_duplicate=True),
-            Output("start-button", "color", allow_duplicate=True),
+            Output("start-button", "className", allow_duplicate=True),
             Output("start-button", "disabled", allow_duplicate=True),
             Output("service-card", "children", allow_duplicate=True),
             Output("costs-card", "children", allow_duplicate=True),
@@ -228,14 +245,15 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         session_id = (client_data or {}).get("uuid", "__bootstrap__")
         state = repository.reset(session_id)
         store = {"uuid": session_id} if session_id != "__bootstrap__" else client_data or {}
+        label, class_name = _start_button_state(running=False)
         return (
             f"Day: {state.day}",
             build_inventory_figure(state, _theme_name(theme)),
             "Status: Paused",
             store,
             True,
-            "Start Simulation",
-            "success",
+            label,
+            class_name,
             False,
             service_card_children(state),
             costs_card_children(state),
@@ -453,12 +471,12 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             float(gm_pct) / 100.0,
         )
         state.global_settings.realization = float(realization_pct) / 100.0
-        state.global_settings.auto_po_enabled = bool(auto_po_enabled)
-        state.global_settings.asq.enabled = bool(asq_enabled)
+        state.global_settings.auto_po_enabled = _toggle_enabled(auto_po_enabled)
+        state.global_settings.asq.enabled = _toggle_enabled(asq_enabled)
         state.global_settings.asq.min_hits = int(asq_min_hits)
         state.global_settings.asq.max_amount_diff = float(asq_max_diff)
         state.global_settings.asq.period_days = int(asq_period_days)
-        state.global_settings.asq.include_transfers = bool(asq_include_transfers)
+        state.global_settings.asq.include_transfers = _toggle_enabled(asq_include_transfers)
         for item in state.items:
             update_gs_related_values(item, state.global_settings)
         repository.save(session_id, state)
@@ -544,7 +562,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("sim-status", "children", allow_duplicate=True),
             Output("interval-component", "disabled", allow_duplicate=True),
             Output("start-button", "children", allow_duplicate=True),
-            Output("start-button", "color", allow_duplicate=True),
+            Output("start-button", "className", allow_duplicate=True),
             Output("start-button", "disabled", allow_duplicate=True),
             Output("costs-card", "children", allow_duplicate=True),
             Output("service-card", "children", allow_duplicate=True),
@@ -582,7 +600,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 "Status: Paused",
                 True,
                 "Resume Simulation",
-                "success",
+                _button_class("success", "button-pill"),
                 True,
                 costs_card_children(state),
                 service_card_children(state),
@@ -596,7 +614,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 "Status: Paused",
                 True,
                 "Resume Simulation",
-                "success",
+                _button_class("success", "button-pill"),
                 False,
                 costs_card_children(state),
                 service_card_children(state),
@@ -614,7 +632,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             "Status: Paused",
             True,
             "Resume Simulation",
-            "success",
+            _button_class("success", "button-pill"),
             False,
             costs_card_children(state),
             service_card_children(state),
@@ -856,7 +874,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("sim-status", "children", allow_duplicate=True),
             Output("interval-component", "disabled", allow_duplicate=True),
             Output("start-button", "children", allow_duplicate=True),
-            Output("start-button", "color", allow_duplicate=True),
+            Output("start-button", "className", allow_duplicate=True),
             Output("start-button", "disabled", allow_duplicate=True),
         ],
         Input("shutdown-poll", "n_intervals"),
@@ -899,7 +917,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 "Status: Paused (maintenance)",
                 True,
                 "Disabled for Maintenance",
-                "secondary",
+                _button_class("secondary", "button-pill"),
                 True,
             )
         return (

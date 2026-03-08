@@ -7,6 +7,77 @@ from ..config import IMSimConfig
 from .components import github_footer_card
 
 
+def _action_button(
+    label: str,
+    component_id: str,
+    variant: str,
+    *,
+    class_name: str = "",
+) -> html.Button:
+    classes = " ".join(
+        part
+        for part in [
+            "imsim-button",
+            f"button-{variant}",
+            class_name,
+        ]
+        if part
+    )
+    return html.Button(label, id=component_id, n_clicks=0, className=classes)
+
+
+def _number_field(
+    label: str,
+    component_id: str,
+    *,
+    value: float | int | None = None,
+    min_value: float | int | None = None,
+    max_value: float | int | None = None,
+    step: float | int | None = None,
+    class_name: str = "",
+) -> html.Div:
+    return html.Div(
+        [
+            html.Label(label, htmlFor=component_id, className="control-label"),
+            dcc.Input(
+                id=component_id,
+                type="number",
+                value=value,
+                min=min_value,
+                max=max_value,
+                step=step,
+                className="control-input",
+            ),
+        ],
+        className=" ".join(part for part in ["control-field", class_name] if part),
+    )
+
+
+def _toggle_field(
+    label: str,
+    component_id: str,
+    *,
+    enabled: bool,
+    class_name: str = "",
+) -> html.Div:
+    return html.Div(
+        dcc.Checklist(
+            id=component_id,
+            options=[
+                {
+                    "label": html.Span(label, className="imsim-toggle-copy"),
+                    "value": "enabled",
+                }
+            ],
+            value=["enabled"] if enabled else [],
+            className="imsim-toggle",
+            inputClassName="imsim-toggle-input",
+            labelClassName="imsim-toggle-label",
+        ),
+        className=" ".join(part for part in ["toggle-field", class_name] if part),
+    )
+
+
 def build_layout(config: IMSimConfig):
     return html.Div(
         dbc.Container(
@@ -43,16 +114,17 @@ def build_layout(config: IMSimConfig):
                                 dbc.Col(
                                     html.Div(
                                         [
-                                            dbc.Button(
+                                            _action_button(
                                                 "Start Simulation",
-                                                id="start-button",
-                                                color="success",
-                                                className="me-2",
+                                                "start-button",
+                                                "success",
+                                                class_name="button-pill",
                                             ),
-                                            dbc.Button(
+                                            _action_button(
                                                 "Reset",
-                                                id="reset-button",
-                                                color="secondary",
+                                                "reset-button",
+                                                "secondary",
+                                                class_name="button-pill",
                                             ),
                                         ],
                                         className="hero-actions hero-actions-compact",
@@ -78,29 +150,29 @@ def build_layout(config: IMSimConfig):
                                             html.H3("Controls", className="panel-title"),
                                             html.Div(
                                                 [
-                                                    dbc.Button(
+                                                    _action_button(
                                                         "Place SOQ Order",
-                                                        id="po-button",
-                                                        color="primary",
-                                                        className="w-100 mb-2",
+                                                        "po-button",
+                                                        "primary",
+                                                        class_name="button-block mb-2",
                                                     ),
-                                                    dbc.Button(
+                                                    _action_button(
                                                         "Custom Order",
-                                                        id="place-custom-order-button",
-                                                        color="light",
-                                                        className="w-100 mb-2",
+                                                        "place-custom-order-button",
+                                                        "light",
+                                                        class_name="button-block mb-2",
                                                     ),
-                                                    dbc.Button(
+                                                    _action_button(
                                                         "PO Overview",
-                                                        id="po-overview-button",
-                                                        color="dark",
-                                                        className="w-100 mb-2",
+                                                        "po-overview-button",
+                                                        "dark",
+                                                        class_name="button-block mb-2",
                                                     ),
-                                                    dbc.Button(
+                                                    _action_button(
                                                         "Add or Import Items",
-                                                        id="add-item-button",
-                                                        color="warning",
-                                                        className="w-100",
+                                                        "add-item-button",
+                                                        "warning",
+                                                        class_name="button-block",
                                                     ),
                                                 ]
                                             ),
@@ -113,167 +185,117 @@ def build_layout(config: IMSimConfig):
                                         [
                                             html.Div("Policy", className="panel-label"),
                                             html.H3("Global parameters", className="panel-title"),
-                                            dbc.InputGroup(
-                                                [
-                                                    dbc.InputGroupText("Review Cycle"),
-                                                    dbc.Input(
-                                                        id="review-cycle-input",
-                                                        type="number",
-                                                        value=14,
-                                                        min=1,
-                                                    ),
-                                                ],
-                                                className="mb-2",
+                                            _number_field(
+                                                "Review Cycle",
+                                                "review-cycle-input",
+                                                value=14,
+                                                min_value=1,
+                                                class_name="mb-2",
                                             ),
-                                            dbc.InputGroup(
-                                                [
-                                                    dbc.InputGroupText("R-Cost"),
-                                                    dbc.Input(
-                                                        id="r-cost-input",
-                                                        type="number",
-                                                        value=8,
-                                                        min=0,
-                                                        step=0.01,
-                                                    ),
-                                                ],
-                                                className="mb-2",
+                                            _number_field(
+                                                "R-Cost",
+                                                "r-cost-input",
+                                                value=8,
+                                                min_value=0,
+                                                step=0.01,
+                                                class_name="mb-2",
                                             ),
-                                            dbc.InputGroup(
-                                                [
-                                                    dbc.InputGroupText("K-Cost %"),
-                                                    dbc.Input(
-                                                        id="k-cost-input",
-                                                        type="number",
-                                                        value=18,
-                                                        min=0,
-                                                        step=0.1,
-                                                    ),
-                                                ],
-                                                className="mb-2",
+                                            _number_field(
+                                                "K-Cost %",
+                                                "k-cost-input",
+                                                value=18,
+                                                min_value=0,
+                                                step=0.1,
+                                                class_name="mb-2",
                                             ),
-                                            dbc.InputGroup(
-                                                [
-                                                    dbc.InputGroupText("Stockout $/unit"),
-                                                    dbc.Input(
-                                                        id="stockout-penalty-input",
-                                                        type="number",
-                                                        value=5,
-                                                        min=0,
-                                                        step=0.01,
-                                                    ),
-                                                ],
-                                                className="mb-2",
+                                            _number_field(
+                                                "Stockout $/unit",
+                                                "stockout-penalty-input",
+                                                value=5,
+                                                min_value=0,
+                                                step=0.01,
+                                                class_name="mb-2",
                                             ),
-                                            dbc.InputGroup(
-                                                [
-                                                    dbc.InputGroupText("Expedite %/day"),
-                                                    dbc.Input(
-                                                        id="expedite-rate-input",
-                                                        type="number",
-                                                        value=3,
-                                                        min=0,
-                                                        step=0.1,
-                                                    ),
-                                                ],
-                                                className="mb-2",
+                                            _number_field(
+                                                "Expedite %/day",
+                                                "expedite-rate-input",
+                                                value=3,
+                                                min_value=0,
+                                                step=0.1,
+                                                class_name="mb-2",
                                             ),
-                                            dbc.InputGroup(
-                                                [
-                                                    dbc.InputGroupText("GM %"),
-                                                    dbc.Input(
-                                                        id="gm-input",
-                                                        type="number",
-                                                        value=15,
-                                                        min=0,
-                                                        max=99,
-                                                        step=0.1,
-                                                    ),
-                                                ],
-                                                className="mb-2",
+                                            _number_field(
+                                                "GM %",
+                                                "gm-input",
+                                                value=15,
+                                                min_value=0,
+                                                max_value=99,
+                                                step=0.1,
+                                                class_name="mb-2",
                                             ),
-                                            dbc.InputGroup(
-                                                [
-                                                    dbc.InputGroupText("Realization %"),
-                                                    dbc.Input(
-                                                        id="realization-input",
-                                                        type="number",
-                                                        value=100,
-                                                        min=50,
-                                                        max=100,
-                                                        step=0.1,
-                                                    ),
-                                                ],
-                                                className="mb-2",
+                                            _number_field(
+                                                "Realization %",
+                                                "realization-input",
+                                                value=100,
+                                                min_value=50,
+                                                max_value=100,
+                                                step=0.1,
+                                                class_name="mb-2",
                                             ),
-                                            dbc.Switch(
-                                                id="auto-po-enabled",
-                                                label="Auto purchase orders",
-                                                value=False,
-                                                className="mb-3",
+                                            _toggle_field(
+                                                "Auto purchase orders",
+                                                "auto-po-enabled",
+                                                enabled=False,
+                                                class_name="mb-3",
                                             ),
-                                            dbc.Button(
+                                            _action_button(
                                                 "ASQ Adjuster Settings",
-                                                id="toggle-asq-collapse",
-                                                color="secondary",
-                                                className="w-100 mb-2",
+                                                "toggle-asq-collapse",
+                                                "secondary",
+                                                class_name="button-block mb-2",
                                             ),
                                             dbc.Collapse(
                                                 html.Div(
                                                     [
-                                                        dbc.Switch(
-                                                            id="asq-enabled",
-                                                            label="Enable ASQ OP adjuster",
-                                                            value=True,
-                                                            className="mb-2",
+                                                        _toggle_field(
+                                                            "Enable ASQ OP adjuster",
+                                                            "asq-enabled",
+                                                            enabled=True,
+                                                            class_name="mb-2",
                                                         ),
-                                                        dbc.InputGroup(
-                                                            [
-                                                                dbc.InputGroupText("Min Hits"),
-                                                                dbc.Input(
-                                                                    id="asq-min-hits",
-                                                                    type="number",
-                                                                    value=3,
-                                                                    min=0,
-                                                                ),
-                                                            ],
-                                                            className="mb-2",
+                                                        _number_field(
+                                                            "Min Hits",
+                                                            "asq-min-hits",
+                                                            value=3,
+                                                            min_value=0,
+                                                            class_name="mb-2",
                                                         ),
-                                                        dbc.InputGroup(
-                                                            [
-                                                                dbc.InputGroupText("Max $ Diff"),
-                                                                dbc.Input(
-                                                                    id="asq-max-diff",
-                                                                    type="number",
-                                                                    value=2500,
-                                                                    min=0,
-                                                                    step=0.01,
-                                                                ),
-                                                            ],
-                                                            className="mb-2",
+                                                        _number_field(
+                                                            "Max $ Diff",
+                                                            "asq-max-diff",
+                                                            value=2500,
+                                                            min_value=0,
+                                                            step=0.01,
+                                                            class_name="mb-2",
                                                         ),
-                                                        dbc.InputGroup(
-                                                            [
-                                                                dbc.InputGroupText("Period Days"),
-                                                                dbc.Input(
-                                                                    id="asq-period-days",
-                                                                    type="number",
-                                                                    value=30,
-                                                                    min=1,
-                                                                ),
-                                                            ],
-                                                            className="mb-2",
+                                                        _number_field(
+                                                            "Period Days",
+                                                            "asq-period-days",
+                                                            value=30,
+                                                            min_value=1,
+                                                            class_name="mb-2",
                                                         ),
-                                                        dbc.Switch(
-                                                            id="asq-include-transfers",
-                                                            label="Include transfers in ASQ",
-                                                            value=False,
-                                                            className="mb-2",
+                                                        _toggle_field(
+                                                            "Include transfers in ASQ",
+                                                            "asq-include-transfers",
+                                                            enabled=False,
+                                                            class_name="mb-2",
                                                         ),
-                                                        dbc.Button(
+                                                        _action_button(
                                                             "Apply ASQ Now",
-                                                            id="apply-asq-button",
-                                                            color="info",
-                                                            className="w-100",
+                                                            "apply-asq-button",
+                                                            "info",
+                                                            class_name="button-block",
                                                         ),
                                                     ]
                                                 ),
@@ -281,11 +303,11 @@ def build_layout(config: IMSimConfig):
                                                 is_open=False,
                                             ),
                                             html.Div(id="update-params-conf", className="mt-3"),
-                                            dbc.Button(
+                                            _action_button(
                                                 "Update Parameters",
-                                                id="update-params-button",
-                                                color="primary",
-                                                className="w-100 mt-2",
+                                                "update-params-button",
+                                                "primary",
+                                                class_name="button-block mt-2",
                                             ),
                                         ]
                                     ),
@@ -297,13 +319,11 @@ def build_layout(config: IMSimConfig):
                                             html.Div(
                                                 [
                                                     html.Div("Session", className="panel-label"),
-                                                    dbc.Button(
+                                                    _action_button(
                                                         "Dark mode",
-                                                        id="theme-toggle",
-                                                        color="secondary",
-                                                        outline=True,
-                                                        size="sm",
-                                                        className="theme-toggle-button",
+                                                        "theme-toggle",
+                                                        "ghost",
+                                                        class_name="theme-toggle-button button-sm",
                                                     ),
                                                 ],
                                                 className="session-card-header",
@@ -316,7 +336,10 @@ def build_layout(config: IMSimConfig):
                                                 id="sim-status",
                                                 className="status-copy",
                                             ),
-                                            dbc.Label("Simulation speed", className="mt-3"),
+                                            html.Div(
+                                                "Simulation speed",
+                                                className="control-label mt-3",
+                                            ),
                                             html.Div(
                                                 "1 tick/sec",
                                                 id="sim-speed-readout",
@@ -329,6 +352,7 @@ def build_layout(config: IMSimConfig):
                                                 step=0.5,
                                                 value=1.0,
                                                 marks=None,
+                                                className="sim-speed-slider",
                                                 tooltip={
                                                     "placement": "bottom",
                                                     "always_visible": False,
@@ -462,105 +486,70 @@ def build_layout(config: IMSimConfig):
                                                     html.Div(
                                                         "Manual item", className="panel-label"
                                                     ),
-                                                    dbc.InputGroup(
-                                                        [
-                                                            dbc.InputGroupText("Usage Rate"),
-                                                            dbc.Input(
-                                                                id="usage-rate-input",
-                                                                type="number",
-                                                                min=1,
-                                                            ),
-                                                        ],
-                                                        className="mb-2",
+                                                    _number_field(
+                                                        "Usage Rate",
+                                                        "usage-rate-input",
+                                                        min_value=1,
+                                                        class_name="mb-2",
                                                     ),
-                                                    dbc.InputGroup(
-                                                        [
-                                                            dbc.InputGroupText("Lead Time"),
-                                                            dbc.Input(
-                                                                id="lead-time-input",
-                                                                type="number",
-                                                                min=1,
-                                                            ),
-                                                        ],
-                                                        className="mb-2",
+                                                    _number_field(
+                                                        "Lead Time",
+                                                        "lead-time-input",
+                                                        min_value=1,
+                                                        class_name="mb-2",
                                                     ),
-                                                    dbc.InputGroup(
-                                                        [
-                                                            dbc.InputGroupText("Item Cost"),
-                                                            dbc.Input(
-                                                                id="item-cost-input",
-                                                                type="number",
-                                                                min=0.01,
-                                                                step=0.01,
-                                                            ),
-                                                        ],
-                                                        className="mb-2",
+                                                    _number_field(
+                                                        "Item Cost",
+                                                        "item-cost-input",
+                                                        min_value=0.01,
+                                                        step=0.01,
+                                                        class_name="mb-2",
                                                     ),
-                                                    dbc.InputGroup(
-                                                        [
-                                                            dbc.InputGroupText("Initial PNA"),
-                                                            dbc.Input(
-                                                                id="pna-input",
-                                                                type="number",
-                                                                min=0,
-                                                                step=1,
-                                                            ),
-                                                        ],
-                                                        className="mb-2",
+                                                    _number_field(
+                                                        "Initial PNA",
+                                                        "pna-input",
+                                                        min_value=0,
+                                                        step=1,
+                                                        class_name="mb-2",
                                                     ),
-                                                    dbc.InputGroup(
-                                                        [
-                                                            dbc.InputGroupText("Safety %"),
-                                                            dbc.Input(
-                                                                id="safety-allowance-input",
-                                                                type="number",
-                                                                min=0.01,
-                                                                step=0.1,
-                                                            ),
-                                                        ],
-                                                        className="mb-2",
+                                                    _number_field(
+                                                        "Safety %",
+                                                        "safety-allowance-input",
+                                                        min_value=0.01,
+                                                        step=0.1,
+                                                        class_name="mb-2",
                                                     ),
-                                                    dbc.InputGroup(
-                                                        [
-                                                            dbc.InputGroupText("Standard Pack"),
-                                                            dbc.Input(
-                                                                id="standard-pack-input",
-                                                                type="number",
-                                                                min=1,
-                                                                step=1,
-                                                            ),
-                                                        ],
-                                                        className="mb-2",
+                                                    _number_field(
+                                                        "Standard Pack",
+                                                        "standard-pack-input",
+                                                        min_value=1,
+                                                        step=1,
+                                                        class_name="mb-2",
                                                     ),
-                                                    dbc.InputGroup(
-                                                        [
-                                                            dbc.InputGroupText("Hits / Month"),
-                                                            dbc.Input(
-                                                                id="hits-per-month-input",
-                                                                type="number",
-                                                                min=1,
-                                                                step=1,
-                                                            ),
-                                                        ],
-                                                        className="mb-2",
+                                                    _number_field(
+                                                        "Hits / Month",
+                                                        "hits-per-month-input",
+                                                        min_value=1,
+                                                        step=1,
+                                                        class_name="mb-2",
                                                     ),
                                                     html.Div(id="add-item-error", className="mb-2"),
                                                     dbc.Row(
                                                         [
                                                             dbc.Col(
-                                                                dbc.Button(
+                                                                _action_button(
                                                                     "Randomize",
-                                                                    id="randomize-button",
-                                                                    color="secondary",
-                                                                    className="w-100",
+                                                                    "randomize-button",
+                                                                    "secondary",
+                                                                    class_name="button-block",
                                                                 )
                                                             ),
                                                             dbc.Col(
-                                                                dbc.Button(
+                                                                _action_button(
                                                                     "Add Item",
-                                                                    id="submit-item-button",
-                                                                    color="primary",
-                                                                    className="w-100",
+                                                                    "submit-item-button",
+                                                                    "primary",
+                                                                    class_name="button-block",
                                                                 )
                                                             ),
                                                         ],
@@ -600,12 +589,11 @@ def build_layout(config: IMSimConfig):
                                                     html.Div(
                                                         id="output-item-upload", className="mt-3"
                                                     ),
-                                                    dbc.Button(
+                                                    _action_button(
                                                         "Import Items",
-                                                        id="import-uploaded-items",
-                                                        color="primary",
-                                                        className="mt-3",
-                                                        style={"display": "none"},
+                                                        "import-uploaded-items",
+                                                        "primary",
+                                                        class_name="mt-3",
                                                     ),
                                                     html.Div(
                                                         id="upload-feedback", className="mt-3"
@@ -650,11 +638,18 @@ def build_layout(config: IMSimConfig):
                         ),
                         dbc.ModalFooter(
                             [
-                                dbc.Button(
-                                    "Cancel", id="cancel-custom-order-button", color="secondary"
+                                _action_button(
+                                    "Cancel",
+                                    "cancel-custom-order-button",
+                                    "secondary",
                                 ),
-                                dbc.Button("Place Order", id="place-order-button", color="primary"),
-                            ]
+                                _action_button(
+                                    "Place Order",
+                                    "place-order-button",
+                                    "primary",
+                                ),
+                            ],
+                            className="modal-actions",
                         ),
                     ],
                     id="place-custom-order-modal",
@@ -666,7 +661,12 @@ def build_layout(config: IMSimConfig):
                         dbc.ModalHeader("PO Overview"),
                         dbc.ModalBody(html.Div(id="po-overview-table")),
                         dbc.ModalFooter(
-                            dbc.Button("Close", id="po-overview-close", color="secondary")
+                            _action_button(
+                                "Close",
+                                "po-overview-close",
+                                "secondary",
+                            ),
+                            className="modal-actions",
                         ),
                     ],
                     id="po-overview-modal",

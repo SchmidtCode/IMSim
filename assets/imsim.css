@@ -11,6 +11,8 @@
   --imsim-teal: #0f766e;
   --imsim-orange: #f97316;
   --imsim-blue: #2563eb;
+  --imsim-danger: #dc2626;
+  --imsim-control-bg: rgba(255, 253, 248, 0.92);
   --imsim-shadow: 0 24px 60px rgba(19, 34, 56, 0.12);
   --imsim-bg-accent-a: rgba(15, 118, 110, 0.18);
   --imsim-bg-accent-b: rgba(249, 115, 22, 0.14);
@@ -48,6 +50,7 @@ body {
   --imsim-bg-accent-a: rgba(15, 118, 110, 0.24);
   --imsim-bg-accent-b: rgba(37, 99, 235, 0.18);
   --imsim-graph-bg: rgba(10, 19, 32, 0.7);
+  --imsim-control-bg: rgba(10, 19, 32, 0.92);
   --imsim-session-bg: linear-gradient(180deg, rgba(18, 31, 49, 0.96), rgba(13, 24, 38, 0.92));
   --imsim-maintenance-bg: rgba(18, 31, 49, 0.92);
   --imsim-upload-bg: rgba(15, 118, 110, 0.09);
@@ -108,7 +111,7 @@ body {
   margin: 0.35rem 0 0;
 }
 
-.hero-actions .btn {
+.hero-actions .imsim-button {
   border-radius: 999px;
   padding-inline: 1rem;
 }
@@ -164,6 +167,295 @@ body {
 
 .status-copy {
   color: var(--imsim-muted);
+}
+
+.control-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.control-label {
+  color: var(--imsim-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.control-input {
+  appearance: none;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--imsim-line);
+  border-radius: 16px;
+  background: var(--imsim-control-bg);
+  color: var(--imsim-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.control-input:hover {
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+.control-input:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.control-input::placeholder {
+  color: var(--imsim-muted);
+}
+
+.control-input-compact {
+  min-height: 2.6rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.toggle-field {
+  min-height: 2.25rem;
+}
+
+.imsim-toggle {
+  margin: 0;
+}
+
+.imsim-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.imsim-toggle-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.imsim-toggle-copy {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--imsim-ink);
+  font-weight: 500;
+  min-height: 1.6rem;
+  padding-left: 3.45rem;
+}
+
+.imsim-toggle-copy::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.8rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--imsim-line);
+  background: rgba(83, 98, 119, 0.18);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.imsim-toggle-copy::after {
+  content: "";
+  position: absolute;
+  left: 0.24rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--imsim-surface-strong);
+  box-shadow: 0 4px 12px rgba(19, 34, 56, 0.18);
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+.imsim-toggle-input:checked + .imsim-toggle-copy::before {
+  background: rgba(15, 118, 110, 0.24);
+  border-color: rgba(15, 118, 110, 0.42);
+}
+
+.imsim-toggle-input:checked + .imsim-toggle-copy::after {
+  transform: translate(1.2rem, -50%);
+  background: var(--imsim-teal);
+}
+
+.imsim-toggle-input:focus-visible + .imsim-toggle-copy::before {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.imsim-button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+  min-height: 3rem;
+  padding: 0.8rem 1rem;
+  text-align: center;
+  text-decoration: none;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.imsim-button:hover {
+  transform: translateY(-1px);
+}
+
+.imsim-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+}
+
+.imsim-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.button-block {
+  width: 100%;
+}
+
+.button-pill {
+  border-radius: 999px;
+}
+
+.button-sm {
+  min-height: 2.45rem;
+  font-size: 0.92rem;
+  padding: 0.55rem 0.9rem;
+}
+
+.button-primary {
+  background: var(--imsim-teal);
+  border-color: var(--imsim-teal);
+  box-shadow: 0 14px 28px rgba(15, 118, 110, 0.2);
+}
+
+.button-primary:hover {
+  background: #0d675f;
+  border-color: #0d675f;
+}
+
+.button-success {
+  background: #15803d;
+  border-color: #15803d;
+  box-shadow: 0 14px 28px rgba(21, 128, 61, 0.2);
+}
+
+.button-success:hover {
+  background: #166534;
+  border-color: #166534;
+}
+
+.button-secondary {
+  background: #33485f;
+  border-color: #33485f;
+  color: #f4f7fb;
+}
+
+.button-secondary:hover {
+  background: #2a3d52;
+  border-color: #2a3d52;
+}
+
+.button-warning {
+  background: var(--imsim-orange);
+  border-color: var(--imsim-orange);
+}
+
+.button-warning:hover {
+  background: #ea6b10;
+  border-color: #ea6b10;
+}
+
+.button-danger {
+  background: var(--imsim-danger);
+  border-color: var(--imsim-danger);
+}
+
+.button-danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.button-info {
+  background: var(--imsim-blue);
+  border-color: var(--imsim-blue);
+}
+
+.button-info:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.button-light {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.16);
+  color: var(--imsim-ink);
+}
+
+.button-light:hover {
+  background: rgba(37, 99, 235, 0.16);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.button-dark {
+  background: #18283e;
+  border-color: #18283e;
+}
+
+.button-dark:hover {
+  background: #132238;
+  border-color: #132238;
+}
+
+.button-ghost {
+  background: transparent;
+  border-color: var(--imsim-line);
+  color: var(--imsim-ink);
+}
+
+.button-ghost:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.button-link {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--imsim-blue);
+  min-height: auto;
+  padding: 0;
+}
+
+.button-link:hover {
+  background: transparent;
+  color: #1d4ed8;
+  transform: none;
 }
 
 .speed-readout {
@@ -263,8 +555,18 @@ body {
 }
 
 .footer-hide {
+  background: transparent;
+  border: 0;
+  color: var(--imsim-blue);
   padding: 0;
   margin-top: 0.5rem;
+}
+
+.inline-button-group,
+.modal-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .maintenance-card {
@@ -334,6 +636,64 @@ body {
   border-color: rgba(94, 234, 212, 0.35);
 }
 
+.theme-dark .control-input {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.theme-dark .button-light {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.18);
+  color: #e6eefc;
+}
+
+.theme-dark .button-light:hover {
+  background: rgba(96, 165, 250, 0.18);
+  border-color: rgba(96, 165, 250, 0.24);
+}
+
+.theme-dark .button-ghost {
+  background: transparent;
+  border-color: rgba(214, 228, 255, 0.22);
+  color: #e6eefc;
+}
+
+.theme-dark .button-ghost:hover {
+  background: rgba(94, 234, 212, 0.08);
+  border-color: rgba(94, 234, 212, 0.3);
+}
+
+.theme-dark .button-dark {
+  background: #dfe9fb;
+  border-color: #dfe9fb;
+  color: #112338;
+}
+
+.theme-dark .button-dark:hover {
+  background: #f4f7fb;
+  border-color: #f4f7fb;
+}
+
+.theme-dark .button-link {
+  color: #93c5fd;
+}
+
+.theme-dark .button-link:hover {
+  color: #bfdbfe;
+}
+
+.theme-dark .imsim-toggle-copy::before {
+  background: rgba(214, 228, 255, 0.12);
+}
+
+.theme-dark .imsim-toggle-input:checked + .imsim-toggle-copy::before {
+  background: rgba(45, 212, 191, 0.18);
+  border-color: rgba(94, 234, 212, 0.32);
+}
+
+.theme-dark .imsim-toggle-input:checked + .imsim-toggle-copy::after {
+  background: #5eead4;
+}
+
 .theme-dark .rc-slider-mark-text {
   color: var(--imsim-muted);
 }
@@ -400,22 +760,6 @@ body {
 
 .theme-dark .rc-slider-tooltip-arrow {
   border-top-color: #132238 !important;
-}
-
-.btn-primary {
-  background-color: var(--imsim-teal);
-  border-color: var(--imsim-teal);
-}
-
-.btn-warning {
-  background-color: var(--imsim-orange);
-  border-color: var(--imsim-orange);
-  color: #fff;
-}
-
-.btn-dark {
-  background-color: #18283e;
-  border-color: #18283e;
 }
 
 .js-plotly-plot .plotly .main-svg {

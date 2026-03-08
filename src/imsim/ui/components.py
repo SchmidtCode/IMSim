@@ -3,7 +3,7 @@ from __future__ import annotations
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
-from dash import html
+from dash import dcc, html
 
 from ..models import InventoryItem, SimulationState
 from ..services.planning import format_money, item_on_order
@@ -397,22 +397,22 @@ def build_po_overview_table(state: SimulationState) -> list:
                         dbc.Col(int(receipt.eta_day), width=2),
                         dbc.Col(days_left, width=2),
                         dbc.Col(
-                            dbc.ButtonGroup(
+                            html.Div(
                                 [
-                                    dbc.Button(
+                                    html.Button(
                                         "Expedite -1d",
                                         id={"type": "po-expedite", "rid": receipt.receipt_id},
-                                        color="warning",
-                                        size="sm",
+                                        n_clicks=0,
+                                        className="imsim-button button-warning button-sm",
                                     ),
-                                    dbc.Button(
+                                    html.Button(
                                         "Cancel",
                                         id={"type": "po-cancel", "rid": receipt.receipt_id},
-                                        color="danger",
-                                        size="sm",
+                                        n_clicks=0,
+                                        className="imsim-button button-danger button-sm",
                                     ),
                                 ],
-                                className="w-100",
+                                className="inline-button-group",
                             ),
                             width=3,
                         ),
@@ -447,11 +447,12 @@ def build_custom_order_row(index: int, item: InventoryItem):
             dbc.Col(round(item.lp)),
             dbc.Col(round(item.oq)),
             dbc.Col(
-                dbc.Input(
+                dcc.Input(
                     value=int(round(item.soq)),
                     type="number",
                     min=0,
                     id={"type": "order-quantity", "index": index},
+                    className="control-input control-input-compact",
                 ),
                 width=2,
             ),
@@ -542,11 +543,11 @@ def github_footer_card(github_url: str) -> html.Div:
                             ),
                         ]
                     ),
-                    dbc.Button(
+                    html.Button(
                         "Hide",
                         id="gh-footer-hide",
-                        color="link",
-                        className="footer-hide",
+                        n_clicks=0,
+                        className="imsim-button button-link footer-hide",
                     ),
                 ]
             ),
