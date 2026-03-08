@@ -61,7 +61,53 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         return "Start Simulation", _button_class("success", "button-pill")
 
     def _toggle_enabled(value) -> bool:
-        return bool(value and "enabled" in value)
+        return bool(value)
+
+    def _coerce_number(value, *, integer: bool = False):
+        if value in (None, ""):
+            return None
+        try:
+            return int(value) if integer else float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @app.callback(
+        [
+            Output("review-cycle-input", "value"),
+            Output("r-cost-input", "value"),
+            Output("k-cost-input", "value"),
+            Output("stockout-penalty-input", "value"),
+            Output("expedite-rate-input", "value"),
+            Output("gm-input", "value"),
+            Output("realization-input", "value"),
+            Output("auto-po-enabled", "value"),
+            Output("asq-enabled", "value"),
+            Output("asq-min-hits", "value"),
+            Output("asq-max-diff", "value"),
+            Output("asq-period-days", "value"),
+            Output("asq-include-transfers", "value"),
+        ],
+        Input("user-data-store", "data"),
+    )
+    def sync_parameter_controls(client_data):
+        session_id = (client_data or {}).get("uuid")
+        state = repository.get_or_create(session_id) if session_id else default_state()
+        settings = state.global_settings
+        return (
+            settings.r_cycle,
+            settings.r_cost,
+            settings.k_cost * 100.0,
+            settings.stockout_penalty,
+            settings.expedite_rate * 100.0,
+            settings.gm * 100.0,
+            settings.realization * 100.0,
+            settings.auto_po_enabled,
+            settings.asq.enabled,
+            settings.asq.min_hits,
+            settings.asq.max_amount_diff,
+            settings.asq.period_days,
+            settings.asq.include_transfers,
+        )
 
     @app.callback(
         Output("user-data-store", "data"),
@@ -419,6 +465,16 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
     ):
         if not n_clicks:
             raise PreventUpdate
+        review_cycle = _coerce_number(review_cycle, integer=True)
+        r_cost = _coerce_number(r_cost)
+        k_cost_pct = _coerce_number(k_cost_pct)
+        stockout_penalty = _coerce_number(stockout_penalty)
+        expedite_rate_pct = _coerce_number(expedite_rate_pct)
+        gm_pct = _coerce_number(gm_pct)
+        realization_pct = _coerce_number(realization_pct)
+        asq_min_hits = _coerce_number(asq_min_hits, integer=True)
+        asq_max_diff = _coerce_number(asq_max_diff)
+        asq_period_days = _coerce_number(asq_period_days, integer=True)
         required = (
             review_cycle,
             r_cost,

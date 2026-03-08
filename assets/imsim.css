@@ -181,7 +181,6 @@ body {
 }
 
 .control-input {
-  appearance: none;
   width: 100%;
   min-height: 3rem;
   padding: 0.8rem 0.95rem;
@@ -189,6 +188,8 @@ body {
   border-radius: 16px;
   background: var(--imsim-control-bg);
   color: var(--imsim-ink);
+  caret-color: var(--imsim-ink);
+  color-scheme: inherit;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
   transition:
     border-color 120ms ease,
@@ -210,6 +211,14 @@ body {
   color: var(--imsim-muted);
 }
 
+.theme-light .control-input {
+  color-scheme: light;
+}
+
+.theme-dark .control-input {
+  color-scheme: dark;
+}
+
 .control-input-compact {
   min-height: 2.6rem;
   padding: 0.55rem 0.75rem;
@@ -217,81 +226,59 @@ body {
 
 .toggle-field {
   min-height: 2.25rem;
-}
-
-.imsim-toggle {
-  margin: 0;
-}
-
-.imsim-toggle-label {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  cursor: pointer;
-  gap: 0.7rem;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.imsim-toggle-switch {
   margin: 0;
+  padding-left: 0;
+  flex: 0 0 auto;
+}
+
+.imsim-toggle-switch.form-check {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 0;
+  padding-left: 0;
 }
 
 .imsim-toggle-input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+  cursor: pointer;
+  flex: 0 0 auto;
+  height: 1.55rem;
+  margin-left: 0;
+  margin-right: 0;
+  margin-top: 0;
+  width: 2.85rem;
+  background-color: rgba(83, 98, 119, 0.18);
+  background-image: none;
+  border: 1px solid var(--imsim-line);
+  border-radius: 999px;
+  box-shadow: none;
 }
 
 .imsim-toggle-copy {
-  position: relative;
   display: inline-flex;
   align-items: center;
   color: var(--imsim-ink);
   font-weight: 500;
   min-height: 1.6rem;
-  padding-left: 3.45rem;
 }
 
-.imsim-toggle-copy::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 2.8rem;
-  height: 1.6rem;
-  border-radius: 999px;
-  border: 1px solid var(--imsim-line);
-  background: rgba(83, 98, 119, 0.18);
-  transition:
-    background 140ms ease,
-    border-color 140ms ease,
-    box-shadow 140ms ease;
-}
-
-.imsim-toggle-copy::after {
-  content: "";
-  position: absolute;
-  left: 0.24rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1.1rem;
-  height: 1.1rem;
-  border-radius: 50%;
-  background: var(--imsim-surface-strong);
-  box-shadow: 0 4px 12px rgba(19, 34, 56, 0.18);
-  transition:
-    transform 140ms ease,
-    background 140ms ease;
-}
-
-.imsim-toggle-input:checked + .imsim-toggle-copy::before {
-  background: rgba(15, 118, 110, 0.24);
-  border-color: rgba(15, 118, 110, 0.42);
-}
-
-.imsim-toggle-input:checked + .imsim-toggle-copy::after {
-  transform: translate(1.2rem, -50%);
-  background: var(--imsim-teal);
-}
-
-.imsim-toggle-input:focus-visible + .imsim-toggle-copy::before {
+.imsim-toggle-input:focus,
+.imsim-toggle-input:focus-visible {
+  border-color: rgba(37, 99, 235, 0.55);
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  outline: none;
+}
+
+.imsim-toggle-input:checked {
+  background-color: rgba(15, 118, 110, 0.24);
+  border-color: rgba(15, 118, 110, 0.42);
 }
 
 .imsim-button {
@@ -459,6 +446,13 @@ body {
 }
 
 .speed-readout {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.7rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--imsim-line);
+  border-radius: 14px;
+  background: var(--imsim-control-bg);
   color: var(--imsim-ink);
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
   font-size: 1.05rem;
@@ -637,7 +631,16 @@ body {
 }
 
 .theme-dark .control-input {
+  background: var(--imsim-control-bg);
+  color: var(--imsim-ink);
+  caret-color: var(--imsim-ink);
+  color-scheme: dark;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.theme-dark .speed-readout {
+  background: var(--imsim-control-bg);
+  color: var(--imsim-ink);
 }
 
 .theme-dark .button-light {
@@ -681,17 +684,14 @@ body {
   color: #bfdbfe;
 }
 
-.theme-dark .imsim-toggle-copy::before {
-  background: rgba(214, 228, 255, 0.12);
+.theme-dark .imsim-toggle-input {
+  background-color: rgba(214, 228, 255, 0.12);
+  border-color: rgba(214, 228, 255, 0.2);
 }
 
-.theme-dark .imsim-toggle-input:checked + .imsim-toggle-copy::before {
-  background: rgba(45, 212, 191, 0.18);
+.theme-dark .imsim-toggle-input:checked {
+  background-color: rgba(45, 212, 191, 0.18);
   border-color: rgba(94, 234, 212, 0.32);
-}
-
-.theme-dark .imsim-toggle-input:checked + .imsim-toggle-copy::after {
-  background: #5eead4;
 }
 
 .theme-dark .rc-slider-mark-text {
@@ -722,19 +722,34 @@ body {
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.22);
 }
 
-.rc-slider-tooltip-inner {
-  background-color: var(--imsim-surface-strong);
-  border: 1px solid var(--imsim-line);
+.rc-slider-tooltip,
+.rc-tooltip {
+  opacity: 1;
+}
+
+.rc-slider-tooltip .rc-slider-tooltip-inner,
+.rc-tooltip .rc-tooltip-inner {
+  background-color: #132238;
+  border: 1px solid rgba(214, 228, 255, 0.2);
   border-radius: 12px;
-  box-shadow: var(--imsim-shadow);
-  color: var(--imsim-ink);
+  box-shadow: 0 18px 40px rgba(2, 8, 18, 0.32);
+  color: #e6eefc;
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
   font-size: 0.95rem;
   font-weight: 600;
 }
 
-.rc-slider-tooltip-arrow {
-  border-top-color: var(--imsim-surface-strong) !important;
+.rc-slider-tooltip .rc-slider-tooltip-arrow,
+.rc-tooltip .rc-tooltip-arrow {
+  border-top-color: #132238 !important;
+}
+
+.rc-slider-tooltip input,
+.rc-tooltip input {
+  background: #132238 !important;
+  border: 1px solid rgba(214, 228, 255, 0.2) !important;
+  color: #e6eefc !important;
+  box-shadow: none !important;
 }
 
 .theme-dark .rc-slider-rail {
@@ -751,19 +766,27 @@ body {
   box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.16);
 }
 
-.theme-dark .rc-slider-tooltip-inner {
-  background-color: #132238;
+.theme-dark .rc-slider-tooltip .rc-slider-tooltip-inner,
+.theme-dark .rc-tooltip .rc-tooltip-inner {
+  background-color: #132238 !important;
   border-color: rgba(214, 228, 255, 0.2);
-  color: #e6eefc;
+  color: #e6eefc !important;
   box-shadow: 0 18px 40px rgba(2, 8, 18, 0.38);
 }
 
-.theme-dark .rc-slider-tooltip-arrow {
+.theme-dark .rc-slider-tooltip .rc-slider-tooltip-arrow,
+.theme-dark .rc-tooltip .rc-tooltip-arrow {
   border-top-color: #132238 !important;
 }
 
 .js-plotly-plot .plotly .main-svg {
   border-radius: 20px;
+}
+
+@media (min-width: 1200px) {
+  .control-rail-column {
+    max-width: 400px;
+  }
 }
 
 @media (max-width: 991.98px) {

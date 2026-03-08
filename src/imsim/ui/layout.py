@@ -39,7 +39,7 @@ def _number_field(
     return html.Div(
         [
             html.Label(label, htmlFor=component_id, className="control-label"),
-            dcc.Input(
+            dbc.Input(
                 id=component_id,
                 type="number",
                 value=value,
@@ -47,6 +47,7 @@ def _number_field(
                 max=max_value,
                 step=step,
                 className="control-input",
+                inputMode="decimal",
             ),
         ],
         className=" ".join(part for part in ["control-field", class_name] if part),
@@ -61,19 +62,16 @@ def _toggle_field(
     class_name: str = "",
 ) -> html.Div:
     return html.Div(
-        dcc.Checklist(
-            id=component_id,
-            options=[
-                {
-                    "label": html.Span(label, className="imsim-toggle-copy"),
-                    "value": "enabled",
-                }
-            ],
-            value=["enabled"] if enabled else [],
-            className="imsim-toggle",
-            inputClassName="imsim-toggle-input",
-            labelClassName="imsim-toggle-label",
-        ),
+        [
+            html.Span(label, className="imsim-toggle-copy"),
+            dbc.Switch(
+                id=component_id,
+                value=enabled,
+                label="",
+                class_name="imsim-toggle-switch",
+                input_class_name="imsim-toggle-input",
+            ),
+        ],
         className=" ".join(part for part in ["toggle-field", class_name] if part),
     )
 
@@ -353,10 +351,6 @@ def build_layout(config: IMSimConfig):
                                                 value=1.0,
                                                 marks=None,
                                                 className="sim-speed-slider",
-                                                tooltip={
-                                                    "placement": "bottom",
-                                                    "always_visible": False,
-                                                },
                                             ),
                                             html.Div(id="asq-apply-feedback", className="mt-3"),
                                         ]
@@ -364,7 +358,8 @@ def build_layout(config: IMSimConfig):
                                     className="shell-card session-card mt-3",
                                 ),
                             ],
-                            xl=4,
+                            xl=3,
+                            className="control-rail-column",
                         ),
                         dbc.Col(
                             [
@@ -468,10 +463,10 @@ def build_layout(config: IMSimConfig):
                                     className="g-3",
                                 ),
                             ],
-                            xl=8,
+                            xl=9,
                         ),
                     ],
-                    className="mt-4 g-4",
+                    className="mt-3 g-3",
                 ),
                 dbc.Modal(
                     [
