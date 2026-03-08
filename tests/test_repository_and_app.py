@@ -75,6 +75,10 @@ def test_dash_layout_and_admin_status(client):
     assert client.get("/").status_code == 200
     response = client.get("/_dash-layout")
     assert response.status_code == 200
+    payload = response.get_data(as_text=True)
+    assert "IMSim Academy" in payload
+    assert "academy-simulator-button" in payload
+    assert '"disabled":true' in payload
     status = client.get("/api/admin/shutdown_status")
     assert status.status_code == 200
     assert status.get_json()["active"] is False

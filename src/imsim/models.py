@@ -262,6 +262,43 @@ class InventoryItem:
 
 
 @dataclass(slots=True)
+class TrainingProfile:
+    current_view: str = "main_menu"
+    active_level_id: str | None = None
+    highest_unlocked_level: int = 1
+    completed_levels: list[str] = field(default_factory=list)
+    simulator_unlocked: bool = False
+    auto_po_reward_unlocked: bool = False
+    lesson_status: str = "idle"
+    last_result_title: str = ""
+    last_result_message: str = ""
+    guided_orders_placed: int = 0
+    custom_orders_placed: int = 0
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> TrainingProfile:
+        data = data or {}
+        completed_levels = [str(level_id) for level_id in data.get("completed_levels", [])]
+        return cls(
+            current_view=str(data.get("current_view", "main_menu")),
+            active_level_id=(
+                None
+                if data.get("active_level_id") in (None, "")
+                else str(data.get("active_level_id"))
+            ),
+            highest_unlocked_level=max(1, int(data.get("highest_unlocked_level", 1))),
+            completed_levels=completed_levels,
+            simulator_unlocked=_bool(data.get("simulator_unlocked", False)),
+            auto_po_reward_unlocked=_bool(data.get("auto_po_reward_unlocked", False)),
+            lesson_status=str(data.get("lesson_status", "idle")),
+            last_result_title=str(data.get("last_result_title", "")),
+            last_result_message=str(data.get("last_result_message", "")),
+            guided_orders_placed=max(0, int(data.get("guided_orders_placed", 0))),
+            custom_orders_placed=max(0, int(data.get("custom_orders_placed", 0))),
+        )
+
+
+@dataclass(slots=True)
 class SimulationState:
     global_settings: GlobalSettings = field(default_factory=GlobalSettings)
     items: list[InventoryItem] = field(default_factory=list)
@@ -273,6 +310,7 @@ class SimulationState:
     sales: SalesMetrics = field(default_factory=SalesMetrics)
     exception_center: list[ExceptionRecord] = field(default_factory=list)
     analytics: AnalyticsMetrics = field(default_factory=AnalyticsMetrics)
+    training: TrainingProfile = field(default_factory=TrainingProfile)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> SimulationState:
@@ -290,6 +328,7 @@ class SimulationState:
                 ExceptionRecord.from_dict(rec) for rec in data.get("exception_center", [])
             ],
             analytics=AnalyticsMetrics.from_dict(data.get("analytics")),
+            training=TrainingProfile.from_dict(data.get("training")),
         )
 
     def clone(self) -> SimulationState:

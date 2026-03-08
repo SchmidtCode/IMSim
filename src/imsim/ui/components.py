@@ -7,6 +7,16 @@ from dash import dcc, html
 
 from ..models import InventoryItem, SimulationState
 from ..services.planning import format_money, item_on_order
+from ..services.training import (
+    academy_level_status,
+    academy_levels,
+    active_level,
+    after_overhead_pct,
+    evaluate_active_lesson,
+    fill_rate,
+    lesson_days_remaining,
+    visible_columns,
+)
 
 
 def _items_frame(items: list[InventoryItem]) -> pd.DataFrame:
@@ -462,6 +472,21 @@ def build_custom_order_row(index: int, item: InventoryItem):
 
 
 def build_inventory_table(state: SimulationState):
+    column_config = {
+        "item": ("item", "Item"),
+        "usage_rate": ("usage_rate", "Usage"),
+        "lead_time": ("lead_time", "Lead Time"),
+        "op": ("op", "OP"),
+        "lp": ("lp", "LP"),
+        "oq": ("oq", "OQ"),
+        "pna": ("pna", "PNA"),
+        "on_hand": ("on_hand", "On Hand"),
+        "on_order": ("on_order", "On Order"),
+        "backorder": ("backorder", "Backorder"),
+        "soq": ("soq", "SOQ"),
+        "safety_allowance": ("safety_allowance", "Safety %"),
+        "days_to_op": ("days_to_op", "Days to OP"),
+    }
     rows = []
     for index, item in enumerate(state.items, start=1):
         rows.append(
@@ -473,19 +498,27 @@ def build_inventory_table(state: SimulationState):
                 "lp": round(item.lp, 2),
                 "oq": round(item.oq, 2),
                 "pna": round(item.pna, 2),
-                "ats": round(item.on_hand, 2),
+                "on_hand": round(item.on_hand, 2),
                 "on_order": round(item_on_order(item), 2),
                 "backorder": round(item.backorder, 2),
                 "soq": round(item.soq, 2),
+                "safety_allowance": round(item.safety_allowance * 100.0, 1),
+                "days_to_op": round(item.ats_days_frm_op, 2),
             }
         )
     if not rows:
         return dbc.Alert(
             "No items loaded yet. Add an item or import a sample workbook.", color="secondary"
         )
+    selected_columns = visible_columns(state) or tuple(column_config.keys())
+    table_rows = []
+    for row in rows:
+        table_rows.append(
+            {column_config[key][1]: row[column_config[key][0]] for key in selected_columns}
+        )
     return html.Div(
         dbc.Table.from_dataframe(
-            pd.DataFrame(rows),
+            pd.DataFrame(table_rows),
             striped=True,
             bordered=False,
             hover=True,
@@ -555,3 +588,147 @@ def github_footer_card(github_url: str) -> html.Div:
         ),
         id="gh-footer",
     )
+
+
+def academy_progress_children(state: SimulationState) -> list:
+    total_levels = len(academy_levels())
+    completed = len(state.training.completed_levels)
+    simulator = "Unlocked" if state.training.simulator_unlocked else "Locked"
+    return [
+        dbc.Row(
+            [
+                dbc.Col(
+                    _kpi_card(
+                        "Lessons Complete",
+                        f"{completed}/{total_levels}",
+                        "neutral",
+                        "Academy progress",
+                    ),
+                    md=4,
+                ),
+                dbc.Col(
+                    _kpi_card(
+                        "Next Unlock",
+                        f"Level {min(total_levels, state.training.highest_unlocked_level)}",
+                        "good" if completed else "neutral",
+                        "Highest playable lesson",
+                    ),
+                    md=4,
+                ),
+                dbc.Col(
+                    _kpi_card(
+                        "Simulator",
+                        simulator,
+                        "good" if state.training.simulator_unlocked else "warn",
+                        "Free-play sandbox",
+                    ),
+                    md=4,
+                ),
+            ],
+            className="g-3",
+        )
+    ]
+
+
+def academy_result_children(state: SimulationState):
+    if not state.training.last_result_title and not state.training.last_result_message:
+        return html.Div()
+    tone = "success" if state.training.lesson_status == "passed" else "warning"
+    return dbc.Alert(
+        [
+            html.Strong(state.training.last_result_title or "Academy update"),
+            html.Div(state.training.last_result_message),
+        ],
+        color=tone,
+        class_name="academy-result-alert",
+    )
+
+
+def lesson_tutorial_children(state: SimulationState) -> list:
+    level = active_level(state)
+    if level is None:
+        return [dbc.Alert("Select a lesson from the academy menu.", color="secondary")]
+    return [
+        html.Div(level.formula, className="lesson-formula-chip"),
+        html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
+    ]
+
+
+def lesson_objective_children(state: SimulationState) -> list:
+    level = active_level(state)
+    if level is None:
+        return [dbc.Alert("No active lesson.", color="secondary")]
+    evaluation = evaluate_active_lesson(state)
+    fill = fill_rate(state)
+    fill_value = "n/a" if fill is None else f"{fill * 100:.1f}%"
+    after_overhead = after_overhead_pct(state)
+    after_value = "n/a" if after_overhead is None else f"{after_overhead * 100:.1f}%"
+    headline = f"{lesson_days_remaining(state)} day(s) remaining"
+    if evaluation is not None and evaluation.completed:
+        headline = "Lesson window closed"
+    rows = list(evaluation.metric_rows if evaluation is not None else ())
+    rows.insert(0, f"Current fill rate: {fill_value}")
+    if after_overhead is not None:
+        rows.append(f"Current after-overhead GM: {after_value}")
+    return [
+        html.Div(headline, className="lesson-objective-headline"),
+        html.Ul([html.Li(row) for row in rows], className="lesson-copy-list"),
+    ]
+
+
+def lesson_locked_children(state: SimulationState) -> list:
+    level = active_level(state)
+    if level is None:
+        return [dbc.Alert("No active lesson.", color="secondary")]
+    return [html.Ul([html.Li(row) for row in level.locked_features], className="lesson-copy-list")]
+
+
+def academy_level_card_children(level_index: int, state: SimulationState) -> list:
+    level = academy_levels()[level_index - 1]
+    status = academy_level_status(state.training, level)
+    status_label = {
+        "completed": "Completed",
+        "unlocked": "Unlocked",
+        "locked": "Locked",
+    }[status]
+    button_label = "Replay Lesson" if status == "completed" else "Start Lesson"
+    return [
+        html.Div(f"Level {level.index}", className="academy-card-kicker"),
+        html.Div(level.title, className="academy-card-title"),
+        html.P(level.summary, className="academy-card-copy"),
+        dbc.Badge(
+            status_label,
+            color="success"
+            if status == "completed"
+            else ("primary" if status == "unlocked" else "secondary"),
+            pill=True,
+            class_name="academy-status-badge",
+        ),
+        html.Div(level.formula, className="academy-card-formula"),
+        html.Button(
+            button_label,
+            id=f"academy-level-{level.index}-button",
+            n_clicks=0,
+            className="imsim-button button-primary button-block mt-3",
+            disabled=status == "locked",
+        ),
+    ]
+
+
+def simulator_unlock_children(state: SimulationState) -> list:
+    unlocked = state.training.simulator_unlocked
+    return [
+        html.Div("Simulator Mode", className="academy-card-title"),
+        html.P(
+            "The full IM dashboard with imports, ASQ, and the sandbox reward controls."
+            if unlocked
+            else "Pass certification to unlock the full simulator and the sandbox reward controls.",
+            className="academy-card-copy",
+        ),
+        dbc.Badge(
+            "Unlocked" if unlocked else "Locked",
+            color="success" if unlocked else "secondary",
+            pill=True,
+            class_name="academy-status-badge",
+        ),
+    ]

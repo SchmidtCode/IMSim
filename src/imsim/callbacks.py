@@ -24,8 +24,23 @@ from .services.simulation import (
     place_purchase_orders,
     tick_state,
 )
+from .services.training import (
+    academy_levels,
+    active_level,
+    build_level_state,
+    build_simulator_state,
+    is_action_allowed,
+    record_custom_order,
+    record_guided_order,
+    reset_progress_state,
+    simulator_view_allowed,
+    visible_panels,
+)
 from .services.uploads import coerce_uploaded, parse_contents, read_uploaded_table
 from .ui.components import (
+    academy_level_card_children,
+    academy_progress_children,
+    academy_result_children,
     build_custom_order_row,
     build_exception_center,
     build_inventory_figure,
@@ -33,8 +48,12 @@ from .ui.components import (
     build_kpi_strip,
     build_po_overview_table,
     costs_card_children,
+    lesson_locked_children,
+    lesson_objective_children,
+    lesson_tutorial_children,
     sales_card_children,
     service_card_children,
+    simulator_unlock_children,
 )
 
 
@@ -49,16 +68,30 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         return "dark" if theme == "dark" else "light"
 
     def _button_class(variant: str, extra: str = "") -> str:
-        return " ".join(
-            part for part in ["imsim-button", f"button-{variant}", extra] if part
-        )
+        return " ".join(part for part in ["imsim-button", f"button-{variant}", extra] if part)
 
-    def _start_button_state(*, running: bool, disabled: bool = False) -> tuple[str, str]:
+    def _start_button_state(
+        state,
+        *,
+        running: bool,
+        disabled: bool = False,
+        resumable: bool = False,
+    ) -> tuple[str, str]:
+        mode = "Simulation" if state.training.current_view == "simulator" else "Lesson"
         if disabled:
             return "Disabled for Maintenance", _button_class("secondary", "button-pill")
         if running:
-            return "Pause Simulation", _button_class("warning", "button-pill")
-        return "Start Simulation", _button_class("success", "button-pill")
+            return f"Pause {mode}", _button_class("warning", "button-pill")
+        if resumable:
+            return f"Resume {mode}", _button_class("success", "button-pill")
+        return f"Start {mode}", _button_class("success", "button-pill")
+
+    def _panel_style(enabled: bool) -> dict[str, str]:
+        return {} if enabled else {"display": "none"}
+
+    def _current_state(client_data: dict | None):
+        session_id = (client_data or {}).get("uuid")
+        return repository.get_or_create(session_id) if session_id else default_state()
 
     def _toggle_enabled(value) -> bool:
         return bool(value)
@@ -90,8 +123,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         Input("user-data-store", "data"),
     )
     def sync_parameter_controls(client_data):
-        session_id = (client_data or {}).get("uuid")
-        state = repository.get_or_create(session_id) if session_id else default_state()
+        state = _current_state(client_data)
         settings = state.global_settings
         return (
             settings.r_cycle,
@@ -101,7 +133,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             settings.expedite_rate * 100.0,
             settings.gm * 100.0,
             settings.realization * 100.0,
-            settings.auto_po_enabled,
+            settings.auto_po_enabled if is_action_allowed(state, "auto_po") else False,
             settings.asq.enabled,
             settings.asq.min_hits,
             settings.asq.max_amount_diff,
@@ -146,6 +178,269 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             current_theme,
             next_label,
             _button_class("ghost", "theme-toggle-button button-sm"),
+        )
+
+    @app.callback(
+        [
+            Output("day-display", "children", allow_duplicate=True),
+            Output("inventory-graph", "figure", allow_duplicate=True),
+            Output("sim-status", "children", allow_duplicate=True),
+            Output("interval-component", "disabled", allow_duplicate=True),
+            Output("start-button", "children", allow_duplicate=True),
+            Output("start-button", "className", allow_duplicate=True),
+            Output("start-button", "disabled", allow_duplicate=True),
+            Output("reset-button", "children", allow_duplicate=True),
+            Output("service-card", "children", allow_duplicate=True),
+            Output("costs-card", "children", allow_duplicate=True),
+            Output("sales-card", "children", allow_duplicate=True),
+        ],
+        [
+            Input("academy-level-1-button", "n_clicks"),
+            Input("academy-level-2-button", "n_clicks"),
+            Input("academy-level-3-button", "n_clicks"),
+            Input("academy-level-4-button", "n_clicks"),
+            Input("academy-level-5-button", "n_clicks"),
+            Input("academy-level-6-button", "n_clicks"),
+            Input("academy-simulator-button", "n_clicks"),
+            Input("return-to-menu-button", "n_clicks"),
+            Input("simulator-return-button", "n_clicks"),
+            Input("academy-reset-progress-button", "n_clicks"),
+        ],
+        State("user-data-store", "data"),
+        State("theme-store", "data"),
+        prevent_initial_call=True,
+    )
+    def academy_navigation(
+        _level_1,
+        _level_2,
+        _level_3,
+        _level_4,
+        _level_5,
+        _level_6,
+        _open_simulator,
+        _lesson_return,
+        _simulator_return,
+        _reset_progress,
+        client_data,
+        theme,
+    ):
+        trig = ctx.triggered_id
+        if trig is None:
+            raise PreventUpdate
+        session_id, state = _require_session(client_data)
+        if trig == "academy-reset-progress-button":
+            next_state = reset_progress_state()
+        elif trig == "academy-simulator-button":
+            if not simulator_view_allowed(state.training):
+                raise PreventUpdate
+            next_state = build_simulator_state(state.training)
+        elif trig in {"return-to-menu-button", "simulator-return-button"}:
+            state.training.current_view = "main_menu"
+            state.training.active_level_id = None
+            state.training.lesson_status = "idle"
+            state.is_initialized = False
+            next_state = state
+        elif (
+            isinstance(trig, str) and trig.startswith("academy-level-") and trig.endswith("-button")
+        ):
+            level_index = int(trig.split("-")[2])
+            level = academy_levels()[level_index - 1]
+            if level.index > state.training.highest_unlocked_level:
+                raise PreventUpdate
+            next_state = build_level_state(level.level_id, state.training)
+        else:
+            raise PreventUpdate
+        repository.save(session_id, next_state)
+        label, class_name = _start_button_state(next_state, running=False)
+        reset_label = (
+            "Reset Sandbox" if next_state.training.current_view == "simulator" else "Restart Lesson"
+        )
+        return (
+            f"Day: {next_state.day}",
+            build_inventory_figure(next_state, _theme_name(theme)),
+            "Status: Ready",
+            True,
+            label,
+            class_name,
+            False,
+            reset_label,
+            service_card_children(next_state),
+            costs_card_children(next_state),
+            sales_card_children(next_state),
+        )
+
+    @app.callback(
+        [
+            Output("academy-menu-shell", "style"),
+            Output("lesson-shell", "style"),
+            Output("simulator-shell", "style"),
+            Output("dashboard-shell", "style"),
+            Output("academy-progress-summary", "children"),
+            Output("academy-result-banner", "children"),
+            Output("lesson-title", "children"),
+            Output("lesson-copy", "children"),
+            Output("lesson-tutorial", "children"),
+            Output("lesson-objectives", "children"),
+            Output("lesson-locked", "children"),
+            Output("simulator-copy", "children"),
+            Output("experience-kicker", "children"),
+            Output("experience-title", "children"),
+            Output("experience-copy", "children"),
+            Output("sim-status", "children", allow_duplicate=True),
+            Output("start-button", "children", allow_duplicate=True),
+            Output("start-button", "className", allow_duplicate=True),
+            Output("start-button", "disabled", allow_duplicate=True),
+            Output("reset-button", "children", allow_duplicate=True),
+            Output("po-button", "children"),
+            Output("inventory-panel-title", "children"),
+            Output("actions-panel", "style"),
+            Output("policy-panel", "style"),
+            Output("session-panel", "style"),
+            Output("graph-panel", "style"),
+            Output("service-panel", "style"),
+            Output("costs-panel", "style"),
+            Output("sales-panel", "style"),
+            Output("inventory-panel", "style"),
+            Output("exceptions-panel", "style"),
+            Output("kpi-strip", "style"),
+            Output("guided-po-wrap", "style"),
+            Output("custom-order-wrap", "style"),
+            Output("po-overview-wrap", "style"),
+            Output("add-item-wrap", "style"),
+            Output("auto-po-shell", "style"),
+            Output("asq-controls-shell", "style"),
+            Output("auto-po-enabled", "disabled"),
+            Output("academy-level-1-card", "children"),
+            Output("academy-level-2-card", "children"),
+            Output("academy-level-3-card", "children"),
+            Output("academy-level-4-card", "children"),
+            Output("academy-level-5-card", "children"),
+            Output("academy-level-6-card", "children"),
+            Output("academy-simulator-card", "children"),
+            Output("academy-simulator-button", "disabled"),
+            Output("advanced-sandbox-copy", "children"),
+        ],
+        Input("user-data-store", "data"),
+        Input("day-display", "children"),
+        Input("inventory-graph", "figure"),
+        prevent_initial_call="initial_duplicate",
+    )
+    def render_training_shells(client_data, _day_display, _figure):
+        state = _current_state(client_data)
+        panels = visible_panels(state)
+        level = active_level(state)
+        is_menu = state.training.current_view == "main_menu"
+        is_simulator = state.training.current_view == "simulator"
+        lesson_title = level.title if level is not None else "Academy Lesson"
+        lesson_copy = (
+            level.summary if level is not None else "Start a lesson from the academy menu."
+        )
+        if is_simulator:
+            experience_title = "Simulator control deck"
+            experience_copy = (
+                "Free play, imports, and the sandbox reward controls are now available."
+            )
+        elif level is not None:
+            experience_title = level.title
+            experience_copy = level.summary
+        else:
+            experience_title = "Lesson control deck"
+            experience_copy = "Use the academy menu to start a lesson."
+        reset_label = "Reset Sandbox" if is_simulator else "Restart Lesson"
+        po_label = (
+            "Place SOQ Order"
+            if (is_simulator or (level is not None and level.index >= 5))
+            else "Place Guided Reorder"
+        )
+        simulator_copy = (
+            (
+                "The full IM dashboard is unlocked. "
+                "Auto purchase orders remain off by default "
+                "and live in the sandbox section."
+            )
+            if state.training.auto_po_reward_unlocked
+            else (
+                "The full IM dashboard is unlocked. "
+                "Auto purchase orders stay hidden until certification "
+                "is completed."
+            )
+        )
+        sandbox_copy = (
+            "Sandbox reward: auto purchase orders are unlocked here, but they still default to off."
+            if state.training.auto_po_reward_unlocked
+            else "Auto purchase orders are locked until certification is complete."
+        )
+        return (
+            _panel_style(is_menu),
+            _panel_style(state.training.current_view == "lesson"),
+            _panel_style(is_simulator),
+            _panel_style(not is_menu),
+            academy_progress_children(state),
+            academy_result_children(state),
+            lesson_title,
+            lesson_copy,
+            lesson_tutorial_children(state),
+            lesson_objective_children(state),
+            lesson_locked_children(state),
+            simulator_copy,
+            "Simulator" if is_simulator else "Lesson",
+            experience_title,
+            experience_copy,
+            (
+                "Status: Running"
+                if state.is_initialized
+                else (
+                    "Status: Lesson complete"
+                    if state.training.lesson_status == "passed"
+                    else (
+                        "Status: Lesson failed"
+                        if state.training.lesson_status == "failed"
+                        else ("Status: Ready" if not is_menu else "Status: Academy menu")
+                    )
+                )
+            ),
+            _start_button_state(
+                state,
+                running=state.is_initialized,
+                resumable=(not state.is_initialized and state.day > 1 and not is_menu),
+            )[0],
+            _start_button_state(
+                state,
+                running=state.is_initialized,
+                resumable=(not state.is_initialized and state.day > 1 and not is_menu),
+            )[1],
+            False,
+            reset_label,
+            po_label,
+            "Planner grid"
+            if is_simulator or (level is not None and level.index >= 5)
+            else "Lesson items",
+            _panel_style("actions" in panels),
+            _panel_style("policy" in panels),
+            _panel_style("session" in panels),
+            _panel_style("graph" in panels),
+            _panel_style("service" in panels),
+            _panel_style("costs" in panels),
+            _panel_style("sales" in panels),
+            _panel_style("inventory" in panels),
+            _panel_style("exceptions" in panels),
+            _panel_style("kpi" in panels),
+            _panel_style(is_action_allowed(state, "guided_po")),
+            _panel_style(is_action_allowed(state, "custom_order")),
+            _panel_style(is_action_allowed(state, "po_overview")),
+            _panel_style(is_action_allowed(state, "add_items")),
+            _panel_style(is_simulator and state.training.auto_po_reward_unlocked),
+            _panel_style(is_action_allowed(state, "apply_asq")),
+            not (is_simulator and state.training.auto_po_reward_unlocked),
+            academy_level_card_children(1, state),
+            academy_level_card_children(2, state),
+            academy_level_card_children(3, state),
+            academy_level_card_children(4, state),
+            academy_level_card_children(5, state),
+            academy_level_card_children(6, state),
+            simulator_unlock_children(state),
+            not state.training.simulator_unlocked,
+            sandbox_copy,
         )
 
     @app.callback(
@@ -208,6 +503,10 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("costs-card", "children", allow_duplicate=True),
             Output("sales-card", "children", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
+            Output("sim-status", "children", allow_duplicate=True),
+            Output("interval-component", "disabled", allow_duplicate=True),
+            Output("start-button", "children", allow_duplicate=True),
+            Output("start-button", "className", allow_duplicate=True),
         ],
         Input("interval-component", "n_intervals"),
         State("user-data-store", "data"),
@@ -229,6 +528,18 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 color="info",
                 duration=4000,
             )
+        status = dash.no_update
+        interval_disabled = dash.no_update
+        button_label = dash.no_update
+        button_class = dash.no_update
+        if summary.get("lesson_completed"):
+            status = (
+                "Status: Lesson complete"
+                if state.training.lesson_status == "passed"
+                else "Status: Lesson failed"
+            )
+            interval_disabled = True
+            button_label, button_class = _start_button_state(state, running=False)
         return (
             f"Day: {state.day}",
             build_inventory_figure(state, _theme_name(theme)),
@@ -236,6 +547,10 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             costs_card_children(state),
             sales_card_children(state),
             feedback,
+            status,
+            interval_disabled,
+            button_label,
+            button_class,
         )
 
     @app.callback(
@@ -254,16 +569,22 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         if not n_clicks:
             raise PreventUpdate
         session_id, state = _require_session(client_data)
+        if state.training.current_view == "main_menu" or not state.items:
+            raise PreventUpdate
         if is_disabled:
             state.is_initialized = True
+            state.training.lesson_status = (
+                "running"
+                if state.training.current_view == "lesson"
+                else state.training.lesson_status
+            )
             repository.save(session_id, state)
-            label, class_name = _start_button_state(running=True)
+            label, class_name = _start_button_state(state, running=True)
             return "Status: Running", False, label, class_name
         state.is_initialized = False
         repository.save(session_id, state)
-        return "Status: Paused", True, "Resume Simulation", _button_class(
-            "success", "button-pill"
-        )
+        label, class_name = _start_button_state(state, running=False, resumable=True)
+        return "Status: Paused", True, label, class_name
 
     @app.callback(
         [
@@ -289,13 +610,24 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         if not n_clicks:
             raise PreventUpdate
         session_id = (client_data or {}).get("uuid", "__bootstrap__")
-        state = repository.reset(session_id)
+        current = (
+            repository.get_or_create(session_id)
+            if session_id != "__bootstrap__"
+            else default_state()
+        )
+        if current.training.current_view == "lesson" and current.training.active_level_id:
+            state = build_level_state(current.training.active_level_id, current.training)
+        elif current.training.current_view == "simulator":
+            state = build_simulator_state(current.training)
+        else:
+            state = reset_progress_state()
+        repository.save(session_id, state)
         store = {"uuid": session_id} if session_id != "__bootstrap__" else client_data or {}
-        label, class_name = _start_button_state(running=False)
+        label, class_name = _start_button_state(state, running=False)
         return (
             f"Day: {state.day}",
             build_inventory_figure(state, _theme_name(theme)),
-            "Status: Paused",
+            "Status: Ready",
             store,
             True,
             label,
@@ -346,6 +678,16 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         theme,
     ):
         if ctx.triggered_id == "add-item-button":
+            _session_id, state = _require_session(client_data)
+            if not is_action_allowed(state, "add_items"):
+                return (
+                    False,
+                    dbc.Alert("Item editing unlocks in simulator mode.", color="warning"),
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                )
             return (
                 not is_open,
                 dash.no_update,
@@ -394,6 +736,15 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
             )
         session_id, state = _require_session(client_data)
+        if not is_action_allowed(state, "add_items"):
+            return (
+                False,
+                dbc.Alert("Item editing unlocks in simulator mode.", color="warning"),
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+            )
         state.items.append(
             create_inventory_item(
                 usage_rate=usage_rate,
@@ -517,6 +868,14 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
             )
         session_id, state = _require_session(client_data)
+        if not is_action_allowed(state, "update_parameters"):
+            return (
+                dbc.Alert("Global parameter editing unlocks in later lessons.", color="warning"),
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+            )
         update_global_settings(
             state.global_settings,
             int(review_cycle),
@@ -527,8 +886,12 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             float(gm_pct) / 100.0,
         )
         state.global_settings.realization = float(realization_pct) / 100.0
-        state.global_settings.auto_po_enabled = _toggle_enabled(auto_po_enabled)
-        state.global_settings.asq.enabled = _toggle_enabled(asq_enabled)
+        state.global_settings.auto_po_enabled = (
+            _toggle_enabled(auto_po_enabled) if is_action_allowed(state, "auto_po") else False
+        )
+        state.global_settings.asq.enabled = (
+            _toggle_enabled(asq_enabled) if is_action_allowed(state, "apply_asq") else False
+        )
         state.global_settings.asq.min_hits = int(asq_min_hits)
         state.global_settings.asq.max_amount_diff = float(asq_max_diff)
         state.global_settings.asq.period_days = int(asq_period_days)
@@ -561,6 +924,14 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         if not n_clicks:
             raise PreventUpdate
         session_id, state = _require_session(client_data)
+        if not is_action_allowed(state, "apply_asq"):
+            return (
+                dbc.Alert("ASQ unlocks in certification and simulator mode.", color="warning"),
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+            )
         if not state.items:
             return (
                 dbc.Alert("No items to adjust.", color="secondary"),
@@ -599,9 +970,10 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         if not n_clicks:
             raise PreventUpdate
         session_id, state = _require_session(client_data)
-        if not state.items:
+        if not state.items or not is_action_allowed(state, "guided_po"):
             raise PreventUpdate
         place_purchase_orders(state)
+        record_guided_order(state)
         repository.save(session_id, state)
         return (
             build_inventory_figure(state, _theme_name(theme)),
@@ -647,30 +1019,34 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         session_id, state = _require_session(client_data)
         rows = [build_custom_order_row(index, item) for index, item in enumerate(state.items)]
         if ctx.triggered_id == "place-custom-order-button":
+            if not is_action_allowed(state, "custom_order"):
+                raise PreventUpdate
             state.is_initialized = False
             repository.save(session_id, state)
+            label, class_name = _start_button_state(state, running=False, resumable=True)
             return (
                 dash.no_update,
                 rows,
                 True,
                 "Status: Paused",
                 True,
-                "Resume Simulation",
-                _button_class("success", "button-pill"),
+                label,
+                class_name,
                 True,
                 costs_card_children(state),
                 service_card_children(state),
                 sales_card_children(state),
             )
         if ctx.triggered_id == "cancel-custom-order-button":
+            label, class_name = _start_button_state(state, running=False, resumable=True)
             return (
                 dash.no_update,
                 dash.no_update,
                 False,
                 "Status: Paused",
                 True,
-                "Resume Simulation",
-                _button_class("success", "button-pill"),
+                label,
+                class_name,
                 False,
                 costs_card_children(state),
                 service_card_children(state),
@@ -678,17 +1054,22 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             )
         if ctx.triggered_id != "place-order-button":
             raise PreventUpdate
+        if not is_action_allowed(state, "custom_order"):
+            raise PreventUpdate
         changed = place_custom_orders(state, list(order_quantities or []))
+        if changed:
+            record_custom_order(state)
         repository.save(session_id, state)
         child_rows = rows if state.items else dbc.Alert("No items available.", color="warning")
+        label, class_name = _start_button_state(state, running=False, resumable=True)
         return (
             build_inventory_figure(state, _theme_name(theme)) if changed else dash.no_update,
             child_rows,
             False,
             "Status: Paused",
             True,
-            "Resume Simulation",
-            _button_class("success", "button-pill"),
+            label,
+            class_name,
             False,
             costs_card_children(state),
             service_card_children(state),
@@ -768,6 +1149,14 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
             )
         session_id, state = _require_session(client_data)
+        if not is_action_allowed(state, "import_items"):
+            return (
+                dash.no_update,
+                dbc.Alert("Imports unlock in simulator mode.", color="warning"),
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+            )
         df = coerce_uploaded(pd.DataFrame(rows))
         for record in df.to_dict("records"):
             state.items.append(
@@ -852,11 +1241,16 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             raise PreventUpdate
         is_open = dash.no_update
         if trig == "po-overview-button":
+            if not is_action_allowed(state, "po_overview"):
+                raise PreventUpdate
             is_open = True
         elif trig == "po-overview-close":
             is_open = False
         elif isinstance(trig, dict) and "rid" in trig:
             action = "expedite" if trig.get("type") == "po-expedite" else "cancel"
+            action_name = "expedite_receipt" if action == "expedite" else "cancel_receipt"
+            if not is_action_allowed(state, action_name):
+                raise PreventUpdate
             expedite_or_cancel_receipt(state, trig["rid"], action)
             repository.save(session_id, state)
         table = build_po_overview_table(state)

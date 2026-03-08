@@ -132,6 +132,79 @@ body {
   justify-content: flex-end;
 }
 
+.academy-shell .card-body {
+  padding-block: 1.4rem;
+}
+
+.academy-card {
+  height: 100%;
+}
+
+.academy-card-kicker,
+.academy-card-formula,
+.helper-copy,
+.lesson-formula-chip {
+  color: var(--imsim-muted);
+  font-size: 0.85rem;
+}
+
+.academy-card-title {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.05;
+  margin-top: 0.35rem;
+}
+
+.academy-card-copy {
+  color: var(--imsim-muted);
+  line-height: 1.5;
+  margin: 0.65rem 0 0;
+  min-height: 4.5rem;
+}
+
+.academy-card-formula,
+.lesson-formula-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--imsim-line);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.academy-status-badge {
+  margin-top: 0.85rem;
+}
+
+.academy-result-alert {
+  border-radius: 18px;
+  margin-bottom: 0;
+}
+
+.lesson-detail-card {
+  height: 100%;
+}
+
+.lesson-copy-list {
+  margin: 0.85rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--imsim-ink);
+}
+
+.lesson-copy-list li + li {
+  margin-top: 0.45rem;
+}
+
+.lesson-objective-headline {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 0.15rem;
+}
+
 .shell-card,
 .metric-card,
 .footer-card {

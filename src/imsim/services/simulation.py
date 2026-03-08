@@ -14,6 +14,12 @@ from ..models import InventoryItem, Receipt, ServiceMetrics, SimulationState
 from ..repository import SessionRepository
 from .asq import apply_asq_month_end
 from .planning import round_to_pack, safe_div, update_planning_fields
+from .training import (
+    apply_lesson_evaluation,
+    demand_mode,
+    evaluate_active_lesson,
+    is_action_allowed,
+)
 
 _thread_local = threading.local()
 
@@ -53,6 +59,22 @@ def simulate_sales(avg_sale_qty: float, standard_pack: float) -> int:
     return int(raw_packs * pack)
 
 
+def _daily_demands(item: InventoryItem, state: SimulationState) -> list[float]:
+    mode = demand_mode(state)
+    if mode == "deterministic":
+        qty = max(0.0, safe_div(item.usage_rate, 30.0, 0.0))
+        return [qty] if qty > 0 else []
+    hpm = max(0.01, float(item.hits_per_month))
+    avg_sale_qty = safe_div(item.usage_rate, hpm, 0.0)
+    orders = simulate_daily_hits(hpm)
+    demands: list[float] = []
+    for _ in range(orders):
+        qty = float(simulate_sales(avg_sale_qty, item.standard_pack))
+        if qty > 0:
+            demands.append(qty)
+    return demands
+
+
 def process_item_day(item: InventoryItem, today: int, state: SimulationState) -> DayMetrics:
     metrics = DayMetrics()
     gs = state.global_settings
@@ -72,16 +94,10 @@ def process_item_day(item: InventoryItem, today: int, state: SimulationState) ->
         item.backorder -= settle
         item.on_hand -= settle
 
-    hpm = max(0.01, float(item.hits_per_month))
-    avg_sale_qty = safe_div(item.usage_rate, hpm, 0.0)
     on_hand_before = item.on_hand
-    orders = simulate_daily_hits(hpm)
     stockout_any = False
 
-    for _ in range(orders):
-        qty = simulate_sales(avg_sale_qty, item.standard_pack)
-        if qty <= 0:
-            continue
+    for qty in _daily_demands(item, state):
         metrics.orders += 1
         metrics.units_ordered += qty
         item.asq_hits_period += 1
@@ -127,7 +143,7 @@ def add_metrics(bucket: ServiceMetrics, metrics: DayMetrics) -> None:
 
 def tick_state(state: SimulationState) -> dict[str, int]:
     if not state.is_initialized or not state.items:
-        return {"day": state.day, "asq_changed": 0}
+        return {"day": state.day, "asq_changed": 0, "lesson_completed": 0}
     state.day += 1
     state.service_today = ServiceMetrics()
     holding_today = 0.0
@@ -148,8 +164,10 @@ def tick_state(state: SimulationState) -> dict[str, int]:
         purchases_today += metrics.purchases_add
         inventory_mid_value += metrics.inv_value_mid_add
 
-    if state.global_settings.auto_po_enabled:
+    if state.global_settings.auto_po_enabled and is_action_allowed(state, "auto_po"):
         place_purchase_orders(state)
+    else:
+        state.global_settings.auto_po_enabled = False
 
     state.costs.holding += holding_today
     state.costs.stockout += stockout_today
@@ -165,7 +183,12 @@ def tick_state(state: SimulationState) -> dict[str, int]:
     asq_changed = 0
     if state.day % max(1, state.global_settings.asq.period_days) == 0:
         asq_changed = apply_asq_month_end(state)["changed"]
-    return {"day": state.day, "asq_changed": asq_changed}
+    lesson_completed = 0
+    evaluation = evaluate_active_lesson(state)
+    if evaluation is not None and evaluation.completed:
+        apply_lesson_evaluation(state, evaluation)
+        lesson_completed = 1
+    return {"day": state.day, "asq_changed": asq_changed, "lesson_completed": lesson_completed}
 
 
 def place_purchase_orders(state: SimulationState) -> dict[str, float]:
