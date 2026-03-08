@@ -3,9 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import imsim.config as config_module
+from imsim.app import create_app
 from imsim.config import IMSimConfig
 from imsim.models import SimulationState
-from imsim.repository import FileSessionRepository
+from imsim.repository import (
+    DatabaseSessionRepository,
+    FileSessionRepository,
+    create_session_repository,
+)
 
 
 def test_repository_persists_state(test_config):
@@ -18,6 +23,52 @@ def test_repository_persists_state(test_config):
 
     assert loaded.day == 42
     assert repo.path_for("abc").exists()
+
+
+def test_database_repository_persists_state(tmp_path):
+    repo_root = Path.cwd()
+    config = IMSimConfig(
+        repo_root=repo_root,
+        assets_dir=repo_root / "assets",
+        session_dir=tmp_path / "sessions",
+        examples_dir=repo_root / "examples",
+        database_url=f"sqlite+pysqlite:///{tmp_path / 'imsim.db'}",
+        github_url="https://example.com/imsim",
+        admin_token=None,
+        allow_dev_shutdown=False,
+        shutdown_url=None,
+        host="127.0.0.1",
+        port=8050,
+        debug=False,
+    )
+    repo = DatabaseSessionRepository(config)
+    state = SimulationState()
+    state.day = 17
+    repo.save("db-session", state)
+
+    loaded = repo.get_or_create("db-session")
+
+    assert loaded.day == 17
+
+
+def test_repository_factory_prefers_database(tmp_path):
+    repo_root = Path.cwd()
+    config = IMSimConfig(
+        repo_root=repo_root,
+        assets_dir=repo_root / "assets",
+        session_dir=tmp_path / "sessions",
+        examples_dir=repo_root / "examples",
+        database_url=f"sqlite+pysqlite:///{tmp_path / 'imsim.db'}",
+        github_url="https://example.com/imsim",
+        admin_token=None,
+        allow_dev_shutdown=False,
+        shutdown_url=None,
+        host="127.0.0.1",
+        port=8050,
+        debug=False,
+    )
+
+    assert isinstance(create_session_repository(config), DatabaseSessionRepository)
 
 
 def test_dash_layout_and_admin_status(client):
@@ -35,8 +86,6 @@ def test_shutdown_endpoint_disabled_by_default(client):
 
 
 def test_admin_token_is_enforced(tmp_path):
-    from imsim.app import create_app
-
     repo_root = Path.cwd()
     app = create_app(
         IMSimConfig(
@@ -44,6 +93,7 @@ def test_admin_token_is_enforced(tmp_path):
             assets_dir=repo_root / "assets",
             session_dir=tmp_path / "sessions",
             examples_dir=repo_root / "examples",
+            database_url=None,
             github_url="https://example.com/imsim",
             admin_token="secret",
             allow_dev_shutdown=False,
@@ -77,6 +127,8 @@ def test_config_from_env_uses_checkout_root(monkeypatch, tmp_path):
 
     monkeypatch.setattr(config_module, "__file__", str(fake_file))
     monkeypatch.delenv("IMSIM_DATA_DIR", raising=False)
+    monkeypatch.delenv("IMSIM_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
 
     config = IMSimConfig.from_env()
 
@@ -84,10 +136,11 @@ def test_config_from_env_uses_checkout_root(monkeypatch, tmp_path):
     assert config.assets_dir == repo_root / "assets"
     assert config.examples_dir == repo_root / "examples"
     assert config.session_dir == repo_root / "var" / "sessions"
+    assert config.database_url is None
 
 
 def test_config_from_env_uses_installed_distribution_root(monkeypatch, tmp_path):
-    site_packages = tmp_path / "venv" / "lib" / "python3.11" / "site-packages"
+    site_packages = tmp_path / "venv" / "lib" / "python3.12" / "site-packages"
     package_dir = site_packages / "imsim"
     package_dir.mkdir(parents=True)
     (site_packages / "assets").mkdir()
@@ -97,6 +150,8 @@ def test_config_from_env_uses_installed_distribution_root(monkeypatch, tmp_path)
 
     monkeypatch.setattr(config_module, "__file__", str(fake_file))
     monkeypatch.delenv("IMSIM_DATA_DIR", raising=False)
+    monkeypatch.delenv("IMSIM_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
 
     config = IMSimConfig.from_env()
 
@@ -104,3 +159,22 @@ def test_config_from_env_uses_installed_distribution_root(monkeypatch, tmp_path)
     assert config.assets_dir == site_packages / "assets"
     assert config.examples_dir == site_packages / "examples"
     assert config.session_dir == site_packages / "var" / "sessions"
+    assert config.database_url is None
+
+
+def test_config_from_env_reads_database_url(monkeypatch, tmp_path):
+    repo_root = tmp_path / "repo"
+    package_dir = repo_root / "src" / "imsim"
+    package_dir.mkdir(parents=True)
+    (repo_root / "pyproject.toml").write_text("[project]\nname = 'imsim'\n", encoding="utf-8")
+    (repo_root / "assets").mkdir()
+    (repo_root / "examples").mkdir()
+    fake_file = package_dir / "config.py"
+    fake_file.write_text("# test fixture\n", encoding="utf-8")
+
+    monkeypatch.setattr(config_module, "__file__", str(fake_file))
+    monkeypatch.setenv("IMSIM_DATABASE_URL", "sqlite+pysqlite:///imsim.db")
+
+    config = IMSimConfig.from_env()
+
+    assert config.database_url == "sqlite+pysqlite:///imsim.db"

@@ -29,6 +29,7 @@ class IMSimConfig:
     assets_dir: Path
     session_dir: Path
     examples_dir: Path
+    database_url: str | None
     github_url: str
     admin_token: str | None
     allow_dev_shutdown: bool
@@ -47,11 +48,13 @@ class IMSimConfig:
         session_dir = Path(
             os.environ.get("IMSIM_DATA_DIR") or (repo_root / "var" / "sessions")
         ).expanduser()
+        database_url = os.environ.get("IMSIM_DATABASE_URL") or os.environ.get("DATABASE_URL")
         return cls(
             repo_root=repo_root,
             assets_dir=assets_dir,
             session_dir=session_dir,
             examples_dir=examples_dir,
+            database_url=database_url,
             github_url=os.environ.get("IMSIM_GITHUB_URL", "https://github.com/SchmidtCode/IMSim"),
             admin_token=os.environ.get("IMSIM_ADMIN_TOKEN"),
             allow_dev_shutdown=os.environ.get("ALLOW_DEV_SHUTDOWN") == "1",

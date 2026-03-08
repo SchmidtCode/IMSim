@@ -10,7 +10,7 @@ from flask import Flask, abort, jsonify, request
 
 from .callbacks import register_callbacks
 from .config import IMSimConfig
-from .repository import FileSessionRepository
+from .repository import create_session_repository
 from .services.simulation import MaintenanceController
 from .ui.layout import build_layout
 
@@ -18,7 +18,7 @@ from .ui.layout import build_layout
 def create_app(config: IMSimConfig | None = None) -> dash.Dash:
     config = config or IMSimConfig.from_env()
     server = Flask(__name__)
-    repository = FileSessionRepository(config)
+    repository = create_session_repository(config)
     maintenance = MaintenanceController(repository, config.allow_dev_shutdown)
     maintenance.start_watchdog_once()
 

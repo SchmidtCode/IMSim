@@ -16,6 +16,7 @@ def test_config(tmp_path: Path) -> IMSimConfig:
         assets_dir=repo_root / "assets",
         session_dir=tmp_path / "sessions",
         examples_dir=repo_root / "examples",
+        database_url=None,
         github_url="https://example.com/imsim",
         admin_token=None,
         allow_dev_shutdown=False,

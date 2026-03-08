@@ -11,7 +11,7 @@ IMSim is an inventory management simulator built with Dash 4. It lets you model 
 - Inventory policy engine for OP, LP, EOQ, OQ, SOQ, pack rounding, and auto-PO behavior
 - Daily demand simulation with stockout, holding, expedite, purchase, revenue, and COGS tracking
 - ASQ OP adjuster with min-hit and max-dollar guardrails
-- Session persistence to per-user JSON files under `var/sessions/` or `IMSIM_DATA_DIR`
+- Session persistence through a repository abstraction with PostgreSQL support and file fallback
 - CSV and XLSX import flow with header normalization and preview validation
 - Docker, CI, tests, and tracked `uv.lock` for reproducible development
 
@@ -29,6 +29,13 @@ uv run imsim
 
 The app starts on `http://127.0.0.1:8050/`.
 
+If you want PostgreSQL-backed session storage locally without Docker, set:
+
+```bash
+export IMSIM_DATABASE_URL="postgresql+psycopg://imsim:imsim@localhost:5432/imsim"
+uv run imsim
+```
+
 Legacy entrypoint support is still available:
 
 ```bash
@@ -37,15 +44,24 @@ uv run python app.py
 
 ### Docker
 
+Standalone container with file-backed sessions:
+
 ```bash
 docker build -t imsim .
 docker run --rm -p 8050:8050 imsim
+```
+
+PostgreSQL-backed stack:
+
+```bash
+docker compose up --build
 ```
 
 ## Runtime configuration
 
 | Variable | Purpose |
 | --- | --- |
+| `IMSIM_DATABASE_URL` | Optional SQLAlchemy database URL for session persistence. If set, the app uses the database instead of filesystem JSON. |
 | `IMSIM_DATA_DIR` | Directory for persisted session JSON files. Defaults to `var/sessions/`. |
 | `IMSIM_ADMIN_TOKEN` | Optional bearer or `X-IMSIM-ADMIN-TOKEN` value for maintenance endpoints. |
 | `ALLOW_DEV_SHUTDOWN` | Enables the `/shutdown` endpoint for local development. |
@@ -109,6 +125,12 @@ Endpoints:
 - `GET /api/admin/shutdown_status`
 
 During the final minute, running sessions are paused and the UI is locked. Session data is persisted before shutdown handling.
+
+## Persistence backends
+
+- Default local behavior: file-backed sessions under `var/sessions/` or `IMSIM_DATA_DIR`
+- Database behavior: set `IMSIM_DATABASE_URL` to any supported SQLAlchemy URL
+- Docker Compose default: PostgreSQL-backed sessions using the bundled `db` service
 
 ## Example data
 
