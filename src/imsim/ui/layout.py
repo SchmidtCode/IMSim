@@ -138,6 +138,15 @@ def build_layout(config: IMSimConfig):
                                                 html.Div(
                                                     [
                                                         _action_button(
+                                                            "Dark mode",
+                                                            "academy-theme-toggle",
+                                                            "ghost",
+                                                            class_name=(
+                                                                "theme-toggle-button "
+                                                                "button-sm"
+                                                            ),
+                                                        ),
+                                                        _action_button(
                                                             "Reset Progress",
                                                             "academy-reset-progress-button",
                                                             "secondary",
@@ -698,6 +707,8 @@ def build_layout(config: IMSimConfig):
                                                             step=0.5,
                                                             value=1.0,
                                                             marks=None,
+                                                            updatemode="drag",
+                                                            allow_direct_input=False,
                                                             className="sim-speed-slider",
                                                         ),
                                                         html.Div(

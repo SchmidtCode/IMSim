@@ -170,10 +170,11 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
     @app.callback(
         Output("theme-store", "data"),
         Input("theme-toggle", "n_clicks"),
+        Input("academy-theme-toggle", "n_clicks"),
         State("theme-store", "data"),
         prevent_initial_call=True,
     )
-    def toggle_theme(_n_clicks, current_theme):
+    def toggle_theme(_simulator_clicks, _academy_clicks, current_theme):
         return "dark" if current_theme != "dark" else "light"
 
     @app.callback(
@@ -182,17 +183,22 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("app-theme", "data-bs-theme"),
             Output("theme-toggle", "children"),
             Output("theme-toggle", "className"),
+            Output("academy-theme-toggle", "children"),
+            Output("academy-theme-toggle", "className"),
         ],
         Input("theme-store", "data"),
     )
     def apply_theme(theme):
         current_theme = "dark" if theme == "dark" else "light"
         next_label = "Light mode" if current_theme == "dark" else "Dark mode"
+        toggle_class = _button_class("ghost", "theme-toggle-button button-sm")
         return (
             f"imsim-theme theme-{current_theme}",
             current_theme,
             next_label,
-            _button_class("ghost", "theme-toggle-button button-sm"),
+            toggle_class,
+            next_label,
+            toggle_class,
         )
 
     @app.callback(

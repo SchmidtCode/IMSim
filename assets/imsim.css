@@ -525,7 +525,7 @@ body {
   padding: 0.55rem 0.85rem;
   border: 1px solid var(--imsim-line);
   border-radius: 14px;
-  background: var(--imsim-control-bg);
+  background-color: var(--imsim-control-bg);
   color: var(--imsim-ink);
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
   font-size: 1.05rem;
@@ -711,9 +711,21 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
-.theme-dark .speed-readout {
-  background: var(--imsim-control-bg);
-  color: var(--imsim-ink);
+.theme-dark .speed-readout,
+.theme-dark #sim-speed-readout {
+  background-color: #132238;
+  border-color: rgba(214, 228, 255, 0.16);
+  color: #e6eefc;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.theme-dark .sim-speed-slider .rc-slider-tooltip input,
+.theme-dark .sim-speed-slider .rc-tooltip input,
+.theme-dark .rc-slider-tooltip input,
+.theme-dark .rc-tooltip input {
+  background: #132238 !important;
+  border-color: rgba(214, 228, 255, 0.2) !important;
+  color: #e6eefc !important;
 }
 
 .theme-dark .button-light {
