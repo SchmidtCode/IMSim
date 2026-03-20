@@ -6,7 +6,11 @@ from dash import dcc, html
 from ..config import IMSimConfig
 from ..models import default_state
 from ..services.training import academy_levels
-from .components import academy_level_card_children, github_footer_card, simulator_unlock_children
+from .components import (
+    academy_level_card_children,
+    github_footer_card,
+    simulator_unlock_children,
+)
 
 
 def _action_button(
@@ -219,97 +223,90 @@ def build_layout(config: IMSimConfig):
                 ),
                 html.Div(
                     [
-                        dbc.Card(
-                            dbc.CardBody(
-                                [
-                                    dbc.Row(
+                        dbc.Modal(
+                            [
+                                dbc.ModalHeader(
+                                    html.Div(
                                         [
-                                            dbc.Col(
-                                                [
-                                                    html.Div("Lesson", className="hero-kicker"),
-                                                    html.H1(
-                                                        "Academy Lesson",
-                                                        id="lesson-title",
-                                                        className="hero-title",
-                                                    ),
-                                                    html.P(
-                                                        "Start a lesson from the academy menu.",
-                                                        id="lesson-copy",
-                                                        className="hero-copy",
-                                                    ),
-                                                ],
-                                                lg=8,
+                                            html.Div("Lesson Brief", className="hero-kicker"),
+                                            html.H2(
+                                                "Academy Lesson",
+                                                id="lesson-title",
+                                                className="lesson-intro-title",
                                             ),
-                                            dbc.Col(
-                                                html.Div(
-                                                    [
-                                                        _action_button(
-                                                            "Return to Academy",
-                                                            "return-to-menu-button",
-                                                            "secondary",
-                                                            class_name="button-pill",
+                                            html.P(
+                                                "Start a lesson from the academy menu.",
+                                                id="lesson-copy",
+                                                className="lesson-intro-copy",
+                                            ),
+                                        ]
+                                    ),
+                                    close_button=False,
+                                    class_name="lesson-intro-header",
+                                ),
+                                dbc.ModalBody(
+                                    [
+                                        dbc.Row(
+                                            [
+                                                dbc.Col(
+                                                    dbc.Card(
+                                                        dbc.CardBody(
+                                                            [
+                                                                html.Div(
+                                                                    "Tutorial", className="panel-label"
+                                                                ),
+                                                                html.Div(id="lesson-tutorial"),
+                                                            ]
                                                         ),
-                                                    ],
-                                                    className="hero-actions hero-actions-compact",
+                                                        className=(
+                                                            "shell-card lesson-detail-card h-100"
+                                                        ),
+                                                    ),
+                                                    lg=7,
                                                 ),
-                                                lg=4,
-                                                className="hero-actions-wrap",
-                                            ),
-                                        ],
-                                        className="g-3 align-items-center",
+                                                dbc.Col(
+                                                    dbc.Card(
+                                                        dbc.CardBody(
+                                                            [
+                                                                html.Div(
+                                                                    "Objectives",
+                                                                    className="panel-label",
+                                                                ),
+                                                                html.Div(id="lesson-objectives"),
+                                                            ]
+                                                        ),
+                                                        className=(
+                                                            "shell-card lesson-detail-card h-100"
+                                                        ),
+                                                    ),
+                                                    lg=5,
+                                                ),
+                                            ],
+                                            className="g-3 lesson-intro-grid",
+                                        ),
+                                        html.Div(id="lesson-locked", className="lesson-locked-cache"),
+                                    ],
+                                    class_name="lesson-intro-body",
+                                ),
+                                dbc.ModalFooter(
+                                    _action_button(
+                                        "Enter Lesson",
+                                        "lesson-intro-dismiss-button",
+                                        "primary",
+                                        class_name="button-pill",
                                     ),
-                                    dbc.Row(
-                                        [
-                                            dbc.Col(
-                                                dbc.Card(
-                                                    dbc.CardBody(
-                                                        [
-                                                            html.Div(
-                                                                "Tutorial", className="panel-label"
-                                                            ),
-                                                            html.Div(id="lesson-tutorial"),
-                                                        ]
-                                                    ),
-                                                    className="shell-card lesson-detail-card h-100",
-                                                ),
-                                                lg=4,
-                                            ),
-                                            dbc.Col(
-                                                dbc.Card(
-                                                    dbc.CardBody(
-                                                        [
-                                                            html.Div(
-                                                                "Objectives",
-                                                                className="panel-label",
-                                                            ),
-                                                            html.Div(id="lesson-objectives"),
-                                                        ]
-                                                    ),
-                                                    className="shell-card lesson-detail-card h-100",
-                                                ),
-                                                lg=4,
-                                            ),
-                                            dbc.Col(
-                                                dbc.Card(
-                                                    dbc.CardBody(
-                                                        [
-                                                            html.Div(
-                                                                "Locked for Later",
-                                                                className="panel-label",
-                                                            ),
-                                                            html.Div(id="lesson-locked"),
-                                                        ]
-                                                    ),
-                                                    className="shell-card lesson-detail-card h-100",
-                                                ),
-                                                lg=4,
-                                            ),
-                                        ],
-                                        className="g-3 mt-2",
-                                    ),
-                                ]
-                            ),
-                            className="shell-card academy-shell mb-4",
+                                    className="lesson-intro-footer",
+                                ),
+                            ],
+                            id="lesson-intro-modal",
+                            is_open=False,
+                            centered=True,
+                            scrollable=True,
+                            size="xl",
+                            class_name="lesson-intro-modal",
+                            dialog_class_name="lesson-intro-dialog",
+                            content_class_name="lesson-intro-content",
+                            backdrop_class_name="lesson-intro-backdrop",
                         )
                     ],
                     id="lesson-shell",
@@ -393,6 +390,10 @@ def build_layout(config: IMSimConfig):
                                                     id="experience-copy",
                                                     className="hero-copy",
                                                 ),
+                                                html.Div(
+                                                    id="lesson-compact-summary",
+                                                    className="lesson-compact-summary mt-3",
+                                                ),
                                             ],
                                             lg=8,
                                         ),
@@ -411,6 +412,15 @@ def build_layout(config: IMSimConfig):
                                                         "secondary",
                                                         class_name="button-pill",
                                                     ),
+                                                    html.Div(
+                                                        _action_button(
+                                                            "Return to Academy",
+                                                            "return-to-menu-button",
+                                                            "ghost",
+                                                            class_name="button-pill",
+                                                        ),
+                                                        id="lesson-return-wrap",
+                                                    ),
                                                 ],
                                                 className="hero-actions hero-actions-compact",
                                             ),
@@ -421,7 +431,7 @@ def build_layout(config: IMSimConfig):
                                     className="g-3 align-items-center",
                                 )
                             ),
-                            className="shell-card hero-banner-card mb-4",
+                            className="shell-card hero-banner-card experience-banner-card mb-4",
                         ),
                         html.Div(id="kpi-strip", className="mt-4"),
                         dbc.Row(
@@ -723,7 +733,7 @@ def build_layout(config: IMSimConfig):
                                         ),
                                     ],
                                     xl=3,
-                                    className="control-rail-column",
+                                    className="control-rail-column dashboard-rail-column",
                                 ),
                                 dbc.Col(
                                     [
@@ -739,7 +749,11 @@ def build_layout(config: IMSimConfig):
                                                             className="panel-title",
                                                             id="graph-panel-title",
                                                         ),
-                                                        dcc.Graph(id="inventory-graph", figure={}),
+                                                        dcc.Graph(
+                                                            id="inventory-graph",
+                                                            figure={},
+                                                            className="inventory-graph",
+                                                        ),
                                                     ]
                                                 ),
                                                 className="shell-card mb-3",
@@ -749,16 +763,17 @@ def build_layout(config: IMSimConfig):
                                         dbc.Row(
                                             [
                                                 dbc.Col(
-                                                    dbc.Card(
-                                                        dbc.CardBody(
-                                                            [
-                                                                html.Div(
-                                                                    "Service",
-                                                                    className="panel-title-small",
-                                                                ),
-                                                                html.Div(id="service-card"),
-                                                            ]
-                                                        ),
+                                                                dbc.Card(
+                                                                    dbc.CardBody(
+                                                                        [
+                                                                            html.Div(
+                                                                                "Service",
+                                                                                className="panel-title-small",
+                                                                                id="service-panel-title",
+                                                                            ),
+                                                                            html.Div(id="service-card"),
+                                                                        ]
+                                                                    ),
                                                         className="shell-card h-100",
                                                     ),
                                                     id="service-panel",
@@ -797,7 +812,7 @@ def build_layout(config: IMSimConfig):
                                                     md=4,
                                                 ),
                                             ],
-                                            className="g-3 mb-3",
+                                            className="g-3 mb-3 dashboard-insights-row",
                                         ),
                                         dbc.Row(
                                             [
@@ -847,16 +862,18 @@ def build_layout(config: IMSimConfig):
                                                     lg=5,
                                                 ),
                                             ],
-                                            className="g-3",
+                                            className="g-3 dashboard-detail-row",
                                         ),
                                     ],
-                                    xl=9,
+                                    xl=1,
+                                    className="dashboard-main-column",
                                 ),
                             ],
-                            className="mt-3 g-3",
+                            className="mt-3 g-3 dashboard-main-layout",
                         ),
                     ],
                     id="dashboard-shell",
+                    className="dashboard-shell",
                     style={"display": "none"},
                 ),
                 dbc.Modal(

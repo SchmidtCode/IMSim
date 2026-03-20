@@ -62,7 +62,7 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         fig.update_layout(
             title={
                 "text": "On-hand inventory over time",
-                "font": {"color": colors["text"], "size": 28},
+                "font": {"color": colors["text"], "size": 24},
             },
             xaxis_title="Day",
             yaxis_title="Units",
@@ -76,7 +76,7 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
                 "bordercolor": colors["line"],
                 "font": {"color": colors["text"]},
             },
-            margin={"l": 24, "r": 24, "t": 72, "b": 28},
+            margin={"l": 24, "r": 24, "t": 56, "b": 24},
         )
         if history:
             days = [point.day for point in history]
@@ -131,7 +131,7 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         fig.update_layout(
             title={
                 "text": "Basic reorder quantities over time",
-                "font": {"color": colors["text"], "size": 28},
+                "font": {"color": colors["text"], "size": 24},
             },
             xaxis_title="Day",
             yaxis_title="Units",
@@ -145,7 +145,7 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
                 "bordercolor": colors["line"],
                 "font": {"color": colors["text"]},
             },
-            margin={"l": 24, "r": 24, "t": 72, "b": 28},
+            margin={"l": 24, "r": 24, "t": 56, "b": 24},
         )
         if history:
             days = [point.day for point in history]
@@ -213,7 +213,7 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
     if not state.items:
         fig = go.Figure()
         fig.update_layout(
-            title={"text": "Inventory Signal Map", "font": {"color": colors["text"], "size": 28}},
+            title={"text": "Inventory Signal Map", "font": {"color": colors["text"], "size": 24}},
             xaxis_title="Item",
             yaxis_title="Days from OP",
             paper_bgcolor="rgba(0,0,0,0)",
@@ -254,7 +254,7 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
     df = _items_frame(state.items)
     fig = go.Figure()
     fig.update_layout(
-        title={"text": "Inventory Signal Map", "font": {"color": colors["text"], "size": 28}},
+        title={"text": "Inventory Signal Map", "font": {"color": colors["text"], "size": 24}},
         xaxis_title="Item",
         yaxis_title="Days from OP",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -267,7 +267,7 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
             "bordercolor": colors["line"],
             "font": {"color": colors["text"]},
         },
-        margin={"l": 24, "r": 24, "t": 72, "b": 28},
+        margin={"l": 24, "r": 24, "t": 56, "b": 24},
     )
     hover = "Item %{x}<br>%{y:.1f} days<extra>%{fullData.name}</extra>"
 
@@ -375,19 +375,54 @@ def service_card_children(state: SimulationState) -> list:
     backorder = sum(item.backorder for item in state.items)
     if level is not None and level.index == 1 and state.items:
         item = state.items[0]
-        return [
-            dbc.ListGroup(
+        status = "Depleted" if item.on_hand <= 0 else "Available"
+
+        def _compact_table(
+            label: str, headers: tuple[str, ...], values: tuple[str, ...]
+        ) -> html.Div:
+            return html.Div(
                 [
-                    dbc.ListGroupItem(f"Current on hand: {item.on_hand:.1f} units"),
-                    dbc.ListGroupItem(f"Daily usage: {item.daily_ur:.1f} units/day"),
-                    dbc.ListGroupItem(f"Backorder: {item.backorder:.1f} units"),
-                    dbc.ListGroupItem(
-                        "Inventory is depleted."
-                        if item.on_hand <= 0
-                        else "Inventory is still available to ship."
+                    html.Div(label, className="lesson-snapshot-label"),
+                    html.Table(
+                        [
+                            html.Thead(
+                                html.Tr([html.Th(header) for header in headers])
+                            ),
+                            html.Tbody(
+                                html.Tr([html.Td(value) for value in values])
+                            ),
+                        ],
+                        className="lesson-service-table",
                     ),
                 ],
-                flush=True,
+                className="lesson-snapshot-block",
+            )
+
+        return [
+            html.Div(
+                [
+                    _compact_table(
+                        "Service",
+                        ("On Hand", "Daily Usage", "Backorder", "Status"),
+                        (
+                            f"{item.on_hand:.1f} units",
+                            f"{item.daily_ur:.1f} units/day",
+                            f"{item.backorder:.1f} units",
+                            status,
+                        ),
+                    ),
+                    _compact_table(
+                        "Inventory",
+                        ("Item", "On Hand", "Daily Usage", "Backorder"),
+                        (
+                            "1",
+                            f"{item.on_hand:.0f}",
+                            f"{item.daily_ur:.0f}",
+                            f"{item.backorder:.0f}",
+                        ),
+                    ),
+                ],
+                className="lesson-snapshot-stack",
             )
         ]
     if level is not None and level.index == 2 and state.items:
@@ -923,7 +958,35 @@ def lesson_locked_children(state: SimulationState) -> list:
     level = active_level(state)
     if level is None:
         return [dbc.Alert("No active lesson.", color="secondary")]
-    return [html.Ul([html.Li(row) for row in level.locked_features], className="lesson-copy-list")]
+    return [
+        html.Ul(
+            [html.Li(row) for row in level.locked_features],
+            className="lesson-copy-list lesson-locked-list",
+        )
+    ]
+
+
+def lesson_compact_summary_children(state: SimulationState) -> list:
+    level = active_level(state)
+    if level is None:
+        return []
+    evaluation = evaluate_active_lesson(state)
+    headline = (
+        "Lesson window closed"
+        if evaluation is not None and evaluation.completed
+        else f"{lesson_days_remaining(state)} day(s) remaining"
+    )
+    objective_rows = list(evaluation.metric_rows if evaluation is not None else ())[:2]
+    return [
+        html.Div(level.formula, className="lesson-compact-chip"),
+        html.Div(
+            [
+                html.Span(headline, className="lesson-compact-pill lesson-compact-pill-strong"),
+                *[html.Span(row, className="lesson-compact-pill") for row in objective_rows],
+            ],
+            className="lesson-compact-inline",
+        )
+    ]
 
 
 def academy_level_card_children(level_index: int, state: SimulationState) -> list:

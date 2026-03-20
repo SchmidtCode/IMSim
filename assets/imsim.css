@@ -205,6 +205,172 @@ body {
   margin-top: 0.15rem;
 }
 
+.lesson-locked-list {
+  color: var(--imsim-muted);
+  font-size: 0.92rem;
+}
+
+.lesson-locked-cache {
+  display: none;
+}
+
+.lesson-intro-dialog {
+  max-width: min(980px, calc(100vw - 2rem));
+}
+
+.lesson-intro-backdrop {
+  background: rgba(6, 12, 22, 0.62);
+  backdrop-filter: blur(8px);
+}
+
+.lesson-intro-content {
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 34%),
+    linear-gradient(180deg, var(--imsim-surface-strong), var(--imsim-surface));
+  border: 1px solid var(--imsim-line);
+  border-radius: 28px;
+  box-shadow: 0 36px 90px rgba(2, 8, 18, 0.34);
+  color: var(--imsim-ink);
+}
+
+.lesson-intro-header,
+.lesson-intro-body,
+.lesson-intro-footer {
+  border: 0;
+}
+
+.lesson-intro-header {
+  padding: 1.15rem 1.3rem 0.55rem;
+}
+
+.lesson-intro-body {
+  padding: 0 1.3rem 0.95rem;
+}
+
+.lesson-intro-footer {
+  justify-content: flex-start;
+  padding: 0 1.3rem 1.1rem;
+}
+
+.lesson-intro-title {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: clamp(1.8rem, 2.5vw, 2.6rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+  margin: 0.2rem 0 0;
+  color: var(--imsim-ink);
+}
+
+.lesson-intro-copy {
+  color: var(--imsim-muted);
+  font-size: 0.96rem;
+  line-height: 1.45;
+  margin: 0.35rem 0 0;
+  max-width: 64ch;
+}
+
+.lesson-intro-grid .lesson-detail-card .card-body {
+  padding: 1rem;
+}
+
+.lesson-intro-grid .lesson-copy-list {
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.lesson-compact-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.lesson-compact-chip,
+.lesson-compact-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--imsim-line);
+  border-radius: 999px;
+  min-height: 2.15rem;
+  padding: 0.45rem 0.78rem;
+}
+
+.lesson-compact-chip {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--imsim-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.lesson-compact-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.lesson-compact-pill {
+  background: rgba(15, 118, 110, 0.05);
+  color: var(--imsim-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.lesson-compact-pill-strong {
+  background: rgba(15, 118, 110, 0.16);
+  color: var(--imsim-ink);
+  font-weight: 600;
+}
+
+.lesson-service-table {
+  margin-bottom: 0;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.lesson-service-table th,
+.lesson-service-table td {
+  border-bottom: 1px solid var(--imsim-line);
+  padding: 0.55rem 0.7rem;
+  vertical-align: top;
+}
+
+.lesson-service-table th {
+  color: var(--imsim-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lesson-service-table td {
+  color: var(--imsim-ink);
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.lesson-service-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.lesson-snapshot-stack {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.lesson-snapshot-block {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.lesson-snapshot-label {
+  color: var(--imsim-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .shell-card,
 .metric-card,
 .footer-card {
@@ -868,13 +1034,341 @@ body {
   border-radius: 20px;
 }
 
+.dashboard-shell.lesson-dashboard {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0.3rem;
+  min-height: calc(100vh - 4rem);
+  margin-top: -0.45rem;
+}
+
+.dashboard-shell.lesson-dashboard > * {
+  min-height: 0;
+  min-width: 0;
+}
+
+.dashboard-shell.lesson-dashboard .experience-banner-card {
+  margin-bottom: 0.2rem !important;
+}
+
+.dashboard-shell.lesson-dashboard #kpi-strip {
+  margin-top: 0 !important;
+}
+
+.dashboard-shell.lesson-dashboard .experience-banner-card .card-body {
+  padding: 0.7rem 1rem 0.75rem;
+}
+
+.dashboard-shell.lesson-dashboard .hero-title {
+  font-size: clamp(1.3rem, 1.8vw, 1.7rem);
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.dashboard-shell.lesson-dashboard .hero-copy {
+  font-size: 0.84rem;
+  line-height: 1.38;
+  margin-top: 0.2rem;
+  max-width: 68ch;
+}
+
+.dashboard-shell.lesson-dashboard .hero-actions .imsim-button {
+  min-height: 2.45rem;
+  padding: 0.55rem 0.9rem;
+}
+
+.dashboard-shell.lesson-dashboard .hero-actions-compact {
+  gap: 0.5rem;
+}
+
+.dashboard-shell.lesson-dashboard .dashboard-main-layout {
+  margin: 0 !important;
+  min-height: 0;
+}
+
+.dashboard-shell.lesson-dashboard .panel-label {
+  font-size: 0.72rem;
+}
+
+.dashboard-shell.lesson-dashboard .panel-title {
+  font-size: 1.22rem;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-shell.lesson-dashboard .panel-title-small {
+  font-size: 1rem;
+  margin-bottom: 0.55rem;
+}
+
+.dashboard-shell.lesson-dashboard .status-value {
+  font-size: 1.85rem;
+}
+
+.dashboard-shell.lesson-dashboard .status-copy,
+.dashboard-shell.lesson-dashboard .control-label,
+.dashboard-shell.lesson-dashboard .speed-readout,
+.dashboard-shell.lesson-dashboard .list-group-item,
+.dashboard-shell.lesson-dashboard .inventory-table {
+  font-size: 0.92rem;
+}
+
+.dashboard-shell.lesson-dashboard .session-card .card-body,
+.dashboard-shell.lesson-dashboard #service-panel .card-body,
+.dashboard-shell.lesson-dashboard #inventory-panel .card-body {
+  padding: 1rem;
+}
+
+.dashboard-shell.lesson-dashboard #service-panel .list-group-item {
+  padding-block: 0.72rem;
+}
+
+.dashboard-shell.lesson-dashboard .inventory-table {
+  min-width: 0;
+}
+
+.dashboard-shell.lesson-dashboard .inventory-table th,
+.dashboard-shell.lesson-dashboard .inventory-table td {
+  padding: 0.68rem 0.7rem;
+}
+
+.dashboard-shell.lesson-dashboard #inventory-graph {
+  height: 100%;
+  min-height: 320px;
+}
+
+.dashboard-shell.lesson-dashboard #graph-panel > .card,
+.dashboard-shell.lesson-dashboard #graph-panel > .card > .card-body {
+  height: 100%;
+}
+
+.dashboard-shell.lesson-dashboard #graph-panel > .card > .card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-shell.lesson-dashboard #graph-panel .dash-graph,
+.dashboard-shell.lesson-dashboard #graph-panel .js-plotly-plot,
+.dashboard-shell.lesson-dashboard #graph-panel .plot-container,
+.dashboard-shell.lesson-dashboard #graph-panel .svg-container {
+  height: 100% !important;
+}
+
 @media (min-width: 1200px) {
   .control-rail-column {
     max-width: 400px;
   }
+
+  .dashboard-shell.lesson-dashboard {
+    height: calc(100vh - 3.5rem);
+    overflow: hidden;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-main-layout {
+    height: 100%;
+    min-height: 0;
+    flex-wrap: nowrap;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard .dashboard-main-column {
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-rail-column {
+    max-width: 320px;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-main-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .dashboard-shell.lesson-dashboard #graph-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard .dashboard-detail-row {
+    flex: 0 0 auto;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-insights-row > [id],
+  .dashboard-shell.lesson-dashboard .dashboard-detail-row > [id] {
+    display: flex;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-insights-row > [id] > .card,
+  .dashboard-shell.lesson-dashboard .dashboard-detail-row > [id] > .card {
+    width: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard #inventory-panel .card-body {
+    display: flex;
+    flex-direction: column;
+    max-height: 240px;
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard #inventory-table-shell,
+  .dashboard-shell.lesson-dashboard .table-scroll-shell {
+    max-height: 100%;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-main-layout {
+    display: grid;
+    grid-template-columns: minmax(580px, 660px) minmax(0, 1fr);
+    grid-template-rows: min-content minmax(0, 1fr);
+    grid-template-areas:
+      "service graph"
+      "session graph";
+    gap: 0.4rem;
+    align-items: stretch;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-main-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-detail-row {
+    display: contents;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #graph-panel {
+    padding: 0;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    flex: 0 0 auto !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel {
+    grid-area: service;
+    display: flex;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel {
+    grid-area: session;
+    display: flex;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #graph-panel {
+    grid-area: graph;
+    display: flex;
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #graph-panel > .card {
+    width: 100%;
+    max-width: none;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel > .card {
+    height: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .session-card {
+    margin-top: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel .card-body,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .card-body {
+    padding: 0.8rem 0.85rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel .panel-title-small,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .panel-label {
+    margin-bottom: 0.35rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-snapshot-stack {
+    gap: 0.45rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-snapshot-block {
+    gap: 0.22rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-service-table th,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-service-table td {
+    padding: 0.48rem 0.55rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-snapshot-label {
+    font-size: 0.68rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel > .card > .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .status-value {
+    font-size: 1.6rem;
+    margin-bottom: 0.1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .status-copy {
+    margin-bottom: 0.15rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .speed-readout {
+    margin-bottom: 0.25rem;
+    min-height: 2.2rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .control-label.mt-3 {
+    margin-top: 0.45rem !important;
+    margin-bottom: 0.1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .sim-speed-slider {
+    margin: 0 0 0.15rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel #asq-apply-feedback {
+    margin-top: 0.25rem !important;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .lesson-compact-summary {
+    align-items: flex-start;
+  }
+
+  .lesson-compact-chip {
+    white-space: normal;
+  }
 }
 
 @media (max-width: 991.98px) {
+  .lesson-intro-header {
+    padding: 1.25rem 1.15rem 0.75rem;
+  }
+
+  .lesson-intro-body {
+    padding: 0 1.15rem 1rem;
+  }
+
+  .lesson-intro-footer {
+    padding: 0 1.15rem 1.15rem;
+  }
+
+  .lesson-intro-title {
+    font-size: 1.9rem;
+  }
   .footer-card {
     position: static;
     width: auto;

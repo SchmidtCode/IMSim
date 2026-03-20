@@ -290,6 +290,7 @@ class TrainingProfile:
     simulator_unlocked: bool = False
     auto_po_reward_unlocked: bool = False
     lesson_status: str = "idle"
+    lesson_intro_dismissed: bool = False
     last_result_title: str = ""
     last_result_message: str = ""
     guided_orders_placed: int = 0
@@ -311,6 +312,7 @@ class TrainingProfile:
             simulator_unlocked=_bool(data.get("simulator_unlocked", False)),
             auto_po_reward_unlocked=_bool(data.get("auto_po_reward_unlocked", False)),
             lesson_status=str(data.get("lesson_status", "idle")),
+            lesson_intro_dismissed=_bool(data.get("lesson_intro_dismissed", False)),
             last_result_title=str(data.get("last_result_title", "")),
             last_result_message=str(data.get("last_result_message", "")),
             guided_orders_placed=max(0, int(data.get("guided_orders_placed", 0))),

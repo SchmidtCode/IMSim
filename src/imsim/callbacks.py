@@ -49,6 +49,7 @@ from .ui.components import (
     build_po_overview_table,
     costs_card_children,
     lesson_locked_children,
+    lesson_compact_summary_children,
     lesson_objective_children,
     lesson_tutorial_children,
     sales_card_children,
@@ -185,6 +186,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("theme-toggle", "className"),
             Output("academy-theme-toggle", "children"),
             Output("academy-theme-toggle", "className"),
+            Output("lesson-intro-modal", "content_class_name"),
         ],
         Input("theme-store", "data"),
     )
@@ -199,6 +201,11 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             toggle_class,
             next_label,
             toggle_class,
+            (
+                "lesson-intro-content theme-dark"
+                if current_theme == "dark"
+                else "lesson-intro-content"
+            ),
         )
 
     @app.callback(
@@ -281,6 +288,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             state.training.current_view = "main_menu"
             state.training.active_level_id = None
             state.training.lesson_status = "idle"
+            state.training.lesson_intro_dismissed = False
             state.is_initialized = False
             next_state = state
         elif (
@@ -325,10 +333,14 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("lesson-tutorial", "children"),
             Output("lesson-objectives", "children"),
             Output("lesson-locked", "children"),
+            Output("lesson-intro-modal", "is_open"),
             Output("simulator-copy", "children"),
             Output("experience-kicker", "children"),
             Output("experience-title", "children"),
             Output("experience-copy", "children"),
+            Output("lesson-compact-summary", "children"),
+            Output("lesson-return-wrap", "style"),
+            Output("dashboard-shell", "className"),
             Output("sim-status", "children", allow_duplicate=True),
             Output("start-button", "children", allow_duplicate=True),
             Output("start-button", "className", allow_duplicate=True),
@@ -336,6 +348,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("reset-button", "children", allow_duplicate=True),
             Output("po-button", "children"),
             Output("graph-panel-title", "children"),
+            Output("service-panel-title", "children"),
             Output("inventory-panel-title", "children"),
             Output("actions-panel", "style"),
             Output("policy-panel", "style"),
@@ -407,6 +420,9 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 else "Inventory signal map"
             )
         )
+        service_panel_title = (
+            "Lesson snapshot" if level is not None and level.index == 1 else "Service"
+        )
         start_label, start_class = _start_button_state(
             state,
             running=state.is_initialized,
@@ -433,6 +449,14 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             if state.training.auto_po_reward_unlocked
             else "Auto purchase orders are locked until certification is complete."
         )
+        dashboard_class = "dashboard-shell"
+        if state.training.current_view == "lesson":
+            level_class = (
+                f" lesson-dashboard lesson-level-{level.index}" if level is not None else ""
+            )
+            dashboard_class = f"{dashboard_class}{level_class}"
+        elif is_simulator:
+            dashboard_class = f"{dashboard_class} simulator-dashboard"
         return (
             _panel_style(is_menu),
             _panel_style(state.training.current_view == "lesson"),
@@ -445,10 +469,15 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             lesson_tutorial_children(state),
             lesson_objective_children(state),
             lesson_locked_children(state),
+            state.training.current_view == "lesson"
+            and not state.training.lesson_intro_dismissed,
             simulator_copy,
             "Simulator" if is_simulator else "Lesson",
             experience_title,
             experience_copy,
+            lesson_compact_summary_children(state) if level is not None else [],
+            _panel_style(state.training.current_view == "lesson"),
+            dashboard_class,
             (
                 "Status: Running"
                 if state.is_initialized
@@ -468,6 +497,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             reset_label,
             po_label,
             graph_title,
+            service_panel_title,
             "Planner grid"
             if is_simulator or (level is not None and level.index >= 6)
             else "Lesson items",
@@ -478,7 +508,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             _panel_style("service" in panels),
             _panel_style("costs" in panels),
             _panel_style("sales" in panels),
-            _panel_style("inventory" in panels),
+            _panel_style("inventory" in panels and not (level is not None and level.index == 1)),
             _panel_style("exceptions" in panels),
             _panel_style("kpi" in panels),
             _panel_style(is_action_allowed(state, "guided_po")),
@@ -499,6 +529,22 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             not state.training.simulator_unlocked,
             sandbox_copy,
         )
+
+    @app.callback(
+        Output("user-data-store", "data", allow_duplicate=True),
+        Input("lesson-intro-dismiss-button", "n_clicks"),
+        State("user-data-store", "data"),
+        prevent_initial_call=True,
+    )
+    def dismiss_lesson_intro(n_clicks, client_data):
+        if not n_clicks:
+            raise PreventUpdate
+        session_id, state = _require_session(client_data)
+        if state.training.current_view != "lesson":
+            raise PreventUpdate
+        state.training.lesson_intro_dismissed = True
+        repository.save(session_id, state)
+        return client_data
 
     @app.callback(
         [
