@@ -53,6 +53,79 @@ def _figure_theme(theme: str) -> dict[str, str]:
     }
 
 
+_ROOT_FONT_SIZE_PX = 16
+_PLOT_TITLE_SIZE_REM = 1.5
+_PLOT_MARGIN_REM = {"l": 1.5, "r": 1.5, "t": 3.5, "b": 1.5}
+_PLOT_LINE_WIDTH_REM = 0.1875
+_PLOT_MARKER_OUTLINE_WIDTH_REM = 0.125
+_PLOT_MARKER_SIZE_REM = {
+    "lesson": 0.5,
+    "lesson_backorder": 0.4375,
+    "signal": 0.875,
+    "signal_proposed": 0.625,
+    "signal_ats": 0.5625,
+    "signal_zero": 0.5,
+    "signal_stockout": 1.125,
+}
+
+
+def _rem_to_px(rem: float) -> float:
+    return rem * _ROOT_FONT_SIZE_PX
+
+
+def _plot_base_layout(
+    title: str,
+    colors: dict[str, str],
+    *,
+    include_margin: bool = True,
+) -> dict[str, object]:
+    layout: dict[str, object] = {
+        "title": {
+            "text": title,
+            "font": {"color": colors["text"], "size": _rem_to_px(_PLOT_TITLE_SIZE_REM)},
+        },
+        "paper_bgcolor": "rgba(0,0,0,0)",
+        "plot_bgcolor": colors["plot_bg"],
+        "font": {"color": colors["text"]},
+        "legend_title_text": "",
+        "legend": {"font": {"color": colors["text"]}},
+        "hoverlabel": {
+            "bgcolor": colors["surface"],
+            "bordercolor": colors["line"],
+            "font": {"color": colors["text"]},
+        },
+    }
+    if include_margin:
+        layout["margin"] = {side: _rem_to_px(size) for side, size in _PLOT_MARGIN_REM.items()}
+    return layout
+
+
+def _plot_line(color: str, *, dash: str | None = None) -> dict[str, object]:
+    line: dict[str, object] = {"width": _rem_to_px(_PLOT_LINE_WIDTH_REM), "color": color}
+    if dash:
+        line["dash"] = dash
+    return line
+
+
+def _plot_marker_outline(color: str) -> dict[str, object]:
+    return {"width": _rem_to_px(_PLOT_MARKER_OUTLINE_WIDTH_REM), "color": color}
+
+
+def _plot_marker(
+    color: str,
+    size_rem: float,
+    *,
+    symbol: str | None = None,
+    line: dict[str, object] | None = None,
+) -> dict[str, object]:
+    marker: dict[str, object] = {"size": _rem_to_px(size_rem), "color": color}
+    if symbol:
+        marker["symbol"] = symbol
+    if line:
+        marker["line"] = line
+    return marker
+
+
 def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.Figure:
     colors = _figure_theme(theme)
     level = active_level(state)
@@ -60,23 +133,9 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         history = state.history or []
         fig = go.Figure()
         fig.update_layout(
-            title={
-                "text": "On-hand inventory over time",
-                "font": {"color": colors["text"], "size": 24},
-            },
+            **_plot_base_layout("On-hand inventory over time", colors),
             xaxis_title="Day",
             yaxis_title="Units",
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor=colors["plot_bg"],
-            font={"color": colors["text"]},
-            legend_title_text="",
-            legend={"font": {"color": colors["text"]}},
-            hoverlabel={
-                "bgcolor": colors["surface"],
-                "bordercolor": colors["line"],
-                "font": {"color": colors["text"]},
-            },
-            margin={"l": 24, "r": 24, "t": 56, "b": 24},
         )
         if history:
             days = [point.day for point in history]
@@ -87,8 +146,8 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
                 y=on_hand,
                 mode="lines+markers",
                 name="On Hand",
-                line={"width": 3, "color": colors["pna"]},
-                marker={"size": 8, "color": colors["pna"]},
+                line=_plot_line(colors["pna"]),
+                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["lesson"]),
                 hovertemplate="Day %{x}<br>On hand %{y:.1f}<extra></extra>",
             )
             fig.add_scatter(
@@ -96,8 +155,8 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
                 y=backorder,
                 mode="lines+markers",
                 name="Backorder",
-                line={"width": 3, "dash": "dash", "color": colors["zero"]},
-                marker={"size": 7, "color": colors["zero"]},
+                line=_plot_line(colors["zero"], dash="dash"),
+                marker=_plot_marker(colors["zero"], _PLOT_MARKER_SIZE_REM["lesson_backorder"]),
                 hovertemplate="Day %{x}<br>Backorder %{y:.1f}<extra></extra>",
             )
         fig.add_hline(
@@ -129,23 +188,9 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         history = state.history or []
         fig = go.Figure()
         fig.update_layout(
-            title={
-                "text": "Basic reorder quantities over time",
-                "font": {"color": colors["text"], "size": 24},
-            },
+            **_plot_base_layout("Basic reorder quantities over time", colors),
             xaxis_title="Day",
             yaxis_title="Units",
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor=colors["plot_bg"],
-            font={"color": colors["text"]},
-            legend_title_text="",
-            legend={"font": {"color": colors["text"]}},
-            hoverlabel={
-                "bgcolor": colors["surface"],
-                "bordercolor": colors["line"],
-                "font": {"color": colors["text"]},
-            },
-            margin={"l": 24, "r": 24, "t": 56, "b": 24},
         )
         if history:
             days = [point.day for point in history]
@@ -154,8 +199,8 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
                 y=[point.total_on_hand for point in history],
                 mode="lines+markers",
                 name="On Hand",
-                line={"width": 3, "color": colors["pna"]},
-                marker={"size": 8, "color": colors["pna"]},
+                line=_plot_line(colors["pna"]),
+                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["lesson"]),
                 hovertemplate="Day %{x}<br>On hand %{y:.1f}<extra></extra>",
             )
             fig.add_scatter(
@@ -163,8 +208,8 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
                 y=[point.total_on_order for point in history],
                 mode="lines+markers",
                 name="On Order",
-                line={"width": 3, "color": colors["ats"]},
-                marker={"size": 8, "color": colors["ats"]},
+                line=_plot_line(colors["ats"]),
+                marker=_plot_marker(colors["ats"], _PLOT_MARKER_SIZE_REM["lesson"]),
                 hovertemplate="Day %{x}<br>On order %{y:.1f}<extra></extra>",
             )
             fig.add_scatter(
@@ -172,8 +217,8 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
                 y=[point.total_pna for point in history],
                 mode="lines+markers",
                 name="PNA",
-                line={"width": 3, "color": colors["proposed"]},
-                marker={"size": 8, "color": colors["proposed"]},
+                line=_plot_line(colors["proposed"]),
+                marker=_plot_marker(colors["proposed"], _PLOT_MARKER_SIZE_REM["lesson"]),
                 hovertemplate="Day %{x}<br>PNA %{y:.1f}<extra></extra>",
             )
             fig.add_scatter(
@@ -181,8 +226,8 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
                 y=[point.total_backorder for point in history],
                 mode="lines+markers",
                 name="Backorder",
-                line={"width": 3, "dash": "dash", "color": colors["zero"]},
-                marker={"size": 7, "color": colors["zero"]},
+                line=_plot_line(colors["zero"], dash="dash"),
+                marker=_plot_marker(colors["zero"], _PLOT_MARKER_SIZE_REM["lesson_backorder"]),
                 hovertemplate="Day %{x}<br>Backorder %{y:.1f}<extra></extra>",
             )
         fig.add_hline(
@@ -213,17 +258,9 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
     if not state.items:
         fig = go.Figure()
         fig.update_layout(
-            title={"text": "Inventory Signal Map", "font": {"color": colors["text"], "size": 24}},
+            **_plot_base_layout("Inventory Signal Map", colors, include_margin=False),
             xaxis_title="Item",
             yaxis_title="Days from OP",
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor=colors["plot_bg"],
-            font={"color": colors["text"]},
-            hoverlabel={
-                "bgcolor": colors["surface"],
-                "bordercolor": colors["line"],
-                "font": {"color": colors["text"]},
-            },
         )
         fig.add_hline(
             y=0,
@@ -254,20 +291,9 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
     df = _items_frame(state.items)
     fig = go.Figure()
     fig.update_layout(
-        title={"text": "Inventory Signal Map", "font": {"color": colors["text"], "size": 24}},
+        **_plot_base_layout("Inventory Signal Map", colors),
         xaxis_title="Item",
         yaxis_title="Days from OP",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor=colors["plot_bg"],
-        font={"color": colors["text"]},
-        legend_title_text="",
-        legend={"font": {"color": colors["text"]}},
-        hoverlabel={
-            "bgcolor": colors["surface"],
-            "bordercolor": colors["line"],
-            "font": {"color": colors["text"]},
-        },
-        margin={"l": 24, "r": 24, "t": 56, "b": 24},
     )
     hover = "Item %{x}<br>%{y:.1f} days<extra>%{fullData.name}</extra>"
 
@@ -276,7 +302,7 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         y=df["pna_days_frm_op"],
         mode="markers",
         name="PNA",
-        marker={"size": 14, "color": colors["pna"]},
+        marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["signal"]),
         hovertemplate=hover,
     )
 
@@ -288,11 +314,12 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
             y=dfp["pro_pna_days_frm_op"],
             mode="markers",
             name="PNA + SOQ",
-            marker={
-                "size": 10,
-                "symbol": "circle-open",
-                "line": {"width": 2, "color": colors["proposed"]},
-            },
+            marker=_plot_marker(
+                colors["proposed"],
+                _PLOT_MARKER_SIZE_REM["signal_proposed"],
+                symbol="circle-open",
+                line=_plot_marker_outline(colors["proposed"]),
+            ),
             hovertemplate=hover,
         )
 
@@ -301,7 +328,11 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         y=df["ats_days_frm_op"],
         mode="markers",
         name="Available to Sell",
-        marker={"size": 9, "symbol": "x", "color": colors["ats"]},
+        marker=_plot_marker(
+            colors["ats"],
+            _PLOT_MARKER_SIZE_REM["signal_ats"],
+            symbol="x",
+        ),
         customdata=df["ats_days_to_stockout"],
         hovertemplate="Item %{x}<br>%{customdata:.1f} days to stockout<extra>ATS</extra>",
     )
@@ -310,7 +341,7 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         y=df["no_pna_days_frm_op"],
         mode="markers",
         name="0 PNA",
-        marker={"size": 8, "color": colors["zero"]},
+        marker=_plot_marker(colors["zero"], _PLOT_MARKER_SIZE_REM["signal_zero"]),
         hovertemplate=hover,
     )
 
@@ -321,11 +352,12 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
             y=stockouts["pna_days_frm_op"],
             mode="markers",
             name="Stockout Today",
-            marker={
-                "size": 18,
-                "symbol": "circle-open-dot",
-                "line": {"width": 2, "color": colors["zero"]},
-            },
+            marker=_plot_marker(
+                colors["zero"],
+                _PLOT_MARKER_SIZE_REM["signal_stockout"],
+                symbol="circle-open-dot",
+                line=_plot_marker_outline(colors["zero"]),
+            ),
             hovertemplate=hover,
         )
 

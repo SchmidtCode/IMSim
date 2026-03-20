@@ -10,7 +10,13 @@ from imsim.services.training import (
     is_action_allowed,
     reset_progress_state,
 )
-from imsim.ui.components import build_inventory_figure
+from imsim.ui.components import (
+    _plot_base_layout,
+    _plot_line,
+    _plot_marker,
+    _plot_marker_outline,
+    build_inventory_figure,
+)
 
 
 def test_build_level_state_preserves_progress_and_opens_lesson():
@@ -64,7 +70,12 @@ def test_level_one_uses_on_hand_lesson_graph():
     figure = build_inventory_figure(state)
 
     assert figure.layout.title.text == "On-hand inventory over time"
+    assert figure.layout.title.font.size == 24.0
+    assert figure.layout.margin.to_plotly_json() == {"l": 24.0, "r": 24.0, "t": 56.0, "b": 24.0}
     assert [trace.name for trace in figure.data] == ["On Hand", "Backorder"]
+    assert figure.data[0].line.width == 3.0
+    assert figure.data[0].marker.size == 8.0
+    assert figure.data[1].marker.size == 7.0
 
 
 def test_level_two_uses_simple_quantity_graph():
@@ -74,6 +85,28 @@ def test_level_two_uses_simple_quantity_graph():
 
     assert figure.layout.title.text == "Basic reorder quantities over time"
     assert [trace.name for trace in figure.data] == ["On Hand", "On Order", "PNA", "Backorder"]
+    assert all(trace.line.width == 3.0 for trace in figure.data)
+    assert figure.data[-1].marker.size == 7.0
+
+
+def test_plot_sizing_helpers_keep_default_plot_dimensions():
+    colors = {
+        "plot_bg": "#0c1523",
+        "surface": "#17273d",
+        "text": "#e6eefc",
+        "line": "rgba(214, 228, 255, 0.14)",
+    }
+
+    layout = _plot_base_layout("Inventory Signal Map", colors)
+
+    assert layout["title"] == {
+        "text": "Inventory Signal Map",
+        "font": {"color": "#e6eefc", "size": 24.0},
+    }
+    assert layout["margin"] == {"l": 24.0, "r": 24.0, "t": 56.0, "b": 24.0}
+    assert _plot_line("#2dd4bf") == {"width": 3.0, "color": "#2dd4bf"}
+    assert _plot_marker("#2dd4bf", 0.5) == {"size": 8.0, "color": "#2dd4bf"}
+    assert _plot_marker_outline("#fb923c") == {"width": 2.0, "color": "#fb923c"}
 
 
 def test_level_one_passes_when_inventory_depletes_and_backorder_appears():

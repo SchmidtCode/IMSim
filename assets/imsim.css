@@ -13,7 +13,44 @@
   --imsim-blue: #2563eb;
   --imsim-danger: #dc2626;
   --imsim-control-bg: rgba(255, 253, 248, 0.92);
-  --imsim-shadow: 0 24px 60px rgba(19, 34, 56, 0.12);
+  --imsim-radius-sm: 0.75rem;
+  --imsim-radius-md: 0.875rem;
+  --imsim-radius-lg: 1rem;
+  --imsim-radius-xl: 1.125rem;
+  --imsim-radius-2xl: 1.25rem;
+  --imsim-radius-3xl: 1.5rem;
+  --imsim-radius-4xl: 1.75rem;
+  --imsim-radius-pill: 999rem;
+  --imsim-blur-backdrop: 0.5rem;
+  --imsim-blur-surface: 0.875rem;
+  --imsim-size-shell-max: 100rem;
+  --imsim-size-dialog-max: 61.25rem;
+  --imsim-size-metric-card-min: 8.5rem;
+  --imsim-size-table-min: 53.75rem;
+  --imsim-size-footer-width: 17.5rem;
+  --imsim-size-dashboard-graph-min: 20rem;
+  --imsim-size-control-rail-max: 25rem;
+  --imsim-size-dashboard-rail-max: 20rem;
+  --imsim-size-dashboard-panel-max: 15rem;
+  --imsim-size-lesson-grid-min: 33rem;
+  --imsim-size-lesson-grid-max: 37rem;
+  --imsim-slider-rail-size: 0.375rem;
+  --imsim-slider-handle-size: 1.125rem;
+  --imsim-slider-handle-offset: -0.375rem;
+  --imsim-border-accent: 0.125rem;
+  --imsim-border-strong: 0.1875rem;
+  --imsim-border-metric: 0.3125rem;
+  --imsim-focus-ring-size: 0.25rem;
+  --imsim-shadow: 0 1.5rem 3.75rem rgba(19, 34, 56, 0.12);
+  --imsim-shadow-modal: 0 2.25rem 5.625rem rgba(2, 8, 18, 0.34);
+  --imsim-shadow-float: 0 1.125rem 2.5rem rgba(2, 8, 18, 0.32);
+  --imsim-shadow-action-teal: 0 0.875rem 1.75rem rgba(15, 118, 110, 0.2);
+  --imsim-shadow-action-green: 0 0.875rem 1.75rem rgba(21, 128, 61, 0.2);
+  --imsim-shadow-focus-soft: 0 0 0 var(--imsim-focus-ring-size) rgba(37, 99, 235, 0.12);
+  --imsim-shadow-focus-strong: 0 0 0 var(--imsim-focus-ring-size) rgba(37, 99, 235, 0.18);
+  --imsim-shadow-focus-slider: 0 0 0 var(--imsim-focus-ring-size) rgba(37, 99, 235, 0.14);
+  --imsim-shadow-focus-slider-dark:
+    0 0 0 var(--imsim-focus-ring-size) rgba(45, 212, 191, 0.16);
   --imsim-bg-accent-a: rgba(15, 118, 110, 0.18);
   --imsim-bg-accent-b: rgba(249, 115, 22, 0.14);
   --imsim-graph-bg: rgba(255, 255, 255, 0.55);
@@ -46,7 +83,8 @@ body {
   --imsim-ink: #e6eefc;
   --imsim-muted: #9aabc6;
   --imsim-line: rgba(214, 228, 255, 0.14);
-  --imsim-shadow: 0 26px 70px rgba(2, 8, 18, 0.48);
+  --imsim-shadow: 0 1.625rem 4.375rem rgba(2, 8, 18, 0.48);
+  --imsim-shadow-float: 0 1.125rem 2.5rem rgba(2, 8, 18, 0.38);
   --imsim-bg-accent-a: rgba(15, 118, 110, 0.24);
   --imsim-bg-accent-b: rgba(37, 99, 235, 0.18);
   --imsim-graph-bg: rgba(10, 19, 32, 0.7);
@@ -59,7 +97,7 @@ body {
 }
 
 .imsim-shell {
-  max-width: 1600px;
+  max-width: var(--imsim-size-shell-max);
 }
 
 .session-card-header {
@@ -70,7 +108,7 @@ body {
 }
 
 .theme-toggle-button {
-  border-radius: 999px;
+  border-radius: var(--imsim-radius-pill);
   white-space: nowrap;
 }
 
@@ -112,7 +150,7 @@ body {
 }
 
 .hero-actions .imsim-button {
-  border-radius: 999px;
+  border-radius: var(--imsim-radius-pill);
   padding-inline: 1rem;
 }
 
@@ -171,7 +209,7 @@ body {
   margin-top: 0.85rem;
   padding: 0.45rem 0.7rem;
   border: 1px solid var(--imsim-line);
-  border-radius: 999px;
+  border-radius: var(--imsim-radius-pill);
   background: rgba(37, 99, 235, 0.08);
 }
 
@@ -180,7 +218,7 @@ body {
 }
 
 .academy-result-alert {
-  border-radius: 18px;
+  border-radius: var(--imsim-radius-xl);
   margin-bottom: 0;
 }
 
@@ -215,12 +253,12 @@ body {
 }
 
 .lesson-intro-dialog {
-  max-width: min(980px, calc(100vw - 2rem));
+  max-width: min(var(--imsim-size-dialog-max), calc(100vw - 2rem));
 }
 
 .lesson-intro-backdrop {
   background: rgba(6, 12, 22, 0.62);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--imsim-blur-backdrop));
 }
 
 .lesson-intro-content {
@@ -228,8 +266,8 @@ body {
     radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 34%),
     linear-gradient(180deg, var(--imsim-surface-strong), var(--imsim-surface));
   border: 1px solid var(--imsim-line);
-  border-radius: 28px;
-  box-shadow: 0 36px 90px rgba(2, 8, 18, 0.34);
+  border-radius: var(--imsim-radius-4xl);
+  box-shadow: var(--imsim-shadow-modal);
   color: var(--imsim-ink);
 }
 
@@ -291,7 +329,7 @@ body {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--imsim-line);
-  border-radius: 999px;
+  border-radius: var(--imsim-radius-pill);
   min-height: 2.15rem;
   padding: 0.45rem 0.78rem;
 }
@@ -375,9 +413,9 @@ body {
 .metric-card,
 .footer-card {
   background: var(--imsim-surface);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(var(--imsim-blur-surface));
   border: 1px solid var(--imsim-line);
-  border-radius: 24px;
+  border-radius: var(--imsim-radius-3xl);
   box-shadow: var(--imsim-shadow);
 }
 
@@ -424,12 +462,12 @@ body {
   min-height: 3rem;
   padding: 0.8rem 0.95rem;
   border: 1px solid var(--imsim-line);
-  border-radius: 16px;
+  border-radius: var(--imsim-radius-lg);
   background: var(--imsim-control-bg);
   color: var(--imsim-ink);
   caret-color: var(--imsim-ink);
   color-scheme: inherit;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  box-shadow: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.02);
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease,
@@ -443,7 +481,7 @@ body {
 .control-input:focus {
   outline: none;
   border-color: rgba(37, 99, 235, 0.55);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  box-shadow: var(--imsim-shadow-focus-soft);
 }
 
 .control-input::placeholder {
@@ -496,7 +534,7 @@ body {
   background-color: rgba(83, 98, 119, 0.18);
   background-image: none;
   border: 1px solid var(--imsim-line);
-  border-radius: 999px;
+  border-radius: var(--imsim-radius-pill);
   box-shadow: none;
 }
 
@@ -511,7 +549,7 @@ body {
 .imsim-toggle-input:focus,
 .imsim-toggle-input:focus-visible {
   border-color: rgba(37, 99, 235, 0.55);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  box-shadow: var(--imsim-shadow-focus-soft);
   outline: none;
 }
 
@@ -523,7 +561,7 @@ body {
 .imsim-button {
   appearance: none;
   border: 1px solid transparent;
-  border-radius: 16px;
+  border-radius: var(--imsim-radius-lg);
   color: #fff;
   cursor: pointer;
   display: inline-flex;
@@ -546,12 +584,12 @@ body {
 }
 
 .imsim-button:hover {
-  transform: translateY(-1px);
+  transform: translateY(-0.0625rem);
 }
 
 .imsim-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+  box-shadow: var(--imsim-shadow-focus-strong);
 }
 
 .imsim-button:disabled {
@@ -565,7 +603,7 @@ body {
 }
 
 .button-pill {
-  border-radius: 999px;
+  border-radius: var(--imsim-radius-pill);
 }
 
 .button-sm {
@@ -577,7 +615,7 @@ body {
 .button-primary {
   background: var(--imsim-teal);
   border-color: var(--imsim-teal);
-  box-shadow: 0 14px 28px rgba(15, 118, 110, 0.2);
+  box-shadow: var(--imsim-shadow-action-teal);
 }
 
 .button-primary:hover {
@@ -588,7 +626,7 @@ body {
 .button-success {
   background: #15803d;
   border-color: #15803d;
-  box-shadow: 0 14px 28px rgba(21, 128, 61, 0.2);
+  box-shadow: var(--imsim-shadow-action-green);
 }
 
 .button-success:hover {
@@ -690,7 +728,7 @@ body {
   min-height: 2.7rem;
   padding: 0.55rem 0.85rem;
   border: 1px solid var(--imsim-line);
-  border-radius: 14px;
+  border-radius: var(--imsim-radius-md);
   background-color: var(--imsim-control-bg);
   color: var(--imsim-ink);
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
@@ -700,7 +738,7 @@ body {
 }
 
 .metric-card .card-body {
-  min-height: 136px;
+  min-height: var(--imsim-size-metric-card-min);
 }
 
 .metric-value {
@@ -716,20 +754,20 @@ body {
 }
 
 .metric-good {
-  border-top: 5px solid var(--imsim-teal);
+  border-top: var(--imsim-border-metric) solid var(--imsim-teal);
 }
 
 .metric-warn {
-  border-top: 5px solid var(--imsim-orange);
+  border-top: var(--imsim-border-metric) solid var(--imsim-orange);
 }
 
 .metric-neutral {
-  border-top: 5px solid var(--imsim-blue);
+  border-top: var(--imsim-border-metric) solid var(--imsim-blue);
 }
 
 .upload-shell {
-  border: 2px dashed rgba(15, 118, 110, 0.35);
-  border-radius: 20px;
+  border: var(--imsim-border-accent) dashed rgba(15, 118, 110, 0.35);
+  border-radius: var(--imsim-radius-2xl);
   padding: 2rem 1rem;
   text-align: center;
   background: var(--imsim-upload-bg);
@@ -738,7 +776,7 @@ body {
 
 .preview-card,
 .exception-card {
-  border-radius: 18px;
+  border-radius: var(--imsim-radius-xl);
   border: 1px solid var(--imsim-line);
   background: var(--imsim-surface-strong);
   margin-bottom: 0.85rem;
@@ -754,7 +792,7 @@ body {
   --bs-table-hover-bg: var(--imsim-table-hover);
   font-size: 0.92rem;
   margin-bottom: 0;
-  min-width: 860px;
+  min-width: var(--imsim-size-table-min);
 }
 
 .inventory-table th,
@@ -783,7 +821,7 @@ body {
   position: fixed;
   right: 1rem;
   bottom: 1rem;
-  width: 280px;
+  width: var(--imsim-size-footer-width);
   z-index: 1050;
 }
 
@@ -815,7 +853,7 @@ body {
 .form-select,
 .form-check-input,
 .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table {
-  border-radius: 16px;
+  border-radius: var(--imsim-radius-lg);
 }
 
 .theme-dark .card,
@@ -951,26 +989,26 @@ body {
 
 .rc-slider-rail {
   background-color: rgba(83, 98, 119, 0.22);
-  height: 6px;
+  height: var(--imsim-slider-rail-size);
 }
 
 .rc-slider-track {
   background-color: var(--imsim-blue);
-  height: 6px;
+  height: var(--imsim-slider-rail-size);
 }
 
 .rc-slider-handle {
   background-color: var(--imsim-surface-strong);
-  border: 3px solid var(--imsim-blue);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
-  height: 18px;
-  margin-top: -6px;
+  border: var(--imsim-border-strong) solid var(--imsim-blue);
+  box-shadow: var(--imsim-shadow-focus-slider);
+  height: var(--imsim-slider-handle-size);
+  margin-top: var(--imsim-slider-handle-offset);
   opacity: 1;
-  width: 18px;
+  width: var(--imsim-slider-handle-size);
 }
 
 .rc-slider-handle:focus-visible {
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.22);
+  box-shadow: var(--imsim-shadow-focus-strong);
 }
 
 .rc-slider-tooltip,
@@ -982,8 +1020,8 @@ body {
 .rc-tooltip .rc-tooltip-inner {
   background-color: #132238;
   border: 1px solid rgba(214, 228, 255, 0.2);
-  border-radius: 12px;
-  box-shadow: 0 18px 40px rgba(2, 8, 18, 0.32);
+  border-radius: var(--imsim-radius-sm);
+  box-shadow: var(--imsim-shadow-float);
   color: #e6eefc;
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
   font-size: 0.95rem;
@@ -1014,7 +1052,7 @@ body {
 .theme-dark .rc-slider-handle {
   background-color: #132238;
   border-color: #5eead4;
-  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.16);
+  box-shadow: var(--imsim-shadow-focus-slider-dark);
 }
 
 .theme-dark .rc-slider-tooltip .rc-slider-tooltip-inner,
@@ -1022,7 +1060,7 @@ body {
   background-color: #132238 !important;
   border-color: rgba(214, 228, 255, 0.2);
   color: #e6eefc !important;
-  box-shadow: 0 18px 40px rgba(2, 8, 18, 0.38);
+  box-shadow: var(--imsim-shadow-float);
 }
 
 .theme-dark .rc-slider-tooltip .rc-slider-tooltip-arrow,
@@ -1031,7 +1069,7 @@ body {
 }
 
 .js-plotly-plot .plotly .main-svg {
-  border-radius: 20px;
+  border-radius: var(--imsim-radius-2xl);
 }
 
 .dashboard-shell.lesson-dashboard {
@@ -1133,7 +1171,7 @@ body {
 
 .dashboard-shell.lesson-dashboard #inventory-graph {
   height: 100%;
-  min-height: 320px;
+  min-height: var(--imsim-size-dashboard-graph-min);
 }
 
 .dashboard-shell.lesson-dashboard #graph-panel > .card,
@@ -1155,7 +1193,7 @@ body {
 
 @media (min-width: 1200px) {
   .control-rail-column {
-    max-width: 400px;
+    max-width: var(--imsim-size-control-rail-max);
   }
 
   .dashboard-shell.lesson-dashboard {
@@ -1175,7 +1213,7 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard .dashboard-rail-column {
-    max-width: 320px;
+    max-width: var(--imsim-size-dashboard-rail-max);
   }
 
   .dashboard-shell.lesson-dashboard .dashboard-main-column {
@@ -1208,7 +1246,7 @@ body {
   .dashboard-shell.lesson-dashboard #inventory-panel .card-body {
     display: flex;
     flex-direction: column;
-    max-height: 240px;
+    max-height: var(--imsim-size-dashboard-panel-max);
     min-height: 0;
   }
 
@@ -1221,7 +1259,9 @@ body {
 
   .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-main-layout {
     display: grid;
-    grid-template-columns: minmax(580px, 660px) minmax(0, 1fr);
+    grid-template-columns:
+      minmax(var(--imsim-size-lesson-grid-min), var(--imsim-size-lesson-grid-max))
+      minmax(0, 1fr);
     grid-template-rows: min-content minmax(0, 1fr);
     grid-template-areas:
       "service graph"
@@ -1245,6 +1285,10 @@ body {
     max-width: none !important;
     min-width: 0;
     flex: 0 0 auto !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel {
+    margin-top: 0 !important;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel {
