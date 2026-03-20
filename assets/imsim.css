@@ -882,6 +882,24 @@ body {
   color: var(--imsim-muted) !important;
 }
 
+.theme-dark .metric-neutral {
+  border-top-color: var(--imsim-blue);
+  background-image:
+    linear-gradient(180deg, rgba(37, 99, 235, 0.18) 0%, rgba(37, 99, 235, 0.08) 18%, transparent 36%);
+}
+
+.theme-dark .metric-good {
+  border-top-color: var(--imsim-teal);
+  background-image:
+    linear-gradient(180deg, rgba(15, 118, 110, 0.18) 0%, rgba(15, 118, 110, 0.08) 18%, transparent 36%);
+}
+
+.theme-dark .metric-warn {
+  border-top-color: var(--imsim-orange);
+  background-image:
+    linear-gradient(180deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.09) 18%, transparent 36%);
+}
+
 .theme-dark .btn-light {
   background-color: #22344b;
   border-color: #22344b;
