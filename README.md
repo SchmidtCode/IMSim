@@ -93,7 +93,10 @@ uv run pytest
 uv run ruff check .
 uv run ruff format .
 uv build
+docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 git . --config .gitleaks.toml --redact --verbose --no-banner
 ```
+
+CI also runs `gitleaks` on every push and pull request with the repository's full git history.
 
 ### Repo layout
 

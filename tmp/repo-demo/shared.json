@@ -1,0 +1,70 @@
+{
+  "global_settings": {
+    "r_cycle": 14,
+    "r_cost": 8.0,
+    "k_cost": 0.18,
+    "stockout_penalty": 5.0,
+    "expedite_rate": 0.03,
+    "gm": 0.15,
+    "realization": 1.0,
+    "auto_po_enabled": false,
+    "asq": {
+      "enabled": true,
+      "min_hits": 3,
+      "include_transfers": false,
+      "max_amount_diff": 2500.0,
+      "period_days": 30
+    }
+  },
+  "items": [],
+  "day": 20,
+  "is_initialized": false,
+  "service_today": {
+    "orders": 0,
+    "orders_stockout": 0,
+    "units_ordered": 0.0,
+    "units_shipped": 0.0,
+    "units_backordered": 0.0,
+    "zero_on_hand_hits": 0
+  },
+  "service_totals": {
+    "orders": 0,
+    "orders_stockout": 0,
+    "units_ordered": 0.0,
+    "units_shipped": 0.0,
+    "units_backordered": 0.0,
+    "zero_on_hand_hits": 0
+  },
+  "costs": {
+    "ordering": 0.0,
+    "holding": 0.0,
+    "stockout": 0.0,
+    "expedite": 0.0,
+    "purchases": 0.0,
+    "total": 0.0
+  },
+  "sales": {
+    "revenue": 0.0,
+    "cogs": 0.0,
+    "units_sold": 0.0
+  },
+  "exception_center": [],
+  "analytics": {
+    "inv_value_daysum": 0.0
+  },
+  "history": [],
+  "training": {
+    "current_view": "main_menu",
+    "active_level_id": null,
+    "highest_unlocked_level": 1,
+    "completed_levels": [],
+    "simulator_unlocked": false,
+    "auto_po_reward_unlocked": false,
+    "lesson_status": "idle",
+    "lesson_intro_dismissed": false,
+    "last_result_title": "",
+    "last_result_message": "",
+    "guided_orders_placed": 0,
+    "custom_orders_placed": 0
+  }
+}
