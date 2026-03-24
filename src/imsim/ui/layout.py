@@ -253,7 +253,8 @@ def build_layout(config: IMSimConfig):
                                                         dbc.CardBody(
                                                             [
                                                                 html.Div(
-                                                                    "Tutorial", className="panel-label"
+                                                                    "Tutorial",
+                                                                    className="panel-label",
                                                                 ),
                                                                 html.Div(id="lesson-tutorial"),
                                                             ]
@@ -284,7 +285,10 @@ def build_layout(config: IMSimConfig):
                                             ],
                                             className="g-3 lesson-intro-grid",
                                         ),
-                                        html.Div(id="lesson-locked", className="lesson-locked-cache"),
+                                        html.Div(
+                                            id="lesson-locked",
+                                            className="lesson-locked-cache",
+                                        ),
                                     ],
                                     class_name="lesson-intro-body",
                                 ),

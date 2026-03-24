@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
@@ -41,7 +43,6 @@ class FileSessionRepository:
     def __init__(self, config: IMSimConfig):
         self._config = config
         self._lock = RLock()
-        self._cache: dict[str, SimulationState] = {}
         self._session_dir = Path(config.session_dir)
         self._session_dir.mkdir(parents=True, exist_ok=True)
 
@@ -50,23 +51,16 @@ class FileSessionRepository:
 
     def get_or_create(self, session_id: str) -> SimulationState:
         with self._lock:
-            if session_id in self._cache:
-                return self._cache[session_id].clone()
             path = self.path_for(session_id)
-            if path.exists():
-                with path.open("r", encoding="utf-8") as handle:
-                    state = SimulationState.from_dict(json.load(handle))
-            else:
+            state = self._load_path(path)
+            if state is None:
                 state = default_state()
                 self._write_path(path, state)
-            self._cache[session_id] = state
             return state.clone()
 
     def save(self, session_id: str, state: SimulationState) -> None:
         with self._lock:
-            snapshot = state.clone()
-            self._cache[session_id] = snapshot
-            self._write_path(self.path_for(session_id), snapshot)
+            self._write_path(self.path_for(session_id), state.clone())
 
     def reset(self, session_id: str) -> SimulationState:
         state = default_state()
@@ -75,19 +69,42 @@ class FileSessionRepository:
 
     def pause_all(self) -> None:
         with self._lock:
-            for session_id, state in list(self._cache.items()):
+            for path in self._session_dir.glob("*.json"):
+                state = self._load_path(path)
+                if state is None:
+                    continue
                 state.is_initialized = False
-                self._write_path(self.path_for(session_id), state)
+                self._write_path(path, state)
 
     def persist_all(self) -> None:
-        with self._lock:
-            for session_id, state in list(self._cache.items()):
-                self._write_path(self.path_for(session_id), state)
+        return None
+
+    def _load_path(self, path: Path) -> SimulationState | None:
+        if not path.exists():
+            return None
+        with path.open("r", encoding="utf-8") as handle:
+            return SimulationState.from_dict(json.load(handle))
 
     def _write_path(self, path: Path, state: SimulationState) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as handle:
-            json.dump(state.to_dict(), handle, indent=2)
+        tmp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=path.parent,
+                prefix=f".{path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                json.dump(state.to_dict(), handle, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
+                tmp_path = Path(handle.name)
+            os.replace(tmp_path, path)
+        finally:
+            if tmp_path is not None and tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
 
 
 class DatabaseSessionRepository:

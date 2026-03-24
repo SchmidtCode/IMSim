@@ -579,7 +579,8 @@ def service_card_children(state: SimulationState) -> list:
                     f"{today.zero_on_hand_hits}"
                 ),
                 dbc.ListGroupItem(
-                    f"Fill Rate (cumulative): {_format_pct(fill_total)}  •  Today: {_format_pct(fill_today)}"
+                    f"Fill Rate (cumulative): {_format_pct(fill_total)}  •  "
+                    f"Today: {_format_pct(fill_today)}"
                 ),
                 dbc.ListGroupItem(
                     dbc.Badge(

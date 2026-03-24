@@ -1,1 +1,1 @@
-web: gunicorn imsim.wsgi:server --workers 4
+web: gunicorn imsim.wsgi:server --workers 1

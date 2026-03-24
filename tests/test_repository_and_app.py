@@ -26,6 +26,40 @@ def test_repository_persists_state(test_config):
     assert repo.path_for("abc").exists()
 
 
+def test_file_repository_refreshes_from_disk_between_instances(test_config):
+    repo_one = FileSessionRepository(test_config)
+    repo_two = FileSessionRepository(test_config)
+
+    initial = repo_one.get_or_create("shared-session")
+    assert initial.day == 1
+
+    updated = repo_two.get_or_create("shared-session")
+    updated.day = 19
+    repo_two.save("shared-session", updated)
+
+    refreshed = repo_one.get_or_create("shared-session")
+
+    assert refreshed.day == 19
+
+
+def test_file_repository_pause_all_scans_disk(test_config):
+    repo_one = FileSessionRepository(test_config)
+    repo_two = FileSessionRepository(test_config)
+
+    alpha = repo_one.get_or_create("alpha")
+    alpha.is_initialized = True
+    repo_one.save("alpha", alpha)
+
+    beta = repo_two.get_or_create("beta")
+    beta.is_initialized = True
+    repo_two.save("beta", beta)
+
+    repo_one.pause_all()
+
+    assert repo_two.get_or_create("alpha").is_initialized is False
+    assert repo_two.get_or_create("beta").is_initialized is False
+
+
 def test_database_repository_persists_state(tmp_path):
     repo_root = Path.cwd()
     config = IMSimConfig(

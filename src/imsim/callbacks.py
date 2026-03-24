@@ -48,8 +48,8 @@ from .ui.components import (
     build_kpi_strip,
     build_po_overview_table,
     costs_card_children,
-    lesson_locked_children,
     lesson_compact_summary_children,
+    lesson_locked_children,
     lesson_objective_children,
     lesson_tutorial_children,
     sales_card_children,
@@ -64,6 +64,10 @@ def _triggered_click_count(
     if not isinstance(triggered_id, str):
         return 0
     return int(click_map.get(triggered_id) or 0)
+
+
+def _next_ui_refresh(refresh: int | None) -> int:
+    return int(refresh or 0) + 1
 
 
 def register_callbacks(app, repository: SessionRepository, maintenance: MaintenanceController):
@@ -221,6 +225,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("service-card", "children", allow_duplicate=True),
             Output("costs-card", "children", allow_duplicate=True),
             Output("sales-card", "children", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         [
             Input("academy-level-1-button", "n_clicks"),
@@ -237,6 +242,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         ],
         State("user-data-store", "data"),
         State("theme-store", "data"),
+        State("ui-refresh", "data"),
         prevent_initial_call=True,
     )
     def academy_navigation(
@@ -253,6 +259,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         _reset_progress,
         client_data,
         theme,
+        ui_refresh,
     ):
         trig = ctx.triggered_id
         if trig is None:
@@ -318,6 +325,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             service_card_children(next_state),
             costs_card_children(next_state),
             sales_card_children(next_state),
+            _next_ui_refresh(ui_refresh),
         )
 
     @app.callback(
@@ -530,11 +538,13 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
 
     @app.callback(
         Output("user-data-store", "data", allow_duplicate=True),
+        Output("ui-refresh", "data", allow_duplicate=True),
         Input("lesson-intro-dismiss-button", "n_clicks"),
         State("user-data-store", "data"),
+        State("ui-refresh", "data"),
         prevent_initial_call=True,
     )
-    def dismiss_lesson_intro(n_clicks, client_data):
+    def dismiss_lesson_intro(n_clicks, client_data, ui_refresh):
         if not n_clicks:
             raise PreventUpdate
         session_id, state = _require_session(client_data)
@@ -542,7 +552,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             raise PreventUpdate
         state.training.lesson_intro_dismissed = True
         repository.save(session_id, state)
-        return client_data
+        return client_data, _next_ui_refresh(ui_refresh)
 
     @app.callback(
         [
@@ -551,47 +561,56 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("service-card", "children"),
             Output("costs-card", "children"),
             Output("sales-card", "children"),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         Input("user-data-store", "data"),
         Input("theme-store", "data"),
+        State("ui-refresh", "data"),
+        prevent_initial_call="initial_duplicate",
     )
-    def handle_page_load(client_data, theme):
+    def handle_page_load(client_data, theme, ui_refresh):
         session_id = (client_data or {}).get("uuid")
         state = repository.get_or_create(session_id) if session_id else default_state()
+        refresh = (
+            dash.no_update
+            if ctx.triggered_id == "theme-store"
+            else _next_ui_refresh(ui_refresh)
+        )
         return (
             f"Day: {state.day}",
             build_inventory_figure(state, _theme_name(theme)),
             service_card_children(state),
             costs_card_children(state),
             sales_card_children(state),
+            refresh,
         )
 
     @app.callback(
         Output("kpi-strip", "children"),
-        Input("inventory-graph", "figure"),
+        Input("ui-refresh", "data"),
         State("user-data-store", "data"),
     )
-    def render_kpi_strip(_figure, client_data):
+    def render_kpi_strip(_ui_refresh, client_data):
         session_id = (client_data or {}).get("uuid")
         state = repository.get_or_create(session_id) if session_id else default_state()
         return build_kpi_strip(state)
 
     @app.callback(
         Output("inventory-table-shell", "children"),
-        Input("inventory-graph", "figure"),
+        Input("ui-refresh", "data"),
         State("user-data-store", "data"),
     )
-    def render_inventory_table(_figure, client_data):
+    def render_inventory_table(_ui_refresh, client_data):
         session_id = (client_data or {}).get("uuid")
         state = repository.get_or_create(session_id) if session_id else default_state()
         return build_inventory_table(state)
 
     @app.callback(
         Output("exception-center-shell", "children"),
-        Input("inventory-graph", "figure"),
+        Input("ui-refresh", "data"),
         State("user-data-store", "data"),
     )
-    def render_exception_stack(_figure, client_data):
+    def render_exception_stack(_ui_refresh, client_data):
         session_id = (client_data or {}).get("uuid")
         state = repository.get_or_create(session_id) if session_id else default_state()
         return build_exception_center(state)
@@ -608,13 +627,15 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("interval-component", "disabled", allow_duplicate=True),
             Output("start-button", "children", allow_duplicate=True),
             Output("start-button", "className", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         Input("interval-component", "n_intervals"),
         State("user-data-store", "data"),
         State("theme-store", "data"),
+        State("ui-refresh", "data"),
         prevent_initial_call=True,
     )
-    def update_on_interval(n_intervals, client_data, theme):
+    def update_on_interval(n_intervals, client_data, theme, ui_refresh):
         if not n_intervals:
             raise PreventUpdate
         session_id, state = _require_session(client_data)
@@ -656,6 +677,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             interval_disabled,
             button_label,
             button_class,
+            _next_ui_refresh(ui_refresh),
         )
 
     @app.callback(
@@ -664,13 +686,15 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("interval-component", "disabled", allow_duplicate=True),
             Output("start-button", "children"),
             Output("start-button", "className"),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         Input("start-button", "n_clicks"),
         State("user-data-store", "data"),
         State("interval-component", "disabled"),
+        State("ui-refresh", "data"),
         prevent_initial_call=True,
     )
-    def toggle_simulation(n_clicks, client_data, is_disabled):
+    def toggle_simulation(n_clicks, client_data, is_disabled, ui_refresh):
         if not n_clicks:
             raise PreventUpdate
         session_id, state = _require_session(client_data)
@@ -687,11 +711,11 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             )
             repository.save(session_id, state)
             label, class_name = _start_button_state(state, running=True)
-            return "Status: Running", False, label, class_name
+            return "Status: Running", False, label, class_name, _next_ui_refresh(ui_refresh)
         state.is_initialized = False
         repository.save(session_id, state)
         label, class_name = _start_button_state(state, running=False, resumable=True)
-        return "Status: Paused", True, label, class_name
+        return "Status: Paused", True, label, class_name, _next_ui_refresh(ui_refresh)
 
     @app.callback(
         [
@@ -707,13 +731,15 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("costs-card", "children", allow_duplicate=True),
             Output("sales-card", "children", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         Input("reset-button", "n_clicks"),
         State("user-data-store", "data"),
         State("theme-store", "data"),
+        State("ui-refresh", "data"),
         prevent_initial_call=True,
     )
-    def reset_simulation(n_clicks, client_data, theme):
+    def reset_simulation(n_clicks, client_data, theme, ui_refresh):
         if not n_clicks:
             raise PreventUpdate
         session_id = (client_data or {}).get("uuid", "__bootstrap__")
@@ -744,6 +770,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             costs_card_children(state),
             sales_card_children(state),
             dash.no_update,
+            _next_ui_refresh(ui_refresh),
         )
 
     @app.callback(
@@ -754,6 +781,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("service-card", "children", allow_duplicate=True),
             Output("costs-card", "children", allow_duplicate=True),
             Output("sales-card", "children", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         [Input("add-item-button", "n_clicks"), Input("submit-item-button", "n_clicks")],
         [
@@ -767,6 +795,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             State("hits-per-month-input", "value"),
             State("user-data-store", "data"),
             State("theme-store", "data"),
+            State("ui-refresh", "data"),
         ],
         prevent_initial_call=True,
     )
@@ -783,6 +812,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         hits_per_month,
         client_data,
         theme,
+        ui_refresh,
     ):
         if ctx.triggered_id == "add-item-button":
             _session_id, state = _require_session(client_data)
@@ -794,9 +824,11 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                     dash.no_update,
                     dash.no_update,
                     dash.no_update,
+                    dash.no_update,
                 )
             return (
                 not is_open,
+                dash.no_update,
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
@@ -822,6 +854,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
+                dash.no_update,
             )
         if any(
             value <= 0
@@ -841,12 +874,14 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
+                dash.no_update,
             )
         session_id, state = _require_session(client_data)
         if not is_action_allowed(state, "add_items"):
             return (
                 False,
                 dbc.Alert("Item editing unlocks in simulator mode.", color="warning"),
+                dash.no_update,
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
@@ -873,6 +908,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             service_card_children(state),
             costs_card_children(state),
             sales_card_children(state),
+            _next_ui_refresh(ui_refresh),
         )
 
     @app.callback(
@@ -882,6 +918,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("service-card", "children", allow_duplicate=True),
             Output("costs-card", "children", allow_duplicate=True),
             Output("sales-card", "children", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         Input("update-params-button", "n_clicks"),
         [
@@ -900,6 +937,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             State("asq-include-transfers", "value"),
             State("user-data-store", "data"),
             State("theme-store", "data"),
+            State("ui-refresh", "data"),
         ],
         prevent_initial_call=True,
     )
@@ -920,6 +958,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         asq_include_transfers,
         client_data,
         theme,
+        ui_refresh,
     ):
         if not n_clicks:
             raise PreventUpdate
@@ -952,6 +991,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
+                dash.no_update,
             )
         if (
             review_cycle <= 0
@@ -973,11 +1013,13 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
+                dash.no_update,
             )
         session_id, state = _require_session(client_data)
         if not is_action_allowed(state, "update_parameters"):
             return (
                 dbc.Alert("Global parameter editing unlocks in later lessons.", color="warning"),
+                dash.no_update,
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
@@ -1012,6 +1054,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             service_card_children(state),
             costs_card_children(state),
             sales_card_children(state),
+            _next_ui_refresh(ui_refresh),
         )
 
     @app.callback(
@@ -1021,13 +1064,15 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("service-card", "children", allow_duplicate=True),
             Output("costs-card", "children", allow_duplicate=True),
             Output("sales-card", "children", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         Input("apply-asq-button", "n_clicks"),
         State("user-data-store", "data"),
         State("theme-store", "data"),
+        State("ui-refresh", "data"),
         prevent_initial_call=True,
     )
-    def handle_apply_asq_now(n_clicks, client_data, theme):
+    def handle_apply_asq_now(n_clicks, client_data, theme, ui_refresh):
         if not n_clicks:
             raise PreventUpdate
         session_id, state = _require_session(client_data)
@@ -1038,10 +1083,12 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
+                dash.no_update,
             )
         if not state.items:
             return (
                 dbc.Alert("No items to adjust.", color="secondary"),
+                dash.no_update,
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
@@ -1059,6 +1106,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             service_card_children(state),
             costs_card_children(state),
             sales_card_children(state),
+            _next_ui_refresh(ui_refresh),
         )
 
     @app.callback(
@@ -1067,13 +1115,15 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("costs-card", "children", allow_duplicate=True),
             Output("service-card", "children", allow_duplicate=True),
             Output("sales-card", "children", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         Input("po-button", "n_clicks"),
         State("user-data-store", "data"),
         State("theme-store", "data"),
+        State("ui-refresh", "data"),
         prevent_initial_call=True,
     )
-    def handle_purchase_order(n_clicks, client_data, theme):
+    def handle_purchase_order(n_clicks, client_data, theme, ui_refresh):
         if not n_clicks:
             raise PreventUpdate
         session_id, state = _require_session(client_data)
@@ -1088,6 +1138,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             costs_card_children(state),
             service_card_children(state),
             sales_card_children(state),
+            _next_ui_refresh(ui_refresh),
         )
 
     @app.callback(
@@ -1103,6 +1154,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("costs-card", "children", allow_duplicate=True),
             Output("service-card", "children", allow_duplicate=True),
             Output("sales-card", "children", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         [
             Input("place-custom-order-button", "n_clicks"),
@@ -1113,6 +1165,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             State({"type": "order-quantity", "index": ALL}, "value"),
             State("user-data-store", "data"),
             State("theme-store", "data"),
+            State("ui-refresh", "data"),
         ],
         prevent_initial_call=True,
     )
@@ -1123,6 +1176,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         order_quantities,
         client_data,
         theme,
+        ui_refresh,
     ):
         session_id, state = _require_session(client_data)
         rows = [build_custom_order_row(index, item) for index, item in enumerate(state.items)]
@@ -1144,6 +1198,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 costs_card_children(state),
                 service_card_children(state),
                 sales_card_children(state),
+                _next_ui_refresh(ui_refresh),
             )
         if ctx.triggered_id == "cancel-custom-order-button":
             label, class_name = _start_button_state(state, running=False, resumable=True)
@@ -1159,6 +1214,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 costs_card_children(state),
                 service_card_children(state),
                 sales_card_children(state),
+                dash.no_update,
             )
         if ctx.triggered_id != "place-order-button":
             raise PreventUpdate
@@ -1182,6 +1238,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             costs_card_children(state),
             service_card_children(state),
             sales_card_children(state),
+            _next_ui_refresh(ui_refresh),
         )
 
     @app.callback(
@@ -1238,14 +1295,16 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("service-card", "children", allow_duplicate=True),
             Output("costs-card", "children", allow_duplicate=True),
             Output("sales-card", "children", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         Input("import-uploaded-items", "n_clicks"),
         State("upload-preview-data", "data"),
         State("user-data-store", "data"),
         State("theme-store", "data"),
+        State("ui-refresh", "data"),
         prevent_initial_call=True,
     )
-    def import_uploaded_items(n_clicks, rows, client_data, theme):
+    def import_uploaded_items(n_clicks, rows, client_data, theme, ui_refresh):
         if not n_clicks:
             raise PreventUpdate
         if not rows:
@@ -1255,12 +1314,14 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
+                dash.no_update,
             )
         session_id, state = _require_session(client_data)
         if not is_action_allowed(state, "import_items"):
             return (
                 dash.no_update,
                 dbc.Alert("Imports unlock in simulator mode.", color="warning"),
+                dash.no_update,
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
@@ -1286,6 +1347,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             service_card_children(state),
             costs_card_children(state),
             sales_card_children(state),
+            _next_ui_refresh(ui_refresh),
         )
 
     @app.callback(
@@ -1324,6 +1386,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             Output("po-overview-table", "children"),
             Output("inventory-graph", "figure", allow_duplicate=True),
             Output("costs-card", "children", allow_duplicate=True),
+            Output("ui-refresh", "data", allow_duplicate=True),
         ],
         [
             Input("po-overview-button", "n_clicks"),
@@ -1333,6 +1396,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         ],
         State("user-data-store", "data"),
         State("theme-store", "data"),
+        State("ui-refresh", "data"),
         prevent_initial_call=True,
     )
     def po_overview_handler(
@@ -1342,6 +1406,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         cancel_clicks,
         client_data,
         theme,
+        ui_refresh,
     ):
         session_id, state = _require_session(client_data)
         trig = ctx.triggered_id
@@ -1367,6 +1432,9 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             table,
             build_inventory_figure(state, _theme_name(theme)),
             costs_card_children(state),
+            _next_ui_refresh(ui_refresh)
+            if isinstance(trig, dict) and "rid" in trig
+            else dash.no_update,
         )
 
     @app.callback(

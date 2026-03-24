@@ -16,4 +16,4 @@ ENV IMSIM_PORT=8050
 
 EXPOSE 8050
 
-CMD ["gunicorn", "imsim.wsgi:server", "--bind", "0.0.0.0:8050", "--workers", "2"]
+CMD ["gunicorn", "imsim.wsgi:server", "--bind", "0.0.0.0:8050", "--workers", "1"]
