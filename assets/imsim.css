@@ -54,7 +54,8 @@
   --imsim-bg-accent-a: rgba(15, 118, 110, 0.18);
   --imsim-bg-accent-b: rgba(249, 115, 22, 0.14);
   --imsim-graph-bg: rgba(255, 255, 255, 0.55);
-  --imsim-session-bg: linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 247, 236, 0.92));
+  --imsim-session-bg: var(--imsim-surface);
+  --imsim-session-inner-bg: rgba(255, 253, 248, 0.96);
   --imsim-maintenance-bg: rgba(255, 255, 255, 0.88);
   --imsim-upload-bg: rgba(15, 118, 110, 0.04);
   --imsim-table-stripe: rgba(15, 118, 110, 0.05);
@@ -89,7 +90,8 @@ body {
   --imsim-bg-accent-b: rgba(37, 99, 235, 0.18);
   --imsim-graph-bg: rgba(10, 19, 32, 0.7);
   --imsim-control-bg: rgba(10, 19, 32, 0.92);
-  --imsim-session-bg: linear-gradient(180deg, rgba(18, 31, 49, 0.96), rgba(13, 24, 38, 0.92));
+  --imsim-session-bg: var(--imsim-surface);
+  --imsim-session-inner-bg: rgba(10, 19, 32, 0.34);
   --imsim-maintenance-bg: rgba(18, 31, 49, 0.92);
   --imsim-upload-bg: rgba(15, 118, 110, 0.09);
   --imsim-table-stripe: rgba(15, 118, 110, 0.1);
@@ -432,7 +434,7 @@ body {
 .session-speed-block {
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-2xl);
-  background: rgba(10, 19, 32, 0.34);
+  background: var(--imsim-session-inner-bg);
   padding: 0.85rem 0.95rem;
 }
 
