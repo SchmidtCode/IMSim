@@ -1,0 +1,1667 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap");
+
+:root {
+  --imsim-bg-top: #fbf8f2;
+  --imsim-bg: #f4f1ea;
+  --imsim-surface: rgba(255, 255, 255, 0.82);
+  --imsim-surface-strong: #fffdf8;
+  --imsim-ink: #132238;
+  --imsim-muted: #536277;
+  --imsim-line: rgba(19, 34, 56, 0.12);
+  --imsim-teal: #0f766e;
+  --imsim-orange: #f97316;
+  --imsim-blue: #2563eb;
+  --imsim-danger: #dc2626;
+  --imsim-control-bg: rgba(255, 253, 248, 0.92);
+  --imsim-radius-sm: 0.75rem;
+  --imsim-radius-md: 0.875rem;
+  --imsim-radius-lg: 1rem;
+  --imsim-radius-xl: 1.125rem;
+  --imsim-radius-2xl: 1.25rem;
+  --imsim-radius-3xl: 1.5rem;
+  --imsim-radius-4xl: 1.75rem;
+  --imsim-radius-pill: 999rem;
+  --imsim-blur-backdrop: 0.5rem;
+  --imsim-blur-surface: 0.875rem;
+  --imsim-size-shell-max: 100rem;
+  --imsim-size-dialog-max: 61.25rem;
+  --imsim-size-metric-card-min: 8.5rem;
+  --imsim-size-table-min: 53.75rem;
+  --imsim-size-footer-width: 17.5rem;
+  --imsim-size-dashboard-graph-min: 20rem;
+  --imsim-size-control-rail-max: 25rem;
+  --imsim-size-dashboard-rail-max: 20rem;
+  --imsim-size-dashboard-panel-max: 15rem;
+  --imsim-size-lesson-grid-min: 33rem;
+  --imsim-size-lesson-grid-max: 37rem;
+  --imsim-slider-rail-size: 0.375rem;
+  --imsim-slider-handle-size: 1.125rem;
+  --imsim-slider-handle-offset: -0.375rem;
+  --imsim-border-accent: 0.125rem;
+  --imsim-border-strong: 0.1875rem;
+  --imsim-border-metric: 0.3125rem;
+  --imsim-focus-ring-size: 0.25rem;
+  --imsim-shadow: 0 1.5rem 3.75rem rgba(19, 34, 56, 0.12);
+  --imsim-shadow-modal: 0 2.25rem 5.625rem rgba(2, 8, 18, 0.34);
+  --imsim-shadow-float: 0 1.125rem 2.5rem rgba(2, 8, 18, 0.32);
+  --imsim-shadow-action-teal: 0 0.875rem 1.75rem rgba(15, 118, 110, 0.2);
+  --imsim-shadow-action-green: 0 0.875rem 1.75rem rgba(21, 128, 61, 0.2);
+  --imsim-shadow-focus-soft: 0 0 0 var(--imsim-focus-ring-size) rgba(37, 99, 235, 0.12);
+  --imsim-shadow-focus-strong: 0 0 0 var(--imsim-focus-ring-size) rgba(37, 99, 235, 0.18);
+  --imsim-shadow-focus-slider: 0 0 0 var(--imsim-focus-ring-size) rgba(37, 99, 235, 0.14);
+  --imsim-shadow-focus-slider-dark:
+    0 0 0 var(--imsim-focus-ring-size) rgba(45, 212, 191, 0.16);
+  --imsim-bg-accent-a: rgba(15, 118, 110, 0.18);
+  --imsim-bg-accent-b: rgba(249, 115, 22, 0.14);
+  --imsim-graph-bg: rgba(255, 255, 255, 0.55);
+  --imsim-session-bg: var(--imsim-surface);
+  --imsim-session-inner-bg: rgba(255, 253, 248, 0.96);
+  --imsim-maintenance-bg: rgba(255, 255, 255, 0.88);
+  --imsim-upload-bg: rgba(15, 118, 110, 0.04);
+  --imsim-table-stripe: rgba(15, 118, 110, 0.05);
+  --imsim-table-hover: rgba(37, 99, 235, 0.06);
+}
+
+body {
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  margin: 0;
+}
+
+.imsim-theme {
+  min-height: 100vh;
+  color: var(--imsim-ink);
+  background:
+    radial-gradient(circle at top left, var(--imsim-bg-accent-a), transparent 35%),
+    radial-gradient(circle at top right, var(--imsim-bg-accent-b), transparent 34%),
+    linear-gradient(180deg, var(--imsim-bg-top) 0%, var(--imsim-bg) 100%);
+}
+
+.theme-dark {
+  --imsim-bg-top: #08111d;
+  --imsim-bg: #0c1523;
+  --imsim-surface: rgba(13, 24, 38, 0.82);
+  --imsim-surface-strong: rgba(18, 31, 49, 0.94);
+  --imsim-ink: #e6eefc;
+  --imsim-muted: #9aabc6;
+  --imsim-line: rgba(214, 228, 255, 0.14);
+  --imsim-shadow: 0 1.625rem 4.375rem rgba(2, 8, 18, 0.48);
+  --imsim-shadow-float: 0 1.125rem 2.5rem rgba(2, 8, 18, 0.38);
+  --imsim-bg-accent-a: rgba(15, 118, 110, 0.24);
+  --imsim-bg-accent-b: rgba(37, 99, 235, 0.18);
+  --imsim-graph-bg: rgba(10, 19, 32, 0.7);
+  --imsim-control-bg: rgba(10, 19, 32, 0.92);
+  --imsim-session-bg: var(--imsim-surface);
+  --imsim-session-inner-bg: rgba(10, 19, 32, 0.34);
+  --imsim-maintenance-bg: rgba(18, 31, 49, 0.92);
+  --imsim-upload-bg: rgba(15, 118, 110, 0.09);
+  --imsim-table-stripe: rgba(15, 118, 110, 0.1);
+  --imsim-table-hover: rgba(37, 99, 235, 0.14);
+}
+
+.imsim-shell {
+  max-width: var(--imsim-size-shell-max);
+}
+
+.session-card-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.theme-toggle-button {
+  border-radius: var(--imsim-radius-pill);
+  white-space: nowrap;
+}
+
+.hero-row {
+  align-items: stretch;
+}
+
+.hero-kicker,
+.panel-label,
+.metric-label,
+.footer-title {
+  color: var(--imsim-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero-title,
+.panel-title {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.hero-title {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1;
+  margin-bottom: 0.35rem;
+  max-width: none;
+}
+
+.hero-copy {
+  color: var(--imsim-muted);
+  font-size: 0.98rem;
+  line-height: 1.5;
+  max-width: 48ch;
+  margin: 0.35rem 0 0;
+}
+
+.hero-actions .imsim-button {
+  border-radius: var(--imsim-radius-pill);
+  padding-inline: 1rem;
+}
+
+.hero-banner-card .card-body {
+  padding-block: 1.4rem;
+}
+
+.hero-actions-wrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hero-actions-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.academy-shell .card-body {
+  padding-block: 1.4rem;
+}
+
+.academy-card {
+  height: 100%;
+}
+
+.academy-card-kicker,
+.academy-card-formula,
+.helper-copy,
+.lesson-formula-chip {
+  color: var(--imsim-muted);
+  font-size: 0.85rem;
+}
+
+.academy-card-title {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.05;
+  margin-top: 0.35rem;
+}
+
+.academy-card-copy {
+  color: var(--imsim-muted);
+  line-height: 1.5;
+  margin: 0.65rem 0 0;
+  min-height: 4.5rem;
+}
+
+.academy-card-formula,
+.lesson-formula-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-pill);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.academy-status-badge {
+  margin-top: 0.85rem;
+}
+
+.academy-result-alert {
+  border-radius: var(--imsim-radius-xl);
+  margin-bottom: 0;
+}
+
+.lesson-detail-card {
+  height: 100%;
+}
+
+.lesson-copy-list {
+  margin: 0.85rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--imsim-ink);
+}
+
+.lesson-copy-list li + li {
+  margin-top: 0.45rem;
+}
+
+.lesson-objective-headline {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 0.15rem;
+}
+
+.lesson-locked-list {
+  color: var(--imsim-muted);
+  font-size: 0.92rem;
+}
+
+.lesson-locked-cache {
+  display: none;
+}
+
+.lesson-intro-dialog {
+  max-width: min(var(--imsim-size-dialog-max), calc(100vw - 2rem));
+}
+
+.lesson-intro-backdrop {
+  background: rgba(6, 12, 22, 0.62);
+  backdrop-filter: blur(var(--imsim-blur-backdrop));
+}
+
+.lesson-intro-content {
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 34%),
+    linear-gradient(180deg, var(--imsim-surface-strong), var(--imsim-surface));
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-4xl);
+  box-shadow: var(--imsim-shadow-modal);
+  color: var(--imsim-ink);
+}
+
+.lesson-intro-header,
+.lesson-intro-body,
+.lesson-intro-footer {
+  border: 0;
+}
+
+.lesson-intro-header {
+  padding: 1.15rem 1.3rem 0.55rem;
+}
+
+.lesson-intro-body {
+  padding: 0 1.3rem 0.95rem;
+}
+
+.lesson-intro-footer {
+  justify-content: flex-start;
+  padding: 0 1.3rem 1.1rem;
+}
+
+.lesson-intro-title {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: clamp(1.8rem, 2.5vw, 2.6rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+  margin: 0.2rem 0 0;
+  color: var(--imsim-ink);
+}
+
+.lesson-intro-copy {
+  color: var(--imsim-muted);
+  font-size: 0.96rem;
+  line-height: 1.45;
+  margin: 0.35rem 0 0;
+  max-width: 64ch;
+}
+
+.lesson-intro-grid .lesson-detail-card .card-body {
+  padding: 1rem;
+}
+
+.lesson-intro-grid .lesson-copy-list {
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.lesson-compact-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.lesson-compact-chip,
+.lesson-compact-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-pill);
+  min-height: 2.15rem;
+  padding: 0.45rem 0.78rem;
+}
+
+.lesson-compact-chip {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--imsim-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.lesson-compact-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.lesson-compact-pill {
+  background: rgba(15, 118, 110, 0.05);
+  color: var(--imsim-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.lesson-compact-pill-strong {
+  background: rgba(15, 118, 110, 0.16);
+  color: var(--imsim-ink);
+  font-weight: 600;
+}
+
+.lesson-service-table {
+  margin-bottom: 0;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.lesson-service-table th,
+.lesson-service-table td {
+  border-bottom: 1px solid var(--imsim-line);
+  padding: 0.55rem 0.7rem;
+  vertical-align: top;
+}
+
+.lesson-service-table th {
+  color: var(--imsim-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lesson-service-table td {
+  color: var(--imsim-ink);
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.lesson-service-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.lesson-snapshot-stack {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.lesson-snapshot-block {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.lesson-snapshot-label {
+  color: var(--imsim-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shell-card,
+.metric-card,
+.footer-card {
+  background: var(--imsim-surface);
+  backdrop-filter: blur(var(--imsim-blur-surface));
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-3xl);
+  box-shadow: var(--imsim-shadow);
+}
+
+.session-card {
+  background: var(--imsim-session-bg);
+}
+
+.session-metrics-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.session-primary-block,
+.session-speed-block {
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-2xl);
+  background: var(--imsim-session-inner-bg);
+  padding: 0.85rem 0.95rem;
+}
+
+.session-primary-block .status-value {
+  margin-bottom: 0.1rem;
+  margin-top: 0;
+}
+
+.session-primary-block .status-copy {
+  margin-bottom: 0;
+}
+
+.session-speed-block .control-label {
+  margin-bottom: 0.35rem;
+}
+
+.session-speed-block .speed-readout {
+  margin: 0 0 0.55rem;
+}
+
+.session-speed-block .sim-speed-slider {
+  margin-bottom: 0;
+}
+
+.panel-title {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.panel-title-small {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+}
+
+.status-value {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-top: 0.3rem;
+}
+
+.status-copy {
+  color: var(--imsim-muted);
+}
+
+.control-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.control-label {
+  color: var(--imsim-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.control-input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-lg);
+  background: var(--imsim-control-bg);
+  color: var(--imsim-ink);
+  caret-color: var(--imsim-ink);
+  color-scheme: inherit;
+  box-shadow: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.02);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.control-input:hover {
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+.control-input:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: var(--imsim-shadow-focus-soft);
+}
+
+.control-input::placeholder {
+  color: var(--imsim-muted);
+}
+
+.theme-light .control-input {
+  color-scheme: light;
+}
+
+.theme-dark .control-input {
+  color-scheme: dark;
+}
+
+.control-input-compact {
+  min-height: 2.6rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.toggle-field {
+  min-height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.imsim-toggle-switch {
+  margin: 0;
+  padding-left: 0;
+  flex: 0 0 auto;
+}
+
+.imsim-toggle-switch.form-check {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 0;
+  padding-left: 0;
+}
+
+.imsim-toggle-input {
+  cursor: pointer;
+  flex: 0 0 auto;
+  height: 1.55rem;
+  margin-left: 0;
+  margin-right: 0;
+  margin-top: 0;
+  width: 2.85rem;
+  background-color: rgba(83, 98, 119, 0.18);
+  background-image: none;
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-pill);
+  box-shadow: none;
+}
+
+.imsim-toggle-copy {
+  display: inline-flex;
+  align-items: center;
+  color: var(--imsim-ink);
+  font-weight: 500;
+  min-height: 1.6rem;
+}
+
+.imsim-toggle-input:focus,
+.imsim-toggle-input:focus-visible {
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: var(--imsim-shadow-focus-soft);
+  outline: none;
+}
+
+.imsim-toggle-input:checked {
+  background-color: rgba(15, 118, 110, 0.24);
+  border-color: rgba(15, 118, 110, 0.42);
+}
+
+.imsim-button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: var(--imsim-radius-lg);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+  min-height: 3rem;
+  padding: 0.8rem 1rem;
+  text-align: center;
+  text-decoration: none;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.imsim-button:hover {
+  transform: translateY(-0.0625rem);
+}
+
+.imsim-button:focus-visible {
+  outline: none;
+  box-shadow: var(--imsim-shadow-focus-strong);
+}
+
+.imsim-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.button-block {
+  width: 100%;
+}
+
+.button-pill {
+  border-radius: var(--imsim-radius-pill);
+}
+
+.button-sm {
+  min-height: 2.45rem;
+  font-size: 0.92rem;
+  padding: 0.55rem 0.9rem;
+}
+
+.button-primary {
+  background: var(--imsim-teal);
+  border-color: var(--imsim-teal);
+  box-shadow: var(--imsim-shadow-action-teal);
+}
+
+.button-primary:hover {
+  background: #0d675f;
+  border-color: #0d675f;
+}
+
+.button-success {
+  background: #15803d;
+  border-color: #15803d;
+  box-shadow: var(--imsim-shadow-action-green);
+}
+
+.button-success:hover {
+  background: #166534;
+  border-color: #166534;
+}
+
+.button-secondary {
+  background: #33485f;
+  border-color: #33485f;
+  color: #f4f7fb;
+}
+
+.button-secondary:hover {
+  background: #2a3d52;
+  border-color: #2a3d52;
+}
+
+.button-warning {
+  background: var(--imsim-orange);
+  border-color: var(--imsim-orange);
+}
+
+.button-warning:hover {
+  background: #ea6b10;
+  border-color: #ea6b10;
+}
+
+.button-danger {
+  background: var(--imsim-danger);
+  border-color: var(--imsim-danger);
+}
+
+.button-danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.button-info {
+  background: var(--imsim-blue);
+  border-color: var(--imsim-blue);
+}
+
+.button-info:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.button-light {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.16);
+  color: var(--imsim-ink);
+}
+
+.button-light:hover {
+  background: rgba(37, 99, 235, 0.16);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.button-dark {
+  background: #18283e;
+  border-color: #18283e;
+}
+
+.button-dark:hover {
+  background: #132238;
+  border-color: #132238;
+}
+
+.button-ghost {
+  background: transparent;
+  border-color: var(--imsim-line);
+  color: var(--imsim-ink);
+}
+
+.button-ghost:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.button-link {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--imsim-blue);
+  min-height: auto;
+  padding: 0;
+}
+
+.button-link:hover {
+  background: transparent;
+  color: #1d4ed8;
+  transform: none;
+}
+
+.speed-readout {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.7rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-md);
+  background-color: var(--imsim-control-bg);
+  color: var(--imsim-ink);
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0.2rem 0 0.65rem;
+}
+
+.metric-card .card-body {
+  min-height: var(--imsim-size-metric-card-min);
+}
+
+.metric-value {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  margin-top: 0.55rem;
+}
+
+.metric-subtitle {
+  color: var(--imsim-muted);
+  margin-top: 0.5rem;
+}
+
+.metric-good {
+  border-top: var(--imsim-border-metric) solid var(--imsim-teal);
+}
+
+.metric-warn {
+  border-top: var(--imsim-border-metric) solid var(--imsim-orange);
+}
+
+.metric-neutral {
+  border-top: var(--imsim-border-metric) solid var(--imsim-blue);
+}
+
+.upload-shell {
+  border: var(--imsim-border-accent) dashed rgba(15, 118, 110, 0.35);
+  border-radius: var(--imsim-radius-2xl);
+  padding: 2rem 1rem;
+  text-align: center;
+  background: var(--imsim-upload-bg);
+  cursor: pointer;
+}
+
+.preview-card,
+.exception-card {
+  border-radius: var(--imsim-radius-xl);
+  border: 1px solid var(--imsim-line);
+  background: var(--imsim-surface-strong);
+  margin-bottom: 0.85rem;
+}
+
+.exception-stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.inventory-table {
+  --bs-table-striped-bg: var(--imsim-table-stripe);
+  --bs-table-hover-bg: var(--imsim-table-hover);
+  font-size: 0.92rem;
+  margin-bottom: 0;
+  min-width: var(--imsim-size-table-min);
+}
+
+.inventory-table th,
+.inventory-table td {
+  padding: 0.85rem 0.75rem;
+  white-space: nowrap;
+}
+
+.table-scroll-shell {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.35rem;
+  scrollbar-width: thin;
+}
+
+.custom-order-head,
+.custom-order-row,
+.po-header,
+.po-row {
+  align-items: center;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--imsim-line);
+}
+
+.footer-card {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: var(--imsim-size-footer-width);
+  z-index: 1050;
+}
+
+.footer-hide {
+  background: transparent;
+  border: 0;
+  color: var(--imsim-blue);
+  padding: 0;
+  margin-top: 0.5rem;
+}
+
+.inline-button-group,
+.modal-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.maintenance-card {
+  margin-bottom: 1.25rem;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: var(--imsim-maintenance-bg);
+}
+
+.card,
+.btn,
+.form-control,
+.input-group-text,
+.form-select,
+.form-check-input,
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table {
+  border-radius: var(--imsim-radius-lg);
+}
+
+.theme-dark .card,
+.theme-dark .list-group-item,
+.theme-dark .input-group-text,
+.theme-dark .form-control,
+.theme-dark .form-select,
+.theme-dark .form-check-input,
+.theme-dark .form-range,
+.theme-dark .modal-content,
+.theme-dark .table,
+.theme-dark .alert {
+  background-color: var(--imsim-surface-strong);
+  border-color: var(--imsim-line);
+  color: var(--imsim-ink);
+}
+
+.theme-dark .list-group-item,
+.theme-dark .table,
+.theme-dark .table th,
+.theme-dark .table td {
+  color: var(--imsim-ink);
+}
+
+.theme-dark .text-muted {
+  color: var(--imsim-muted) !important;
+}
+
+.theme-dark .metric-neutral {
+  border-top-color: var(--imsim-blue);
+  background-image:
+    linear-gradient(180deg, rgba(37, 99, 235, 0.18) 0%, rgba(37, 99, 235, 0.08) 18%, transparent 36%);
+}
+
+.theme-dark .metric-good {
+  border-top-color: var(--imsim-teal);
+  background-image:
+    linear-gradient(180deg, rgba(15, 118, 110, 0.18) 0%, rgba(15, 118, 110, 0.08) 18%, transparent 36%);
+}
+
+.theme-dark .metric-warn {
+  border-top-color: var(--imsim-orange);
+  background-image:
+    linear-gradient(180deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.09) 18%, transparent 36%);
+}
+
+.theme-dark .btn-light {
+  background-color: #22344b;
+  border-color: #22344b;
+  color: #e6eefc;
+}
+
+.theme-dark .btn-secondary {
+  background-color: #33485f;
+  border-color: #33485f;
+}
+
+.theme-dark .btn-dark {
+  background-color: #dfe9fb;
+  border-color: #dfe9fb;
+  color: #112338;
+}
+
+.theme-dark .btn-close {
+  filter: invert(1);
+}
+
+.theme-dark .upload-shell {
+  border-color: rgba(94, 234, 212, 0.35);
+}
+
+.theme-dark .control-input {
+  background: var(--imsim-control-bg);
+  color: var(--imsim-ink);
+  caret-color: var(--imsim-ink);
+  color-scheme: dark;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.theme-dark .speed-readout,
+.theme-dark #sim-speed-readout {
+  background-color: #132238;
+  border-color: rgba(214, 228, 255, 0.16);
+  color: #e6eefc;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.theme-dark .sim-speed-slider .rc-slider-tooltip input,
+.theme-dark .sim-speed-slider .rc-tooltip input,
+.theme-dark .rc-slider-tooltip input,
+.theme-dark .rc-tooltip input {
+  background: #132238 !important;
+  border-color: rgba(214, 228, 255, 0.2) !important;
+  color: #e6eefc !important;
+}
+
+.theme-dark .button-light {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.18);
+  color: #e6eefc;
+}
+
+.theme-dark .button-light:hover {
+  background: rgba(96, 165, 250, 0.18);
+  border-color: rgba(96, 165, 250, 0.24);
+}
+
+.theme-dark .button-ghost {
+  background: transparent;
+  border-color: rgba(214, 228, 255, 0.22);
+  color: #e6eefc;
+}
+
+.theme-dark .button-ghost:hover {
+  background: rgba(94, 234, 212, 0.08);
+  border-color: rgba(94, 234, 212, 0.3);
+}
+
+.theme-dark .button-dark {
+  background: #dfe9fb;
+  border-color: #dfe9fb;
+  color: #112338;
+}
+
+.theme-dark .button-dark:hover {
+  background: #f4f7fb;
+  border-color: #f4f7fb;
+}
+
+.theme-dark .button-link {
+  color: #93c5fd;
+}
+
+.theme-dark .button-link:hover {
+  color: #bfdbfe;
+}
+
+.theme-dark .imsim-toggle-input {
+  background-color: rgba(214, 228, 255, 0.12);
+  border-color: rgba(214, 228, 255, 0.2);
+}
+
+.theme-dark .imsim-toggle-input:checked {
+  background-color: rgba(45, 212, 191, 0.18);
+  border-color: rgba(94, 234, 212, 0.32);
+}
+
+.theme-dark .rc-slider-mark-text {
+  color: var(--imsim-muted);
+}
+
+.rc-slider-rail {
+  background-color: rgba(83, 98, 119, 0.22);
+  height: var(--imsim-slider-rail-size);
+}
+
+.rc-slider-track {
+  background-color: var(--imsim-blue);
+  height: var(--imsim-slider-rail-size);
+}
+
+.rc-slider-handle {
+  background-color: var(--imsim-surface-strong);
+  border: var(--imsim-border-strong) solid var(--imsim-blue);
+  box-shadow: var(--imsim-shadow-focus-slider);
+  height: var(--imsim-slider-handle-size);
+  margin-top: var(--imsim-slider-handle-offset);
+  opacity: 1;
+  width: var(--imsim-slider-handle-size);
+}
+
+.rc-slider-handle:focus-visible {
+  box-shadow: var(--imsim-shadow-focus-strong);
+}
+
+.rc-slider-tooltip,
+.rc-tooltip {
+  opacity: 1;
+}
+
+.rc-slider-tooltip .rc-slider-tooltip-inner,
+.rc-tooltip .rc-tooltip-inner {
+  background-color: #132238;
+  border: 1px solid rgba(214, 228, 255, 0.2);
+  border-radius: var(--imsim-radius-sm);
+  box-shadow: var(--imsim-shadow-float);
+  color: #e6eefc;
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.rc-slider-tooltip .rc-slider-tooltip-arrow,
+.rc-tooltip .rc-tooltip-arrow {
+  border-top-color: #132238 !important;
+}
+
+.rc-slider-tooltip input,
+.rc-tooltip input {
+  background: #132238 !important;
+  border: 1px solid rgba(214, 228, 255, 0.2) !important;
+  color: #e6eefc !important;
+  box-shadow: none !important;
+}
+
+.theme-dark .rc-slider-rail {
+  background-color: rgba(214, 228, 255, 0.18);
+}
+
+.theme-dark .rc-slider-track {
+  background-color: #5eead4;
+}
+
+.theme-dark .rc-slider-handle {
+  background-color: #132238;
+  border-color: #5eead4;
+  box-shadow: var(--imsim-shadow-focus-slider-dark);
+}
+
+.theme-dark .rc-slider-tooltip .rc-slider-tooltip-inner,
+.theme-dark .rc-tooltip .rc-tooltip-inner {
+  background-color: #132238 !important;
+  border-color: rgba(214, 228, 255, 0.2);
+  color: #e6eefc !important;
+  box-shadow: var(--imsim-shadow-float);
+}
+
+.theme-dark .rc-slider-tooltip .rc-slider-tooltip-arrow,
+.theme-dark .rc-tooltip .rc-tooltip-arrow {
+  border-top-color: #132238 !important;
+}
+
+.js-plotly-plot .plotly .main-svg {
+  border-radius: var(--imsim-radius-2xl);
+}
+
+.dashboard-shell.lesson-dashboard {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0.3rem;
+  min-height: calc(100vh - 4rem);
+  margin-top: -0.45rem;
+}
+
+.dashboard-shell.lesson-dashboard > * {
+  min-height: 0;
+  min-width: 0;
+}
+
+.dashboard-shell.lesson-dashboard .experience-banner-card {
+  margin-bottom: 0.2rem !important;
+}
+
+.dashboard-shell.lesson-dashboard #kpi-strip {
+  margin-top: 0 !important;
+}
+
+.dashboard-shell.lesson-dashboard .experience-banner-card .card-body {
+  padding: 0.7rem 1rem 0.75rem;
+}
+
+.dashboard-shell.lesson-dashboard .hero-title {
+  font-size: clamp(1.3rem, 1.8vw, 1.7rem);
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.dashboard-shell.lesson-dashboard .hero-copy {
+  font-size: 0.84rem;
+  line-height: 1.38;
+  margin-top: 0.2rem;
+  max-width: 68ch;
+}
+
+.dashboard-shell.lesson-dashboard .hero-actions .imsim-button {
+  min-height: 2.45rem;
+  padding: 0.55rem 0.9rem;
+}
+
+.dashboard-shell.lesson-dashboard .hero-actions-compact {
+  gap: 0.5rem;
+}
+
+.dashboard-shell.lesson-dashboard .lesson-compact-summary {
+  margin-top: 0.55rem !important;
+}
+
+.dashboard-shell.lesson-dashboard .dashboard-main-layout {
+  margin: 0 !important;
+  min-height: 0;
+}
+
+.dashboard-shell.lesson-dashboard .panel-label {
+  font-size: 0.72rem;
+}
+
+.dashboard-shell.lesson-dashboard .panel-title {
+  font-size: 1.22rem;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-shell.lesson-dashboard .panel-title-small {
+  font-size: 1rem;
+  margin-bottom: 0.55rem;
+}
+
+.dashboard-shell.lesson-dashboard .status-value {
+  font-size: 1.85rem;
+}
+
+.dashboard-shell.lesson-dashboard .status-copy,
+.dashboard-shell.lesson-dashboard .control-label,
+.dashboard-shell.lesson-dashboard .speed-readout,
+.dashboard-shell.lesson-dashboard .list-group-item,
+.dashboard-shell.lesson-dashboard .inventory-table {
+  font-size: 0.92rem;
+}
+
+.dashboard-shell.lesson-dashboard .session-card .card-body,
+.dashboard-shell.lesson-dashboard #service-panel .card-body,
+.dashboard-shell.lesson-dashboard #inventory-panel .card-body {
+  padding: 1rem;
+}
+
+.dashboard-shell.lesson-dashboard #service-panel .list-group-item {
+  padding-block: 0.72rem;
+}
+
+.dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-stack {
+  gap: 0.45rem;
+}
+
+.dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-block {
+  gap: 0.22rem;
+}
+
+.dashboard-shell.lesson-dashboard #service-panel .lesson-service-table th,
+.dashboard-shell.lesson-dashboard #service-panel .lesson-service-table td {
+  padding: 0.48rem 0.55rem;
+}
+
+.dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-label {
+  font-size: 0.68rem;
+}
+
+.dashboard-shell.lesson-dashboard .inventory-table {
+  min-width: 0;
+}
+
+.dashboard-shell.lesson-dashboard .inventory-table th,
+.dashboard-shell.lesson-dashboard .inventory-table td {
+  padding: 0.68rem 0.7rem;
+}
+
+.dashboard-shell.lesson-dashboard #inventory-graph {
+  height: 100%;
+  min-height: var(--imsim-size-dashboard-graph-min);
+}
+
+.dashboard-shell.lesson-dashboard #graph-panel > .card,
+.dashboard-shell.lesson-dashboard #graph-panel > .card > .card-body {
+  height: 100%;
+}
+
+.dashboard-shell.lesson-dashboard #graph-panel > .card > .card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-shell.lesson-dashboard #graph-panel .dash-graph,
+.dashboard-shell.lesson-dashboard #graph-panel .js-plotly-plot,
+.dashboard-shell.lesson-dashboard #graph-panel .plot-container,
+.dashboard-shell.lesson-dashboard #graph-panel .svg-container {
+  height: 100% !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .experience-banner-card .card-body {
+  padding: 0.65rem 1rem 0.7rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .hero-title {
+  font-size: clamp(1.2rem, 1.6vw, 1.55rem);
+  margin-bottom: 0.15rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .hero-copy {
+  font-size: 0.8rem;
+  line-height: 1.32;
+  margin-top: 0.15rem;
+  max-width: 44ch;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .lesson-compact-summary {
+  gap: 0.35rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .lesson-compact-chip,
+.dashboard-shell.lesson-dashboard.lesson-level-2 .lesson-compact-pill {
+  min-height: 1.95rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.76rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .lesson-compact-inline {
+  gap: 0.35rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel .panel-label,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel .panel-label,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .panel-label {
+  display: none;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel .panel-title,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel .panel-title,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .panel-title {
+  margin-bottom: 0.55rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel .card-body,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .card-body {
+  padding: 0.9rem 1rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel .lesson-service-table th {
+  font-size: 0.67rem;
+  letter-spacing: 0.06em;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel .lesson-service-table td {
+  font-size: 0.82rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-card {
+  margin-top: 0 !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel > .card > .card-body {
+  padding: 0.9rem 1rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-primary-block,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-speed-block {
+  height: 100%;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .status-value {
+  font-size: 1.65rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .card-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-table-shell,
+.dashboard-shell.lesson-dashboard.lesson-level-2 .table-scroll-shell {
+  min-height: 0;
+  overflow: auto;
+}
+
+@media (min-width: 1200px) {
+  .control-rail-column {
+    max-width: var(--imsim-size-control-rail-max);
+  }
+
+  .dashboard-shell.lesson-dashboard {
+    height: calc(100vh - 3.5rem);
+    overflow: hidden;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-main-layout {
+    height: 100%;
+    min-height: 0;
+    flex-wrap: nowrap;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard .dashboard-main-column {
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-rail-column {
+    max-width: var(--imsim-size-dashboard-rail-max);
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-main-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .dashboard-shell.lesson-dashboard #graph-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard .dashboard-detail-row {
+    flex: 0 0 auto;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-insights-row > [id],
+  .dashboard-shell.lesson-dashboard .dashboard-detail-row > [id] {
+    display: flex;
+  }
+
+  .dashboard-shell.lesson-dashboard .dashboard-insights-row > [id] > .card,
+  .dashboard-shell.lesson-dashboard .dashboard-detail-row > [id] > .card {
+    width: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard #inventory-panel .card-body {
+    display: flex;
+    flex-direction: column;
+    max-height: var(--imsim-size-dashboard-panel-max);
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard #inventory-table-shell,
+  .dashboard-shell.lesson-dashboard .table-scroll-shell {
+    max-height: 100%;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-layout {
+    display: grid;
+    grid-template-columns:
+      minmax(var(--imsim-size-lesson-grid-min), var(--imsim-size-lesson-grid-max))
+      minmax(0, 1fr);
+    grid-template-rows: min-content min-content minmax(0, 1fr);
+    grid-template-areas:
+      "actions graph"
+      "service graph"
+      "session inventory";
+    gap: 0.3rem;
+    align-items: stretch;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-detail-row {
+    display: contents;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel {
+    padding: 0;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    flex: 0 0 auto !important;
+    display: flex;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel {
+    grid-area: actions;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel {
+    grid-area: service;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel {
+    grid-area: session;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel {
+    grid-area: graph;
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel {
+    grid-area: inventory;
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel > .card {
+    width: 100%;
+    max-width: none;
+    margin: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel > .card {
+    height: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card > .card-body {
+    padding: 0.9rem 1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel {
+    min-height: 25rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-main-layout {
+    display: grid;
+    grid-template-columns:
+      minmax(var(--imsim-size-lesson-grid-min), var(--imsim-size-lesson-grid-max))
+      minmax(0, 1fr);
+    grid-template-rows: min-content minmax(0, 1fr);
+    grid-template-areas:
+      "service graph"
+      "session graph";
+    gap: 0.4rem;
+    align-items: stretch;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-main-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-detail-row {
+    display: contents;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #graph-panel {
+    padding: 0;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    flex: 0 0 auto !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel {
+    margin-top: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel {
+    grid-area: service;
+    display: flex;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel {
+    grid-area: session;
+    display: flex;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #graph-panel {
+    grid-area: graph;
+    display: flex;
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #graph-panel > .card {
+    width: 100%;
+    max-width: none;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel > .card {
+    height: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .session-card {
+    margin-top: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel .card-body,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .card-body {
+    padding: 0.8rem 0.85rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel .panel-title-small,
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .panel-label {
+    margin-bottom: 0.35rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel > .card > .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .status-value {
+    font-size: 1.6rem;
+    margin-bottom: 0.1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .status-copy {
+    margin-bottom: 0.15rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .speed-readout {
+    margin-bottom: 0.25rem;
+    min-height: 2.2rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .control-label.mt-3 {
+    margin-top: 0.45rem !important;
+    margin-bottom: 0.1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .sim-speed-slider {
+    margin: 0 0 0.15rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel #asq-apply-feedback {
+    margin-top: 0.25rem !important;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .lesson-compact-summary {
+    align-items: flex-start;
+  }
+
+  .lesson-compact-chip {
+    white-space: normal;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .lesson-intro-header {
+    padding: 1.25rem 1.15rem 0.75rem;
+  }
+
+  .lesson-intro-body {
+    padding: 0 1.15rem 1rem;
+  }
+
+  .lesson-intro-footer {
+    padding: 0 1.15rem 1.15rem;
+  }
+
+  .lesson-intro-title {
+    font-size: 1.9rem;
+  }
+  .footer-card {
+    position: static;
+    width: auto;
+    margin-top: 1rem;
+  }
+
+  .hero-title {
+    max-width: none;
+  }
+
+  .hero-actions-wrap,
+  .hero-actions-compact {
+    justify-content: flex-start;
+  }
+
+  .session-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

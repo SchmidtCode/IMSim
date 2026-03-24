@@ -1,0 +1,13 @@
+.git
+.github
+.noncommits
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+build
+dist
+var
+data

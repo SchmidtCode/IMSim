@@ -1,69 +1,118 @@
-# IMSim (Inventory Management Simulator)
+# IMSim
+
+IMSim is an inventory management training app built with Dash 4. It now starts with an academy-style lesson path that teaches order points, fill rate, PNA, review cycles, and dashboard controls step by step before unlocking the full simulator.
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://imsim.pythonanywhere.com/)
-**Live demo:** https://imsim.pythonanywhere.com/
 
-A lightweight simulator to experiment with inventory policies. It models **PNA** (Projected Net Available) in **days from OP** (Order Point), with live ticks, item uploads, and quick ordering actions. Built with **Dash 3.2.0**.
+## Highlights
 
-**Highlights**
-- Live simulation with adjustable tick speed
-- **ASQ OP Adjuster** (raise OP to observed ASQ with guardrails)
-- **Auto-POs** (place SOQs automatically when PNA ≤ LP)
-- PO management: **overview, expedite, cancel**
-- Costing & P&L: ordering, holding, stockout, expedite, **COGS & revenue/GM**
-- Pack-aware **sales engine** (no rounding inflation; distributors can break packs)
-- File upload (CSV/Excel) with header normalization + validation preview
-- KPI strip and visualization overlays (PNA, PNA+SOQ, 0 PNA, On-Hand)
-- Simple persistence to `data/user_data.json`
-- Admin maintenance API (+ graceful shutdown banner & watchdog)
-- Dark UI via Bootstrap (Darkly)
+- Dash 4 app factory under `src/imsim/` with installable package and WSGI entrypoint
+- Training-first UI with academy menu, unlockable lessons, lesson objectives, and a full simulator reward
+- Inventory policy engine for OP, LP, EOQ, OQ, SOQ, pack rounding, and auto-PO behavior
+- Deterministic early lessons for clean tutorial concepts plus stochastic later lessons for real-world behavior
+- Daily demand simulation with stockout, holding, expedite, purchase, revenue, and COGS tracking
+- ASQ OP adjuster with min-hit and max-dollar guardrails
+- Session persistence through a repository abstraction with PostgreSQL support and file fallback
+- CSV and XLSX import flow with header normalization and preview validation
+- Docker, CI, tests, and tracked `uv.lock` for reproducible development
 
----
+## Quickstart
 
-## Requirements
-
-- **Python**: 3.10 (project pinned via `.python-version`; tested on 3.10)
-- **uv**: package & environment manager  
-  Install:
-  - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-  - Windows (PowerShell): `iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex`
-
----
-
-## Quickstart (uv)
+### Local with `uv`
 
 ```bash
 git clone https://github.com/SchmidtCode/IMSim
 cd IMSim
-
-# Ensure the pinned Python from .python-version is available
 uv python install
+uv sync --group dev
+uv run imsim
+```
 
-# Install project dependencies from pyproject.toml / uv.lock
-uv sync
+The app starts on `http://127.0.0.1:8050/`.
 
-# Run (no manual venv activation needed)
+If you want PostgreSQL-backed session storage locally without Docker, set:
+
+```bash
+export IMSIM_DATABASE_URL="postgresql+psycopg://imsim:imsim@localhost:5432/imsim"
+uv run imsim
+```
+
+Legacy entrypoint support is still available:
+
+```bash
 uv run python app.py
-````
+```
 
-App will be at [http://127.0.0.1:8050/](http://127.0.0.1:8050/)
+### Docker
 
----
+Standalone container with file-backed sessions:
 
-## Basic usage
+```bash
+docker build -t imsim .
+docker run --rm -p 8050:8050 imsim
+```
 
-1. **Parameters**: Set Review Cycle (days), R-Cost (\$), K-Cost (%), Stockout Penalty (\$/unit), Expedite Rate (%/day), Global GM (%).
-   Optionally enable **Auto Purchase Orders**.
-2. **Add Items**: Use **Add Item** (manual form) or **Upload Items** (CSV/XLS/XLSX).
-3. **Run**: Click **Start/Pause Simulation**. The **Simulation Speed (ms)** slider updates the tick interval immediately.
-4. **Orders**: Use **Place Purchase Order** (SOQs for all items) or **Place Custom Order** for per-item quantities.
-5. **PO Overview**: Inspect open receipts; **expedite by 1 day** (adds expedite cost) or **cancel** a receipt.
+PostgreSQL-backed stack with multi-worker Gunicorn defaults:
 
----
+```bash
+docker compose up --build
+```
+
+Compose injects `IMSIM_DATABASE_URL`, so the container uses PostgreSQL-backed sessions and
+scales Gunicorn through the shared config in `imsim.gunicorn_config`.
+
+## Runtime configuration
+
+| Variable | Purpose |
+| --- | --- |
+| `IMSIM_DATABASE_URL` | Optional SQLAlchemy database URL for session persistence. If set, the app uses the database instead of filesystem JSON. |
+| `IMSIM_DATA_DIR` | Directory for persisted session JSON files. Defaults to `var/sessions/`. |
+| `IMSIM_GUNICORN_WORKERS` | Optional Gunicorn worker count for container/Procfile deploys. Defaults to `4` with a database URL, otherwise `1`. |
+| `IMSIM_GUNICORN_THREADS` | Optional Gunicorn thread count. Defaults to `2` with a database URL, otherwise `1`. |
+| `IMSIM_GUNICORN_TIMEOUT` | Optional Gunicorn request timeout in seconds. Defaults to `120`. |
+| `IMSIM_ADMIN_TOKEN` | Optional bearer or `X-IMSIM-ADMIN-TOKEN` value for maintenance endpoints. |
+| `ALLOW_DEV_SHUTDOWN` | Enables the `/shutdown` endpoint for local development. |
+| `SHUTDOWN_URL` | Retained for compatibility with prior deployments. Internal shutdown no longer self-posts to this URL. |
+| `IMSIM_GITHUB_URL` | Footer link override. |
+| `IMSIM_HOST` / `IMSIM_PORT` / `IMSIM_DEBUG` | App run settings for `python -m imsim`. Standard `HOST` / `PORT` env vars are also honored for platform deploys. |
+
+## Free hosting recommendation
+
+For a lightweight public demo, the simplest free setup for IMSim today is:
+
+- Render Free Web Service for the Dash app
+- Aiven Free PostgreSQL for session persistence
+
+This split matters because Render's free Postgres offering currently expires 30 days after creation, so it is not a good fit for a reusable demo database.
+
+### Why this works well
+
+- This repo already includes a production `Dockerfile` and Gunicorn entrypoint
+- `render.yaml` is included for a one-service Render deploy
+- The app now honors platform-provided `PORT`, which removes a common free-hosting issue
+- IMSim already accepts either `IMSIM_DATABASE_URL` or `DATABASE_URL`
+
+### Deploy steps
+
+1. Create a free PostgreSQL instance on Aiven.
+2. Copy the connection string and append SSL mode if Aiven requires it, for example: ```postgresql+psycopg://USER:PASSWORD@HOST:PORT/DBNAME?sslmode=require```
+3. On Render, create a new Blueprint service from this GitHub repo. Render will read `render.yaml`.
+4. In the Render dashboard, set `DATABASE_URL` to the Aiven connection string.
+5. Deploy and share the generated `onrender.com` URL.
+
+### Free-tier tradeoffs
+
+- Render free web services spin down after 15 minutes idle and take roughly a minute to wake up
+- Render free web services use an ephemeral filesystem, so database-backed sessions are the correct setup
+- The included `render.yaml` uses `1` Gunicorn worker to stay conservative on free-instance memory
+
+### GitHub-hosted images
+
+The app does not currently depend on a separate image bucket. Frontend assets are served by Dash from `assets/`. If you later want lesson images or marketing screenshots to load from GitHub raw URLs, that can be added as a small config-driven enhancement.
 
 ## Upload format
 
-The uploader expects **7 numeric columns** (all values **> 0**, except PNA which may be 0) in this order:
+Uploads accept `.csv` and `.xlsx` files with these seven numeric columns:
 
 1. `Usage Rate`
 2. `Lead Time`
@@ -73,113 +122,78 @@ The uploader expects **7 numeric columns** (all values **> 0**, except PNA which
 6. `Standard Pack`
 7. `Hits Per Month`
 
-**Header aliases** are accepted (e.g., `usage rate`, `lead time (days)`, `safety_allowance_pct`, etc.). The preview validates and shows any issues before import.
+Common header aliases are normalized automatically. The import preview rejects missing columns, duplicate logical columns, non-numeric values, and non-positive inputs other than `Initial PNA`.
 
----
+## Development
 
-## Simulation details
+### Commands
 
-* **Hits per day**: Poisson with λ = `hits_per_month / 30`.
-* **Sales per hit**: Poisson **in pack-space** (λ = `avg_sale_qty / standard_pack`) and then re-scaled to units to avoid demand inflation from rounding. This matches real behavior where distributors often break packs.
-* **PNA vs On-Hand**:
-  PNA = On-Hand + On-Order − Backorder. The graph shows:
+```bash
+uv run pytest
+uv run ruff check .
+uv run ruff format .
+uv build
+docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 git . --config .gitleaks.toml --redact --verbose --no-banner
+```
 
-  * **Current PNA (days from OP)**
-  * **PNA + SOQ (days from OP)** for items at/under LP
-  * **0 PNA (days from OP)**
-  * **On-Hand (days from OP)** — orange “x” marker for “close to stockout” read
-* **Price & GM**: Global GM% sets price via `price_per_unit = item_cost / (1 - GM)` and applies a `realization` factor for realized revenue. Sales/COGS update only when units ship.
+CI also runs `gitleaks` on every push and pull request with the repository's full git history.
 
----
+### Repo layout
 
-## Planning & ordering
+```text
+src/imsim/        package code, app factory, callbacks, services, and models
+assets/           custom CSS and Dash-served frontend assets
+examples/         tracked sample input files
+tests/            unit and app/API coverage
+var/sessions/     runtime session storage (gitignored)
+```
 
-* **OP** (order point) = expected demand over lead time + safety stock
-* **LP** (line point) = OP + demand over review cycle
-* **EOQ/OQ**: EOQ via classic square-root formula; OQ bounded by RC demand and \~12 months demand
-* **SOQ policy**:
+### WSGI and deployment
 
-  * If PNA > LP ⟶ 0
-  * If OP < PNA ≤ LP ⟶ OQ
-  * If PNA ≤ OP ⟶ OQ + (OP − PNA)
-    SOQs are **rounded up to pack**.
-* **Auto-POs**: When enabled, the system places SOQs each tick for items at/under LP.
-* **Custom Orders**: Enter any quantity per item; quantities are rounded to the item’s **Standard Pack**.
+- Package entrypoint: `uv run imsim`
+- Module entrypoint: `uv run python -m imsim`
+- WSGI target: `imsim.wsgi:server`
+- Gunicorn config module: `python:imsim.gunicorn_config`
+- Procfile target: `gunicorn --config python:imsim.gunicorn_config imsim.wsgi:server`
 
----
+## Maintenance API
 
-## ASQ OP Adjuster
+If `IMSIM_ADMIN_TOKEN` is set, send it as either:
 
-**Goal:** When observed **Average Sale Quantity (ASQ = usage ÷ line hits)** persistently exceeds the raw OP, raise OP to ASQ with guardrails.
+- `Authorization: Bearer <token>`
+- `X-IMSIM-ADMIN-TOKEN: <token>`
 
-* **Tracked each period** (rolling “month” = configurable **Period (Days)**)
-* **Pre-conditions**:
+Endpoints:
 
-  * Adjuster is enabled
-  * **Min Line Hits** met
-  * **Max \$ Diff** not exceeded (`(ASQ − rawOP) * item_cost`)
-* **Action**: If `ASQ > raw OP`, set OP ← ASQ (recompute LP/OQ/deriveds); counters reset each period.
-* **Manual month-end**: “Apply Month-End (ASQ) Now”.
-* **Exception Center**: Skipped adjustments (e.g., Max \$ Diff) are logged with context.
+- `POST /api/admin/schedule_shutdown`
+- `POST /api/admin/cancel_shutdown`
+- `GET /api/admin/shutdown_status`
 
----
+During the final minute, running sessions are paused and the UI is locked. Session data is persisted before shutdown handling.
 
-## Costs, sales & KPIs
+## Persistence backends
 
-* **Costs**: ordering, holding (daily), stockout, expedite; **purchases** (COGS of receipts) are tracked separately.
-* **Sales**: revenue, COGS, units sold.
-* **KPI strip** shows Day, Fill Rate (cumulative), Sales, COGS, Inventory Overhead, and GM% (with tooltip for after-overhead GM).
+- Default local behavior: file-backed sessions under `var/sessions/` or `IMSIM_DATA_DIR`
+- Database behavior: set `IMSIM_DATABASE_URL` to any supported SQLAlchemy URL
+- Docker Compose default: PostgreSQL-backed sessions using the bundled `db` service
+- Database-backed sessions are the recommended path for higher Gunicorn worker counts
 
----
+## Container publishing
 
-## PO overview & actions
+GitHub Actions now builds and publishes a container image to GHCR on pushes to `main` / `master`
+and on version tags. The compose file accepts `IMSIM_IMAGE` if you want to deploy a specific tag:
 
-* **Overview modal** lists open receipts with ETA and days left.
-* **Expedite −1 day** (if ETA ≥ today+2): charges `qty * item_cost * expedite_rate * 1 day`.
-* **Cancel**: removes the receipt and refreshes derived planning.
+```bash
+export IMSIM_IMAGE=ghcr.io/schmidtcode/imsim:latest
+docker compose pull
+docker compose up -d
+```
 
----
+## Example data
 
-## Persistence
-
-State is stored to **`data/user_data.json`**. A per-process watchdog/baseline autosave runs during maintenance shutdowns.
-
----
-
-## Maintenance API (admin)
-
-Optional admin endpoints to schedule/cancel maintenance. If `IMSIM_ADMIN_TOKEN` is set, it is required either as:
-
-* `Authorization: Bearer <token>` or
-* `X-IMSIM-ADMIN-TOKEN: <token>`
-
-**Endpoints**
-
-* `POST /api/admin/schedule_shutdown`
-  Body: `{"minutes": <float>, "message": "<string>"}`
-* `POST /api/admin/cancel_shutdown`
-* `GET  /api/admin/shutdown_status`
-
-During the final minute, sessions are paused and the Start button is disabled; at T≈0 the app saves and triggers a graceful shutdown.
-
-**Dev-only:** `POST /shutdown` is available when `ALLOW_DEV_SHUTDOWN=1`. `SHUTDOWN_URL` can override the default local endpoint.
-
----
-
-## Notes for development
-
-* **Dash**: 3.2.0
-* **Change deps**: `uv add <package>` then `uv sync`
-* **Run with a specific Python**:
-  `uv venv --python 3.10 && uv sync && uv run python app.py`
-* **Env (optional)**:
-
-  * `IMSIM_ADMIN_TOKEN=<token>` (protect maintenance API)
-  * `ALLOW_DEV_SHUTDOWN=1` (enable local `/shutdown`)
-  * `SHUTDOWN_URL=http://127.0.0.1:8050/shutdown`
-
----
+- `examples/sample-items.csv`
+- `examples/Example.xlsx`
 
 ## License
 
-Apache-2.0 — see `LICENSE`.
+Apache-2.0. See `LICENSE`.

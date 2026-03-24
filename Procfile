@@ -1,1 +1,1 @@
-web: gunicorn app:server --workers 4
+web: gunicorn --config python:imsim.gunicorn_config imsim.wsgi:server

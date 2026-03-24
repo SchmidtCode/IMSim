@@ -1,0 +1,4 @@
+title = "IMSim gitleaks config"
+
+[extend]
+useDefault = true
