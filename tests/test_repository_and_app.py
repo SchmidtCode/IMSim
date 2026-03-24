@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 import imsim.config as config_module
 from imsim.app import create_app
 from imsim.callbacks import _triggered_click_count
@@ -10,6 +12,7 @@ from imsim.models import SimulationState
 from imsim.repository import (
     DatabaseSessionRepository,
     FileSessionRepository,
+    SessionConflictError,
     create_session_repository,
 )
 
@@ -60,6 +63,21 @@ def test_file_repository_pause_all_scans_disk(test_config):
     assert repo_two.get_or_create("beta").is_initialized is False
 
 
+def test_file_repository_rejects_stale_save(test_config):
+    repo_one = FileSessionRepository(test_config)
+    repo_two = FileSessionRepository(test_config)
+
+    state_one = repo_one.get_or_create("shared")
+    state_two = repo_two.get_or_create("shared")
+
+    state_one.day = 9
+    repo_one.save("shared", state_one)
+
+    state_two.day = 11
+    with pytest.raises(SessionConflictError):
+        repo_two.save("shared", state_two)
+
+
 def test_database_repository_persists_state(tmp_path):
     repo_root = Path.cwd()
     config = IMSimConfig(
@@ -84,6 +102,36 @@ def test_database_repository_persists_state(tmp_path):
     loaded = repo.get_or_create("db-session")
 
     assert loaded.day == 17
+
+
+def test_database_repository_rejects_stale_save(tmp_path):
+    repo_root = Path.cwd()
+    config = IMSimConfig(
+        repo_root=repo_root,
+        assets_dir=repo_root / "assets",
+        session_dir=tmp_path / "sessions",
+        examples_dir=repo_root / "examples",
+        database_url=f"sqlite+pysqlite:///{tmp_path / 'imsim.db'}",
+        github_url="https://example.com/imsim",
+        admin_token=None,
+        allow_dev_shutdown=False,
+        shutdown_url=None,
+        host="127.0.0.1",
+        port=8050,
+        debug=False,
+    )
+    repo_one = DatabaseSessionRepository(config)
+    repo_two = DatabaseSessionRepository(config)
+
+    state_one = repo_one.get_or_create("db-shared")
+    state_two = repo_two.get_or_create("db-shared")
+
+    state_one.day = 5
+    repo_one.save("db-shared", state_one)
+
+    state_two.day = 8
+    with pytest.raises(SessionConflictError):
+        repo_two.save("db-shared", state_two)
 
 
 def test_repository_factory_prefers_database(tmp_path):

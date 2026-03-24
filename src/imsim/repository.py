@@ -8,11 +8,16 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Protocol
 
-from sqlalchemy import JSON, DateTime, String, create_engine, select
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+from sqlalchemy import JSON, DateTime, Integer, String, create_engine, inspect, select, text, update
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from .config import IMSimConfig
 from .models import SimulationState, default_state
+
+
+class SessionConflictError(RuntimeError):
+    pass
 
 
 class SessionRepository(Protocol):
@@ -36,6 +41,7 @@ class SessionStateRecord(Base):
 
     session_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     state_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -55,12 +61,31 @@ class FileSessionRepository:
             state = self._load_path(path)
             if state is None:
                 state = default_state()
+                state.revision = 1
                 self._write_path(path, state)
             return state.clone()
 
     def save(self, session_id: str, state: SimulationState) -> None:
         with self._lock:
-            self._write_path(self.path_for(session_id), state.clone())
+            path = self.path_for(session_id)
+            current = self._load_path(path)
+            if current is None:
+                if state.revision > 0:
+                    raise SessionConflictError(f"Session {session_id} no longer exists.")
+                snapshot = state.clone()
+                snapshot.revision = 1
+                self._write_path(path, snapshot)
+                state.revision = snapshot.revision
+                return
+            if current.revision != state.revision:
+                raise SessionConflictError(
+                    f"Session {session_id} changed from revision "
+                    f"{state.revision} to {current.revision}."
+                )
+            snapshot = state.clone()
+            snapshot.revision = current.revision + 1
+            self._write_path(path, snapshot)
+            state.revision = snapshot.revision
 
     def reset(self, session_id: str) -> SimulationState:
         state = default_state()
@@ -74,6 +99,7 @@ class FileSessionRepository:
                 if state is None:
                     continue
                 state.is_initialized = False
+                state.revision += 1
                 self._write_path(path, state)
 
     def persist_all(self) -> None:
@@ -120,7 +146,7 @@ class DatabaseSessionRepository:
             pool_pre_ping=True,
             connect_args=connect_args,
         )
-        Base.metadata.create_all(self._engine)
+        self._initialize_schema()
         self._session_factory = sessionmaker(self._engine, expire_on_commit=False)
         self._lock = RLock()
 
@@ -129,15 +155,68 @@ class DatabaseSessionRepository:
             record = session.get(SessionStateRecord, session_id)
             if record is None:
                 state = default_state()
-                self._upsert(session, session_id, state)
-                session.commit()
-                return state.clone()
-            return SimulationState.from_dict(record.state_json)
+                state.revision = 1
+                session.add(
+                    SessionStateRecord(
+                        session_id=session_id,
+                        state_json=state.to_dict(),
+                        revision=state.revision,
+                        updated_at=datetime.now(UTC),
+                    )
+                )
+                try:
+                    session.commit()
+                    return state.clone()
+                except IntegrityError:
+                    session.rollback()
+                    record = session.get(SessionStateRecord, session_id)
+                    if record is None:
+                        raise
+            return self._state_from_record(record)
 
     def save(self, session_id: str, state: SimulationState) -> None:
         with self._lock, self._session_factory() as session:
-            self._upsert(session, session_id, state)
+            if state.revision <= 0:
+                snapshot = state.clone()
+                snapshot.revision = 1
+                session.add(
+                    SessionStateRecord(
+                        session_id=session_id,
+                        state_json=snapshot.to_dict(),
+                        revision=snapshot.revision,
+                        updated_at=datetime.now(UTC),
+                    )
+                )
+                try:
+                    session.commit()
+                except IntegrityError as exc:
+                    session.rollback()
+                    raise SessionConflictError(
+                        f"Session {session_id} was created concurrently."
+                    ) from exc
+                state.revision = snapshot.revision
+                return
+            snapshot = state.clone()
+            snapshot.revision = state.revision + 1
+            result = session.execute(
+                update(SessionStateRecord)
+                .where(
+                    SessionStateRecord.session_id == session_id,
+                    SessionStateRecord.revision == state.revision,
+                )
+                .values(
+                    state_json=snapshot.to_dict(),
+                    revision=snapshot.revision,
+                    updated_at=datetime.now(UTC),
+                )
+            )
+            if result.rowcount != 1:
+                session.rollback()
+                raise SessionConflictError(
+                    f"Session {session_id} changed from revision {state.revision}."
+                )
             session.commit()
+            state.revision = snapshot.revision
 
     def reset(self, session_id: str) -> SimulationState:
         state = default_state()
@@ -148,29 +227,50 @@ class DatabaseSessionRepository:
         with self._lock, self._session_factory() as session:
             records = session.scalars(select(SessionStateRecord)).all()
             for record in records:
-                state = SimulationState.from_dict(record.state_json)
+                state = self._state_from_record(record)
                 state.is_initialized = False
+                state.revision += 1
                 record.state_json = state.to_dict()
+                record.revision = state.revision
                 record.updated_at = datetime.now(UTC)
             session.commit()
 
     def persist_all(self) -> None:
         return None
 
-    def _upsert(self, session: Session, session_id: str, state: SimulationState) -> None:
-        payload = state.to_dict()
-        record = session.get(SessionStateRecord, session_id)
-        if record is None:
-            session.add(
-                SessionStateRecord(
-                    session_id=session_id,
-                    state_json=payload,
-                    updated_at=datetime.now(UTC),
-                )
-            )
+    def _initialize_schema(self) -> None:
+        lock_id = 1847349125
+        with self._engine.begin() as connection:
+            if self._engine.dialect.name == "postgresql":
+                connection.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
+            try:
+                Base.metadata.create_all(connection)
+                self._ensure_revision_column(connection)
+            finally:
+                if self._engine.dialect.name == "postgresql":
+                    connection.execute(
+                        text("SELECT pg_advisory_unlock(:lock_id)"),
+                        {"lock_id": lock_id},
+                    )
+
+    def _ensure_revision_column(self, connection) -> None:
+        inspector = inspect(connection)
+        if "session_states" not in inspector.get_table_names():
             return
-        record.state_json = payload
-        record.updated_at = datetime.now(UTC)
+        columns = {column["name"] for column in inspector.get_columns("session_states")}
+        if "revision" in columns:
+            return
+        connection.execute(
+            text(
+                "ALTER TABLE session_states "
+                "ADD COLUMN revision INTEGER NOT NULL DEFAULT 1"
+            )
+        )
+
+    def _state_from_record(self, record: SessionStateRecord) -> SimulationState:
+        state = SimulationState.from_dict(record.state_json)
+        state.revision = max(1, int(record.revision))
+        return state
 
 
 def create_session_repository(config: IMSimConfig) -> SessionRepository:

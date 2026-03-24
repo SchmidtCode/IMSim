@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: imsim
       POSTGRES_USER: imsim
@@ -14,7 +15,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   app:
+    image: ${IMSIM_IMAGE:-ghcr.io/schmidtcode/imsim:latest}
     build: .
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
@@ -22,6 +25,8 @@ services:
       IMSIM_HOST: 0.0.0.0
       IMSIM_PORT: 8050
       IMSIM_DATABASE_URL: postgresql+psycopg://imsim:imsim@db:5432/imsim
+      IMSIM_GUNICORN_WORKERS: 4
+      IMSIM_GUNICORN_THREADS: 2
     ports:
       - "8050:8050"
 

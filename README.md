@@ -52,11 +52,14 @@ docker build -t imsim .
 docker run --rm -p 8050:8050 imsim
 ```
 
-PostgreSQL-backed stack:
+PostgreSQL-backed stack with multi-worker Gunicorn defaults:
 
 ```bash
 docker compose up --build
 ```
+
+Compose injects `IMSIM_DATABASE_URL`, so the container uses PostgreSQL-backed sessions and
+scales Gunicorn through the shared config in `imsim.gunicorn_config`.
 
 ## Runtime configuration
 
@@ -64,6 +67,9 @@ docker compose up --build
 | --- | --- |
 | `IMSIM_DATABASE_URL` | Optional SQLAlchemy database URL for session persistence. If set, the app uses the database instead of filesystem JSON. |
 | `IMSIM_DATA_DIR` | Directory for persisted session JSON files. Defaults to `var/sessions/`. |
+| `IMSIM_GUNICORN_WORKERS` | Optional Gunicorn worker count for container/Procfile deploys. Defaults to `4` with a database URL, otherwise `1`. |
+| `IMSIM_GUNICORN_THREADS` | Optional Gunicorn thread count. Defaults to `2` with a database URL, otherwise `1`. |
+| `IMSIM_GUNICORN_TIMEOUT` | Optional Gunicorn request timeout in seconds. Defaults to `120`. |
 | `IMSIM_ADMIN_TOKEN` | Optional bearer or `X-IMSIM-ADMIN-TOKEN` value for maintenance endpoints. |
 | `ALLOW_DEV_SHUTDOWN` | Enables the `/shutdown` endpoint for local development. |
 | `SHUTDOWN_URL` | Retained for compatibility with prior deployments. Internal shutdown no longer self-posts to this URL. |
@@ -113,7 +119,8 @@ var/sessions/     runtime session storage (gitignored)
 - Package entrypoint: `uv run imsim`
 - Module entrypoint: `uv run python -m imsim`
 - WSGI target: `imsim.wsgi:server`
-- Procfile target: `gunicorn imsim.wsgi:server --workers 4`
+- Gunicorn config module: `python:imsim.gunicorn_config`
+- Procfile target: `gunicorn --config python:imsim.gunicorn_config imsim.wsgi:server`
 
 ## Maintenance API
 
@@ -135,6 +142,18 @@ During the final minute, running sessions are paused and the UI is locked. Sessi
 - Default local behavior: file-backed sessions under `var/sessions/` or `IMSIM_DATA_DIR`
 - Database behavior: set `IMSIM_DATABASE_URL` to any supported SQLAlchemy URL
 - Docker Compose default: PostgreSQL-backed sessions using the bundled `db` service
+- Database-backed sessions are the recommended path for higher Gunicorn worker counts
+
+## Container publishing
+
+GitHub Actions now builds and publishes a container image to GHCR on pushes to `main` / `master`
+and on version tags. The compose file accepts `IMSIM_IMAGE` if you want to deploy a specific tag:
+
+```bash
+export IMSIM_IMAGE=ghcr.io/schmidtcode/imsim:latest
+docker compose pull
+docker compose up -d
+```
 
 ## Example data
 

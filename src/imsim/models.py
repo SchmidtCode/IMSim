@@ -322,6 +322,7 @@ class TrainingProfile:
 
 @dataclass(slots=True)
 class SimulationState:
+    revision: int = 0
     global_settings: GlobalSettings = field(default_factory=GlobalSettings)
     items: list[InventoryItem] = field(default_factory=list)
     day: int = 1
@@ -339,6 +340,7 @@ class SimulationState:
     def from_dict(cls, data: dict[str, Any] | None) -> SimulationState:
         data = deepcopy(data or {})
         return cls(
+            revision=max(0, int(data.get("revision", 0))),
             global_settings=GlobalSettings.from_dict(data.get("global_settings")),
             items=[InventoryItem.from_dict(item) for item in data.get("items", [])],
             day=int(data.get("day", 1)),

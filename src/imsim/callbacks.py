@@ -10,7 +10,7 @@ from dash import ALL, Input, Output, State, ctx, html
 from dash.exceptions import PreventUpdate
 
 from .models import default_state
-from .repository import SessionRepository
+from .repository import SessionConflictError, SessionRepository
 from .services.asq import apply_asq_month_end
 from .services.planning import (
     create_inventory_item,
@@ -76,6 +76,12 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         if not session_id:
             raise PreventUpdate
         return session_id, repository.get_or_create(session_id)
+
+    def _persist_state(session_id: str, state) -> None:
+        try:
+            repository.save(session_id, state)
+        except SessionConflictError as exc:
+            raise PreventUpdate from exc
 
     def _theme_name(theme: str | None) -> str:
         return "dark" if theme == "dark" else "light"
@@ -308,7 +314,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             next_state = build_level_state(level.level_id, state.training)
         else:
             raise PreventUpdate
-        repository.save(session_id, next_state)
+        _persist_state(session_id, next_state)
         label, class_name = _start_button_state(next_state, running=False)
         reset_label = (
             "Reset Sandbox" if next_state.training.current_view == "simulator" else "Restart Lesson"
@@ -551,7 +557,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         if state.training.current_view != "lesson":
             raise PreventUpdate
         state.training.lesson_intro_dismissed = True
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         return client_data, _next_ui_refresh(ui_refresh)
 
     @app.callback(
@@ -642,7 +648,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         if not state.is_initialized or not state.items:
             raise PreventUpdate
         summary = tick_state(state)
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         feedback = dash.no_update
         if summary["asq_changed"]:
             feedback = dbc.Alert(
@@ -709,11 +715,11 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 if state.training.current_view == "lesson"
                 else state.training.lesson_status
             )
-            repository.save(session_id, state)
+            _persist_state(session_id, state)
             label, class_name = _start_button_state(state, running=True)
             return "Status: Running", False, label, class_name, _next_ui_refresh(ui_refresh)
         state.is_initialized = False
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         label, class_name = _start_button_state(state, running=False, resumable=True)
         return "Status: Paused", True, label, class_name, _next_ui_refresh(ui_refresh)
 
@@ -754,7 +760,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             state = build_simulator_state(current.training)
         else:
             state = reset_progress_state()
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         store = {"uuid": session_id} if session_id != "__bootstrap__" else client_data or {}
         label, class_name = _start_button_state(state, running=False)
         return (
@@ -899,7 +905,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 hits_per_month=hits_per_month,
             )
         )
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         figure = build_inventory_figure(state, _theme_name(theme))
         return (
             False,
@@ -1047,7 +1053,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         state.global_settings.asq.include_transfers = _toggle_enabled(asq_include_transfers)
         for item in state.items:
             update_gs_related_values(item, state.global_settings)
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         return (
             dbc.Alert("Parameters updated.", color="success", duration=3000),
             build_inventory_figure(state, _theme_name(theme)),
@@ -1095,7 +1101,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 dash.no_update,
             )
         summary = apply_asq_month_end(state)
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         return (
             dbc.Alert(
                 f"ASQ applied on {summary['changed']} item(s).",
@@ -1132,7 +1138,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         summary = place_purchase_orders(state)
         if summary["lines"] > 0:
             record_guided_order(state)
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         return (
             build_inventory_figure(state, _theme_name(theme)),
             costs_card_children(state),
@@ -1184,7 +1190,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             if not is_action_allowed(state, "custom_order"):
                 raise PreventUpdate
             state.is_initialized = False
-            repository.save(session_id, state)
+            _persist_state(session_id, state)
             label, class_name = _start_button_state(state, running=False, resumable=True)
             return (
                 dash.no_update,
@@ -1223,7 +1229,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         changed = place_custom_orders(state, list(order_quantities or []))
         if changed:
             record_custom_order(state)
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         child_rows = rows if state.items else dbc.Alert("No items available.", color="warning")
         label, class_name = _start_button_state(state, running=False, resumable=True)
         return (
@@ -1340,7 +1346,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                     hits_per_month=float(record["hits_per_month"]),
                 )
             )
-        repository.save(session_id, state)
+        _persist_state(session_id, state)
         return (
             build_inventory_figure(state, _theme_name(theme)),
             dbc.Alert(f"Imported {len(df)} items successfully.", color="success"),
@@ -1425,7 +1431,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             if not is_action_allowed(state, action_name):
                 raise PreventUpdate
             expedite_or_cancel_receipt(state, trig["rid"], action)
-            repository.save(session_id, state)
+            _persist_state(session_id, state)
         table = build_po_overview_table(state)
         return (
             is_open,
