@@ -420,9 +420,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
                 else "Inventory signal map"
             )
         )
-        service_panel_title = (
-            "Lesson snapshot" if level is not None and level.index == 1 else "Service"
-        )
+        service_panel_title = "Lesson snapshot" if level is not None else "Service"
         start_label, start_class = _start_button_state(
             state,
             running=state.is_initialized,
@@ -1081,8 +1079,9 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         session_id, state = _require_session(client_data)
         if not state.items or not is_action_allowed(state, "guided_po"):
             raise PreventUpdate
-        place_purchase_orders(state)
-        record_guided_order(state)
+        summary = place_purchase_orders(state)
+        if summary["lines"] > 0:
+            record_guided_order(state)
         repository.save(session_id, state)
         return (
             build_inventory_figure(state, _theme_name(theme)),

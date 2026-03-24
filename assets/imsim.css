@@ -423,6 +423,40 @@ body {
   background: var(--imsim-session-bg);
 }
 
+.session-metrics-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.session-primary-block,
+.session-speed-block {
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-2xl);
+  background: rgba(10, 19, 32, 0.34);
+  padding: 0.85rem 0.95rem;
+}
+
+.session-primary-block .status-value {
+  margin-bottom: 0.1rem;
+  margin-top: 0;
+}
+
+.session-primary-block .status-copy {
+  margin-bottom: 0;
+}
+
+.session-speed-block .control-label {
+  margin-bottom: 0.35rem;
+}
+
+.session-speed-block .speed-readout {
+  margin: 0 0 0.55rem;
+}
+
+.session-speed-block .sim-speed-slider {
+  margin-bottom: 0;
+}
+
 .panel-title {
   font-size: 1.5rem;
   margin-bottom: 1rem;
@@ -1137,6 +1171,10 @@ body {
   gap: 0.5rem;
 }
 
+.dashboard-shell.lesson-dashboard .lesson-compact-summary {
+  margin-top: 0.55rem !important;
+}
+
 .dashboard-shell.lesson-dashboard .dashboard-main-layout {
   margin: 0 !important;
   min-height: 0;
@@ -1178,6 +1216,23 @@ body {
   padding-block: 0.72rem;
 }
 
+.dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-stack {
+  gap: 0.45rem;
+}
+
+.dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-block {
+  gap: 0.22rem;
+}
+
+.dashboard-shell.lesson-dashboard #service-panel .lesson-service-table th,
+.dashboard-shell.lesson-dashboard #service-panel .lesson-service-table td {
+  padding: 0.48rem 0.55rem;
+}
+
+.dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-label {
+  font-size: 0.68rem;
+}
+
 .dashboard-shell.lesson-dashboard .inventory-table {
   min-width: 0;
 }
@@ -1207,6 +1262,97 @@ body {
 .dashboard-shell.lesson-dashboard #graph-panel .plot-container,
 .dashboard-shell.lesson-dashboard #graph-panel .svg-container {
   height: 100% !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .experience-banner-card .card-body {
+  padding: 0.65rem 1rem 0.7rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .hero-title {
+  font-size: clamp(1.2rem, 1.6vw, 1.55rem);
+  margin-bottom: 0.15rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .hero-copy {
+  font-size: 0.8rem;
+  line-height: 1.32;
+  margin-top: 0.15rem;
+  max-width: 44ch;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .lesson-compact-summary {
+  gap: 0.35rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .lesson-compact-chip,
+.dashboard-shell.lesson-dashboard.lesson-level-2 .lesson-compact-pill {
+  min-height: 1.95rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.76rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .lesson-compact-inline {
+  gap: 0.35rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel .panel-label,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel .panel-label,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .panel-label {
+  display: none;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel .panel-title,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel .panel-title,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .panel-title {
+  margin-bottom: 0.55rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel .card-body,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .card-body {
+  padding: 0.9rem 1rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel .lesson-service-table th {
+  font-size: 0.67rem;
+  letter-spacing: 0.06em;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel .lesson-service-table td {
+  font-size: 0.82rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-card {
+  margin-top: 0 !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel > .card > .card-body {
+  padding: 0.9rem 1rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-primary-block,
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-speed-block {
+  height: 100%;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .status-value {
+  font-size: 1.65rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .card-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-table-shell,
+.dashboard-shell.lesson-dashboard.lesson-level-2 .table-scroll-shell {
+  min-height: 0;
+  overflow: auto;
 }
 
 @media (min-width: 1200px) {
@@ -1273,6 +1419,85 @@ body {
     max-height: 100%;
     min-height: 0;
     overflow: auto;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-layout {
+    display: grid;
+    grid-template-columns:
+      minmax(var(--imsim-size-lesson-grid-min), var(--imsim-size-lesson-grid-max))
+      minmax(0, 1fr);
+    grid-template-rows: min-content min-content minmax(0, 1fr);
+    grid-template-areas:
+      "actions graph"
+      "service graph"
+      "session inventory";
+    gap: 0.3rem;
+    align-items: stretch;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-detail-row {
+    display: contents;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel {
+    padding: 0;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    flex: 0 0 auto !important;
+    display: flex;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel {
+    grid-area: actions;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel {
+    grid-area: service;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel {
+    grid-area: session;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel {
+    grid-area: graph;
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel {
+    grid-area: inventory;
+    min-height: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel > .card {
+    width: 100%;
+    max-width: none;
+    margin: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel > .card {
+    height: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card > .card-body {
+    padding: 0.9rem 1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel {
+    min-height: 25rem;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-main-layout {
@@ -1351,23 +1576,6 @@ body {
     margin-bottom: 0.35rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-snapshot-stack {
-    gap: 0.45rem;
-  }
-
-  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-snapshot-block {
-    gap: 0.22rem;
-  }
-
-  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-service-table th,
-  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-service-table td {
-    padding: 0.48rem 0.55rem;
-  }
-
-  .dashboard-shell.lesson-dashboard.lesson-level-1 .lesson-snapshot-label {
-    font-size: 0.68rem;
-  }
-
   .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel > .card > .card-body {
     display: flex;
     flex-direction: column;
@@ -1412,6 +1620,10 @@ body {
 
   .lesson-compact-chip {
     white-space: normal;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
+    grid-template-columns: 1fr;
   }
 }
 

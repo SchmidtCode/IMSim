@@ -126,6 +126,106 @@ def _plot_marker(
     return marker
 
 
+def _lesson_snapshot_table(
+    label: str, headers: tuple[str, ...], rows: tuple[tuple[str, ...], ...]
+) -> html.Div:
+    return html.Div(
+        [
+            html.Div(label, className="lesson-snapshot-label"),
+            html.Table(
+                [
+                    html.Thead(html.Tr([html.Th(header) for header in headers])),
+                    html.Tbody([html.Tr([html.Td(value) for value in row]) for row in rows]),
+                ],
+                className="lesson-service-table",
+            ),
+        ],
+        className="lesson-snapshot-block",
+    )
+
+
+def _format_pct(value: float | None) -> str:
+    return "—" if value is None else f"{value:.1f}%"
+
+
+def _compact_lesson_pill_text(row: str) -> str:
+    replacements = (
+        ("Current fill rate: ", "Fill rate: "),
+        ("Current after-overhead GM: ", "After-OH GM: "),
+        ("Items closing at/above OP: ", "At/above OP: "),
+        ("Guided reorders used: ", "Guided reorders: "),
+        ("Manual custom orders used: ", "Custom orders: "),
+        ("Avg inventory value: ", "Avg inv value: "),
+    )
+    for old, new in replacements:
+        if row.startswith(old):
+            return row.replace(old, new, 1)
+    return row
+
+
+def _lesson_item_snapshot_columns(level_index: int) -> tuple[str, ...]:
+    return {
+        1: ("item", "on_hand", "daily_usage", "backorder"),
+        2: ("item", "on_hand", "on_order", "backorder", "pna"),
+        3: ("item", "on_hand", "usage_rate", "op", "days_to_op"),
+        4: ("item", "on_hand", "on_order", "backorder", "soq"),
+        5: ("item", "on_hand", "on_order", "backorder", "pna"),
+        6: ("item", "pna", "op", "lp", "soq"),
+        7: ("item", "pna", "op", "lp", "soq"),
+    }.get(level_index, ("item", "on_hand", "on_order", "backorder"))
+
+
+def _lesson_item_snapshot_value(column: str, index: int, item: InventoryItem) -> str:
+    if column == "item":
+        return str(index)
+    if column == "on_hand":
+        return f"{item.on_hand:.1f}"
+    if column == "daily_usage":
+        return f"{item.daily_ur:.1f}"
+    if column == "usage_rate":
+        return f"{item.usage_rate:.1f}"
+    if column == "on_order":
+        return f"{item_on_order(item):.1f}"
+    if column == "backorder":
+        return f"{item.backorder:.1f}"
+    if column == "pna":
+        return f"{item.pna:.1f}"
+    if column == "op":
+        return f"{item.op:.1f}"
+    if column == "lp":
+        return f"{item.lp:.1f}"
+    if column == "soq":
+        return f"{item.soq:.1f}"
+    if column == "days_to_op":
+        return f"{item.ats_days_frm_op:.1f}"
+    raise ValueError(f"Unsupported lesson snapshot column: {column}")
+
+
+def _lesson_item_snapshot_block(level_index: int, items: list[InventoryItem]) -> html.Div:
+    labels = {
+        "item": "Item",
+        "on_hand": "On Hand",
+        "daily_usage": "Daily Usage",
+        "usage_rate": "Usage",
+        "on_order": "On Order",
+        "backorder": "Backorder",
+        "pna": "PNA",
+        "op": "OP",
+        "lp": "LP",
+        "soq": "SOQ",
+        "days_to_op": "Days to OP",
+    }
+    columns = _lesson_item_snapshot_columns(level_index)
+    return _lesson_snapshot_table(
+        "Inventory",
+        tuple(labels[column] for column in columns),
+        tuple(
+            tuple(_lesson_item_snapshot_value(column, index, item) for column in columns)
+            for index, item in enumerate(items, start=1)
+        ),
+    )
+
+
 def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.Figure:
     colors = _figure_theme(theme)
     level = active_level(state)
@@ -405,83 +505,6 @@ def service_card_children(state: SimulationState) -> list:
     ats = sum(item.on_hand for item in state.items)
     on_order = sum(item_on_order(item) for item in state.items)
     backorder = sum(item.backorder for item in state.items)
-    if level is not None and level.index == 1 and state.items:
-        item = state.items[0]
-        status = "Depleted" if item.on_hand <= 0 else "Available"
-
-        def _compact_table(
-            label: str, headers: tuple[str, ...], values: tuple[str, ...]
-        ) -> html.Div:
-            return html.Div(
-                [
-                    html.Div(label, className="lesson-snapshot-label"),
-                    html.Table(
-                        [
-                            html.Thead(
-                                html.Tr([html.Th(header) for header in headers])
-                            ),
-                            html.Tbody(
-                                html.Tr([html.Td(value) for value in values])
-                            ),
-                        ],
-                        className="lesson-service-table",
-                    ),
-                ],
-                className="lesson-snapshot-block",
-            )
-
-        return [
-            html.Div(
-                [
-                    _compact_table(
-                        "Service",
-                        ("On Hand", "Daily Usage", "Backorder", "Status"),
-                        (
-                            f"{item.on_hand:.1f} units",
-                            f"{item.daily_ur:.1f} units/day",
-                            f"{item.backorder:.1f} units",
-                            status,
-                        ),
-                    ),
-                    _compact_table(
-                        "Inventory",
-                        ("Item", "On Hand", "Daily Usage", "Backorder"),
-                        (
-                            "1",
-                            f"{item.on_hand:.0f}",
-                            f"{item.daily_ur:.0f}",
-                            f"{item.backorder:.0f}",
-                        ),
-                    ),
-                ],
-                className="lesson-snapshot-stack",
-            )
-        ]
-    if level is not None and level.index == 2 and state.items:
-        item = state.items[0]
-        on_order = item_on_order(item)
-        reserved = 0.0
-        committed = 0.0
-        received = 0.0
-        return [
-            dbc.ListGroup(
-                [
-                    dbc.ListGroupItem(f"On hand: {item.on_hand:.1f} units"),
-                    dbc.ListGroupItem(f"Reserved: {reserved:.1f} units"),
-                    dbc.ListGroupItem(f"Committed: {committed:.1f} units"),
-                    dbc.ListGroupItem(f"Backordered: {item.backorder:.1f} units"),
-                    dbc.ListGroupItem(f"On order: {on_order:.1f} units"),
-                    dbc.ListGroupItem(f"Received: {received:.1f} units"),
-                    dbc.ListGroupItem(
-                        "PNA = "
-                        f"{item.on_hand:.1f} - {reserved:.1f} - {committed:.1f} - "
-                        f"{item.backorder:.1f} + {on_order:.1f} + {received:.1f} = "
-                        f"{item.pna:.1f}"
-                    ),
-                ],
-                flush=True,
-            )
-        ]
     fill_today = (
         None if today.orders == 0 else 100.0 * (today.orders - today.orders_stockout) / today.orders
     )
@@ -490,9 +513,62 @@ def service_card_children(state: SimulationState) -> list:
         if totals.orders == 0
         else 100.0 * (totals.orders - totals.orders_stockout) / totals.orders
     )
-
-    def fmt(value: float | None) -> str:
-        return "—" if value is None else f"{value:.1f}%"
+    if level is not None and level.index == 1 and state.items:
+        item = state.items[0]
+        status = "Depleted" if item.on_hand <= 0 else "Available"
+        return [
+            html.Div(
+                [
+                    _lesson_snapshot_table(
+                        "Service",
+                        ("On Hand", "Daily Usage", "Backorder", "Status"),
+                        (
+                            (
+                                f"{item.on_hand:.1f} units",
+                                f"{item.daily_ur:.1f} units/day",
+                                f"{item.backorder:.1f} units",
+                                status,
+                            ),
+                        ),
+                    ),
+                    _lesson_snapshot_table(
+                        "Inventory",
+                        ("Item", "On Hand", "Daily Usage", "Backorder"),
+                        (
+                            (
+                                "1",
+                                f"{item.on_hand:.0f}",
+                                f"{item.daily_ur:.0f}",
+                                f"{item.backorder:.0f}",
+                            ),
+                        ),
+                    ),
+                ],
+                className="lesson-snapshot-stack",
+            )
+        ]
+    if level is not None and state.items:
+        return [
+            html.Div(
+                [
+                    _lesson_snapshot_table(
+                        "Service",
+                        ("Orders", "Stockouts", "Today Fill", "Cum Fill", "Zero ATS"),
+                        (
+                            (
+                                str(today.orders),
+                                str(today.orders_stockout),
+                                _format_pct(fill_today),
+                                _format_pct(fill_total),
+                                str(today.zero_on_hand_hits),
+                            ),
+                        ),
+                    ),
+                    _lesson_item_snapshot_block(level.index, state.items),
+                ],
+                className="lesson-snapshot-stack",
+            )
+        ]
 
     return [
         dbc.ListGroup(
@@ -503,7 +579,7 @@ def service_card_children(state: SimulationState) -> list:
                     f"{today.zero_on_hand_hits}"
                 ),
                 dbc.ListGroupItem(
-                    f"Fill Rate (cumulative): {fmt(fill_total)}  •  Today: {fmt(fill_today)}"
+                    f"Fill Rate (cumulative): {_format_pct(fill_total)}  •  Today: {_format_pct(fill_today)}"
                 ),
                 dbc.ListGroupItem(
                     dbc.Badge(
@@ -843,6 +919,7 @@ def github_footer_card(github_url: str) -> html.Div:
                             ),
                         ]
                     ),
+                    " ",
                     html.Button(
                         "Hide",
                         id="gh-footer-hide",
@@ -1008,7 +1085,10 @@ def lesson_compact_summary_children(state: SimulationState) -> list:
         if evaluation is not None and evaluation.completed
         else f"{lesson_days_remaining(state)} day(s) remaining"
     )
-    objective_rows = list(evaluation.metric_rows if evaluation is not None else ())[:2]
+    objective_rows = [
+        _compact_lesson_pill_text(row)
+        for row in list(evaluation.metric_rows if evaluation is not None else ())[:2]
+    ]
     return [
         html.Div(level.formula, className="lesson-compact-chip"),
         html.Div(

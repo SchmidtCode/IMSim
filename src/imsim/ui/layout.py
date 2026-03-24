@@ -692,34 +692,54 @@ def build_layout(config: IMSimConfig):
                                                             className="session-card-header",
                                                         ),
                                                         html.Div(
-                                                            "Day: 1",
-                                                            id="day-display",
-                                                            className="status-value",
-                                                        ),
-                                                        html.Div(
-                                                            "Status: Paused",
-                                                            id="sim-status",
-                                                            className="status-copy",
-                                                        ),
-                                                        html.Div(
-                                                            "Simulation speed",
-                                                            className="control-label mt-3",
-                                                        ),
-                                                        html.Div(
-                                                            "1 tick/sec",
-                                                            id="sim-speed-readout",
-                                                            className="speed-readout",
-                                                        ),
-                                                        dcc.Slider(
-                                                            id="sim-speed-slider",
-                                                            min=0.5,
-                                                            max=6.0,
-                                                            step=0.5,
-                                                            value=1.0,
-                                                            marks=None,
-                                                            updatemode="drag",
-                                                            allow_direct_input=False,
-                                                            className="sim-speed-slider",
+                                                            [
+                                                                html.Div(
+                                                                    [
+                                                                        html.Div(
+                                                                            "Day: 1",
+                                                                            id="day-display",
+                                                                            className="status-value",
+                                                                        ),
+                                                                        html.Div(
+                                                                            "Status: Paused",
+                                                                            id="sim-status",
+                                                                            className="status-copy",
+                                                                        ),
+                                                                    ],
+                                                                    className="session-primary-block",
+                                                                ),
+                                                                html.Div(
+                                                                    [
+                                                                        html.Div(
+                                                                            "Simulation speed",
+                                                                            className=(
+                                                                                "control-label "
+                                                                                "session-speed-label"
+                                                                            ),
+                                                                        ),
+                                                                        html.Div(
+                                                                            "1 tick/sec",
+                                                                            id="sim-speed-readout",
+                                                                            className="speed-readout",
+                                                                        ),
+                                                                        dcc.Slider(
+                                                                            id="sim-speed-slider",
+                                                                            min=0.5,
+                                                                            max=6.0,
+                                                                            step=0.5,
+                                                                            value=1.0,
+                                                                            marks=None,
+                                                                            updatemode="drag",
+                                                                            allow_direct_input=False,
+                                                                            className=(
+                                                                                "sim-speed-slider"
+                                                                            ),
+                                                                        ),
+                                                                    ],
+                                                                    className="session-speed-block",
+                                                                ),
+                                                            ],
+                                                            className="session-metrics-grid",
                                                         ),
                                                         html.Div(
                                                             id="asq-apply-feedback",
@@ -865,7 +885,7 @@ def build_layout(config: IMSimConfig):
                                             className="g-3 dashboard-detail-row",
                                         ),
                                     ],
-                                    xl=1,
+                                    xl=9,
                                     className="dashboard-main-column",
                                 ),
                             ],
