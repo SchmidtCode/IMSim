@@ -83,6 +83,10 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         except SessionConflictError as exc:
             raise PreventUpdate from exc
 
+    def _carry_revision(next_state, current_state) -> None:
+        if getattr(next_state, "revision", 0) <= 0:
+            next_state.revision = current_state.revision
+
     def _theme_name(theme: str | None) -> str:
         return "dark" if theme == "dark" else "light"
 
@@ -314,6 +318,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             next_state = build_level_state(level.level_id, state.training)
         else:
             raise PreventUpdate
+        _carry_revision(next_state, state)
         _persist_state(session_id, next_state)
         label, class_name = _start_button_state(next_state, running=False)
         reset_label = (
@@ -760,6 +765,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             state = build_simulator_state(current.training)
         else:
             state = reset_progress_state()
+        _carry_revision(state, current)
         _persist_state(session_id, state)
         store = {"uuid": session_id} if session_id != "__bootstrap__" else client_data or {}
         label, class_name = _start_button_state(state, running=False)

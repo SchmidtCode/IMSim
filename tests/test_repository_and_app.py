@@ -15,6 +15,7 @@ from imsim.repository import (
     SessionConflictError,
     create_session_repository,
 )
+from imsim.services.training import build_level_state
 
 
 def test_repository_persists_state(test_config):
@@ -134,6 +135,35 @@ def test_database_repository_rejects_stale_save(tmp_path):
         repo_two.save("db-shared", state_two)
 
 
+def test_database_repository_accepts_replacement_state_with_carried_revision(tmp_path):
+    repo_root = Path.cwd()
+    config = IMSimConfig(
+        repo_root=repo_root,
+        assets_dir=repo_root / "assets",
+        session_dir=tmp_path / "sessions",
+        examples_dir=repo_root / "examples",
+        database_url=f"sqlite+pysqlite:///{tmp_path / 'imsim.db'}",
+        github_url="https://example.com/imsim",
+        admin_token=None,
+        allow_dev_shutdown=False,
+        shutdown_url=None,
+        host="127.0.0.1",
+        port=8050,
+        debug=False,
+    )
+    repo = DatabaseSessionRepository(config)
+    current = repo.get_or_create("db-level")
+
+    next_state = build_level_state("level-1", current.training)
+    next_state.revision = current.revision
+    repo.save("db-level", next_state)
+
+    loaded = repo.get_or_create("db-level")
+
+    assert loaded.training.current_view == "lesson"
+    assert loaded.training.active_level_id == "level-1"
+
+
 def test_repository_factory_prefers_database(tmp_path):
     repo_root = Path.cwd()
     config = IMSimConfig(
@@ -165,6 +195,13 @@ def test_dash_layout_and_admin_status(client):
     status = client.get("/api/admin/shutdown_status")
     assert status.status_code == 200
     assert status.get_json()["active"] is False
+
+
+def test_dash_component_suites_are_warmed(dash_app):
+    registered = dash_app.registered_paths
+
+    assert "dash" in registered
+    assert "dash_bootstrap_components" in registered
 
 
 def test_shutdown_endpoint_disabled_by_default(client):

@@ -88,4 +88,9 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
         return "Server shutting down..."
 
     register_callbacks(app, repository, maintenance)
+    # Dash registers component bundle paths lazily while rendering index HTML.
+    # In multi-worker Gunicorn, warm them up during startup so asset requests
+    # don't land on a worker with an empty registry.
+    app._generate_scripts_html()
+    app._generate_css_dist_html()
     return app
