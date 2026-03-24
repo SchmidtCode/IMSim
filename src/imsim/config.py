@@ -59,7 +59,7 @@ class IMSimConfig:
             admin_token=os.environ.get("IMSIM_ADMIN_TOKEN"),
             allow_dev_shutdown=os.environ.get("ALLOW_DEV_SHUTDOWN") == "1",
             shutdown_url=os.environ.get("SHUTDOWN_URL"),
-            host=os.environ.get("IMSIM_HOST", "127.0.0.1"),
-            port=int(os.environ.get("IMSIM_PORT", "8050")),
+            host=os.environ.get("IMSIM_HOST") or os.environ.get("HOST", "127.0.0.1"),
+            port=int(os.environ.get("IMSIM_PORT") or os.environ.get("PORT", "8050")),
             debug=os.environ.get("IMSIM_DEBUG", "0").lower() in {"1", "true", "yes"},
         )

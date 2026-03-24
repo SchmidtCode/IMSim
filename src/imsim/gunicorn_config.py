@@ -18,7 +18,10 @@ def _default_threads() -> int:
     return 2 if _default_workers() > 1 else 1
 
 
-bind = f"{os.environ.get('IMSIM_HOST', '0.0.0.0')}:{os.environ.get('IMSIM_PORT', '8050')}"
+bind = (
+    f"{os.environ.get('IMSIM_HOST') or os.environ.get('HOST', '0.0.0.0')}:"
+    f"{os.environ.get('IMSIM_PORT') or os.environ.get('PORT', '8050')}"
+)
 worker_class = "gthread"
 workers = _env_int("IMSIM_GUNICORN_WORKERS", _default_workers())
 threads = _env_int("IMSIM_GUNICORN_THREADS", _default_threads())

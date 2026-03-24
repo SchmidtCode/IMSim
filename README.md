@@ -74,7 +74,41 @@ scales Gunicorn through the shared config in `imsim.gunicorn_config`.
 | `ALLOW_DEV_SHUTDOWN` | Enables the `/shutdown` endpoint for local development. |
 | `SHUTDOWN_URL` | Retained for compatibility with prior deployments. Internal shutdown no longer self-posts to this URL. |
 | `IMSIM_GITHUB_URL` | Footer link override. |
-| `IMSIM_HOST` / `IMSIM_PORT` / `IMSIM_DEBUG` | Local app run settings for `python -m imsim`. |
+| `IMSIM_HOST` / `IMSIM_PORT` / `IMSIM_DEBUG` | App run settings for `python -m imsim`. Standard `HOST` / `PORT` env vars are also honored for platform deploys. |
+
+## Free hosting recommendation
+
+For a lightweight public demo, the simplest free setup for IMSim today is:
+
+- Render Free Web Service for the Dash app
+- Aiven Free PostgreSQL for session persistence
+
+This split matters because Render's free Postgres offering currently expires 30 days after creation, so it is not a good fit for a reusable demo database.
+
+### Why this works well
+
+- This repo already includes a production `Dockerfile` and Gunicorn entrypoint
+- `render.yaml` is included for a one-service Render deploy
+- The app now honors platform-provided `PORT`, which removes a common free-hosting issue
+- IMSim already accepts either `IMSIM_DATABASE_URL` or `DATABASE_URL`
+
+### Deploy steps
+
+1. Create a free PostgreSQL instance on Aiven.
+2. Copy the connection string and append SSL mode if Aiven requires it, for example: ```postgresql+psycopg://USER:PASSWORD@HOST:PORT/DBNAME?sslmode=require```
+3. On Render, create a new Blueprint service from this GitHub repo. Render will read `render.yaml`.
+4. In the Render dashboard, set `DATABASE_URL` to the Aiven connection string.
+5. Deploy and share the generated `onrender.com` URL.
+
+### Free-tier tradeoffs
+
+- Render free web services spin down after 15 minutes idle and take roughly a minute to wake up
+- Render free web services use an ephemeral filesystem, so database-backed sessions are the correct setup
+- The included `render.yaml` uses `1` Gunicorn worker to stay conservative on free-instance memory
+
+### GitHub-hosted images
+
+The app does not currently depend on a separate image bucket. Frontend assets are served by Dash from `assets/`. If you later want lesson images or marketing screenshots to load from GitHub raw URLs, that can be added as a small config-driven enhancement.
 
 ## Upload format
 

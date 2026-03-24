@@ -315,3 +315,25 @@ def test_config_from_env_reads_database_url(monkeypatch, tmp_path):
     config = IMSimConfig.from_env()
 
     assert config.database_url == "sqlite+pysqlite:///imsim.db"
+
+
+def test_config_from_env_reads_platform_host_and_port_fallbacks(monkeypatch, tmp_path):
+    repo_root = tmp_path / "repo"
+    package_dir = repo_root / "src" / "imsim"
+    package_dir.mkdir(parents=True)
+    (repo_root / "pyproject.toml").write_text("[project]\nname = 'imsim'\n", encoding="utf-8")
+    (repo_root / "assets").mkdir()
+    (repo_root / "examples").mkdir()
+    fake_file = package_dir / "config.py"
+    fake_file.write_text("# test fixture\n", encoding="utf-8")
+
+    monkeypatch.setattr(config_module, "__file__", str(fake_file))
+    monkeypatch.delenv("IMSIM_HOST", raising=False)
+    monkeypatch.delenv("IMSIM_PORT", raising=False)
+    monkeypatch.setenv("HOST", "0.0.0.0")
+    monkeypatch.setenv("PORT", "10000")
+
+    config = IMSimConfig.from_env()
+
+    assert config.host == "0.0.0.0"
+    assert config.port == 10000
