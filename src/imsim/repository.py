@@ -261,10 +261,7 @@ class DatabaseSessionRepository:
         if "revision" in columns:
             return
         connection.execute(
-            text(
-                "ALTER TABLE session_states "
-                "ADD COLUMN revision INTEGER NOT NULL DEFAULT 1"
-            )
+            text("ALTER TABLE session_states ADD COLUMN revision INTEGER NOT NULL DEFAULT 1")
         )
 
     def _state_from_record(self, record: SessionStateRecord) -> SimulationState:

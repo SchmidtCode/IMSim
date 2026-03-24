@@ -146,8 +146,7 @@ def build_layout(config: IMSimConfig):
                                                             "academy-theme-toggle",
                                                             "ghost",
                                                             class_name=(
-                                                                "theme-toggle-button "
-                                                                "button-sm"
+                                                                "theme-toggle-button button-sm"
                                                             ),
                                                         ),
                                                         _action_button(
@@ -787,17 +786,17 @@ def build_layout(config: IMSimConfig):
                                         dbc.Row(
                                             [
                                                 dbc.Col(
-                                                                dbc.Card(
-                                                                    dbc.CardBody(
-                                                                        [
-                                                                            html.Div(
-                                                                                "Service",
-                                                                                className="panel-title-small",
-                                                                                id="service-panel-title",
-                                                                            ),
-                                                                            html.Div(id="service-card"),
-                                                                        ]
-                                                                    ),
+                                                    dbc.Card(
+                                                        dbc.CardBody(
+                                                            [
+                                                                html.Div(
+                                                                    "Service",
+                                                                    className="panel-title-small",
+                                                                    id="service-panel-title",
+                                                                ),
+                                                                html.Div(id="service-card"),
+                                                            ]
+                                                        ),
                                                         className="shell-card h-100",
                                                     ),
                                                     id="service-panel",

@@ -9,10 +9,7 @@ def _output_pairs(spec):
 
 
 def _input_pairs(spec):
-    return {
-        (input_spec["id"], input_spec["property"])
-        for input_spec in spec["inputs"]
-    }
+    return {(input_spec["id"], input_spec["property"]) for input_spec in spec["inputs"]}
 
 
 def _find_callback(dash_app, required_outputs):

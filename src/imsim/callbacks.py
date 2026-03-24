@@ -111,10 +111,10 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         return f"Start {mode}", _button_class("success", "button-pill")
 
     def _lesson_terminal(state) -> bool:
-        return (
-            state.training.current_view == "lesson"
-            and state.training.lesson_status in {"passed", "failed"}
-        )
+        return state.training.current_view == "lesson" and state.training.lesson_status in {
+            "passed",
+            "failed",
+        }
 
     def _panel_style(enabled: bool) -> dict[str, str]:
         return {} if enabled else {"display": "none"}
@@ -486,8 +486,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
             lesson_tutorial_children(state),
             lesson_objective_children(state),
             lesson_locked_children(state),
-            state.training.current_view == "lesson"
-            and not state.training.lesson_intro_dismissed,
+            state.training.current_view == "lesson" and not state.training.lesson_intro_dismissed,
             simulator_copy,
             "Simulator" if is_simulator else "Lesson",
             experience_title,
@@ -583,9 +582,7 @@ def register_callbacks(app, repository: SessionRepository, maintenance: Maintena
         session_id = (client_data or {}).get("uuid")
         state = repository.get_or_create(session_id) if session_id else default_state()
         refresh = (
-            dash.no_update
-            if ctx.triggered_id == "theme-store"
-            else _next_ui_refresh(ui_refresh)
+            dash.no_update if ctx.triggered_id == "theme-store" else _next_ui_refresh(ui_refresh)
         )
         return (
             f"Day: {state.day}",

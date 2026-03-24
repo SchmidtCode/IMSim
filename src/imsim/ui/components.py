@@ -1057,8 +1057,8 @@ def lesson_objective_children(state: SimulationState) -> list:
         )
     children.extend(
         [
-        html.Div(headline, className="lesson-objective-headline"),
-        html.Ul([html.Li(row) for row in rows], className="lesson-copy-list"),
+            html.Div(headline, className="lesson-objective-headline"),
+            html.Ul([html.Li(row) for row in rows], className="lesson-copy-list"),
         ]
     )
     return children
@@ -1098,7 +1098,7 @@ def lesson_compact_summary_children(state: SimulationState) -> list:
                 *[html.Span(row, className="lesson-compact-pill") for row in objective_rows],
             ],
             className="lesson-compact-inline",
-        )
+        ),
     ]
 
 
