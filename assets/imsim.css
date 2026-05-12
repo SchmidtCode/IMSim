@@ -1842,22 +1842,52 @@ body {
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 .dashboard-main-layout {
     grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
-    grid-template-rows: min-content min-content;
+    grid-template-rows: minmax(20rem, auto) min-content min-content;
     grid-template-areas:
-      "actions inventory"
-      "session service";
+      "actions graph"
+      "session inventory"
+      ". service";
     align-items: start;
     gap: 0.4rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #graph-panel {
+    grid-area: graph;
+    min-height: 20rem;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    padding: 0;
+    display: flex;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 #session-panel .session-card {
     margin-top: 0 !important;
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #graph-panel > .card,
   .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-panel > .card,
   .dashboard-shell.lesson-dashboard.lesson-level-3 #service-panel > .card,
   .dashboard-shell.lesson-dashboard.lesson-level-3 #session-panel > .card {
+    width: 100%;
+    max-width: none;
+    margin: 0 !important;
     height: auto;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #graph-panel > .card {
+    height: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #graph-panel > .card > .card-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0.9rem 1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-graph {
+    min-height: 17rem;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-panel .card-body {

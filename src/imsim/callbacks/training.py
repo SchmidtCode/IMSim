@@ -263,7 +263,11 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             else (
                 "Basic reorder signal"
                 if level is not None and level.index == 2
-                else "Inventory signal map"
+                else (
+                    "Fill-rate service view"
+                    if level is not None and level.index == 3
+                    else "Inventory signal map"
+                )
             )
         )
         service_panel_title = "Lesson snapshot" if level is not None else "Service"

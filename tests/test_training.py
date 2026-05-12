@@ -103,7 +103,13 @@ def test_level_two_uses_simple_quantity_graph():
     figure = build_inventory_figure(state)
 
     assert figure.layout.title.text is None
-    assert [trace.name for trace in figure.data] == ["On Hand", "On Order", "PNA", "Backorder"]
+    assert [trace.name for trace in figure.data] == [
+        "On Hand",
+        "On Order",
+        "PNA",
+        "OP",
+        "Backorder",
+    ]
     assert all(trace.line.width == 3.0 for trace in figure.data)
     assert figure.data[-1].marker.size == 7.0
     assert figure.layout.hovermode == "x unified"
@@ -111,6 +117,16 @@ def test_level_two_uses_simple_quantity_graph():
     assert figure.layout.meta["figure_kind"] == "lesson-2"
     assert figure.layout.meta["theme"] == "light"
     assert figure.layout.meta["layout_signature"] == "static"
+
+
+def test_level_three_uses_fill_rate_visual():
+    state = build_level_state("level-3")
+
+    figure = build_inventory_figure(state)
+
+    assert figure.layout.meta["figure_kind"] == "lesson-3-fill-rate"
+    assert [trace.type for trace in figure.data] == ["indicator", "bar"]
+    assert "guided_po" in academy_level("level-3").allowed_actions
 
 
 def test_signal_map_uses_stable_schema_and_uirevision():
@@ -387,7 +403,7 @@ def test_level_two_requires_guided_order_to_pass():
     level = academy_level("level-2")
     assert level is not None
     state.day = level.day_window + 1
-    state.training.guided_orders_placed = 1
+    state.training.guided_orders_below_op = 1
     for item in state.items:
         item.on_hand = item.op
 

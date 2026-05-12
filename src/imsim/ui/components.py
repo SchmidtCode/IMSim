@@ -576,6 +576,7 @@ def _lesson_one_figure(state: SimulationState, theme: str, colors: dict[str, str
 def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str]) -> go.Figure:
     history = _stable_history_points(state)
     days = [point.day for point in history]
+    op_value = state.items[0].op if state.items else 0.0
     fig = go.Figure(
         data=[
             _empty_line_trace(
@@ -595,6 +596,12 @@ def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str
                 line=_plot_line(colors["proposed"]),
                 marker=_plot_marker(colors["proposed"], _PLOT_MARKER_SIZE_REM["lesson"]),
                 hovertemplate="PNA %{y:.1f}<extra></extra>",
+            ),
+            _empty_line_trace(
+                name="OP",
+                line=_plot_line(colors["guide"], dash="dot"),
+                marker=_plot_marker(colors["guide"], _PLOT_MARKER_SIZE_REM["lesson_backorder"]),
+                hovertemplate="OP %{y:.1f}<extra></extra>",
             ),
             _empty_line_trace(
                 name="Backorder",
@@ -621,6 +628,8 @@ def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str
     )
     fig.update_traces(x=days, selector={"name": "PNA"})
     fig.update_traces(y=[point.total_pna for point in history], selector={"name": "PNA"})
+    fig.update_traces(x=days, selector={"name": "OP"})
+    fig.update_traces(y=[op_value for _day in days], selector={"name": "OP"})
     fig.update_traces(x=days, selector={"name": "Backorder"})
     fig.update_traces(
         y=[point.total_backorder for point in history],
@@ -628,6 +637,73 @@ def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str
     )
     _apply_single_guide(fig, colors, y=0, label="Zero")
     return _finalize_axes(fig, colors, x_linear=True, y_tozero=True)
+
+
+def _fill_rate_figure(state: SimulationState, theme: str, colors: dict[str, str]) -> go.Figure:
+    level = active_level(state)
+    target = float((level.win_conditions if level is not None else {}).get("fill_rate_min", 0.0))
+    current = fill_rate(state)
+    fill_pct = 0.0 if current is None else current * 100.0
+    target_pct = target * 100.0
+    complete = max(0, state.service_totals.orders - state.service_totals.orders_stockout)
+    incomplete = state.service_totals.orders_stockout
+    fig = go.Figure(
+        data=[
+            go.Indicator(
+                mode="gauge+number",
+                value=fill_pct,
+                number={"suffix": "%", "font": {"color": colors["text"]}},
+                title={"text": "Cumulative Fill Rate", "font": {"color": colors["text"]}},
+                gauge={
+                    "axis": {"range": [0, 100], "tickcolor": colors["text"]},
+                    "bar": {"color": colors["pna"]},
+                    "bgcolor": colors["plot_bg"],
+                    "bordercolor": colors["line"],
+                    "steps": [
+                        {"range": [0, target_pct], "color": "rgba(248, 113, 113, 0.18)"},
+                        {"range": [target_pct, 100], "color": "rgba(45, 212, 191, 0.18)"},
+                    ],
+                    "threshold": {
+                        "line": {"color": colors["zero"], "width": 4},
+                        "thickness": 0.8,
+                        "value": target_pct,
+                    },
+                },
+                domain={"x": [0, 0.58], "y": [0, 1]},
+            ),
+            go.Bar(
+                x=["Complete", "Incomplete"],
+                y=[complete, incomplete],
+                marker_color=[colors["pna"], colors["zero"]],
+                text=[complete, incomplete],
+                textposition="auto",
+                hovertemplate="%{x} lines: %{y}<extra></extra>",
+                xaxis="x2",
+                yaxis="y2",
+                showlegend=False,
+            ),
+        ]
+    )
+    fig.update_layout(
+        **_plot_base_layout(None, colors, height=420),
+        uirevision=f"lesson-3:{theme}",
+        meta=_figure_meta("lesson-3-fill-rate", theme),
+        xaxis2={
+            "domain": [0.68, 1.0],
+            "anchor": "y2",
+            "color": colors["text"],
+            "gridcolor": colors["line"],
+        },
+        yaxis2={
+            "domain": [0.18, 0.88],
+            "anchor": "x2",
+            "color": colors["text"],
+            "gridcolor": colors["line"],
+            "rangemode": "tozero",
+            "title": "Lines",
+        },
+    )
+    return fig
 
 
 def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str]) -> go.Figure:
@@ -767,6 +843,8 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         return _lesson_one_figure(state, theme, colors)
     if level is not None and level.index == 2:
         return _lesson_two_figure(state, theme, colors)
+    if level is not None and level.index == 3:
+        return _fill_rate_figure(state, theme, colors)
     return _signal_map_figure(state, theme, colors)
 
 
@@ -850,8 +928,8 @@ def service_card_children(state: SimulationState) -> list:
         ]
     if level is not None and level.index == 2 and state.items:
         item = state.items[0]
-        at_or_above_op = sum(1 for candidate in state.items if candidate.on_hand >= candidate.op)
-        guided_order_target = int(level.win_conditions.get("guided_order_min", 1))
+        pna_at_or_above_op = sum(1 for candidate in state.items if candidate.pna >= candidate.op)
+        reorder_target = int(level.win_conditions.get("guided_order_below_op_min", 1))
         snapshot_body = html.Div(
             [
                 _lesson_snapshot_table(
@@ -869,11 +947,11 @@ def service_card_children(state: SimulationState) -> list:
                 ),
                 _lesson_snapshot_table(
                     "Goal Check",
-                    ("At/Above OP", "Guided Reorders", "Days Left"),
+                    ("Close PNA >= OP", "Below-OP Reorders", "Days Left"),
                     (
                         (
-                            f"{at_or_above_op}/{len(state.items)}",
-                            f"{state.training.guided_orders_placed}/{guided_order_target}",
+                            f"{pna_at_or_above_op}/{len(state.items)}",
+                            f"{state.training.guided_orders_below_op}/{reorder_target}",
                             str(lesson_days_remaining(state)),
                         ),
                     ),

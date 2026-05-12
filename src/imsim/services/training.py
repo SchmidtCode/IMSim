@@ -181,19 +181,22 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         tutorial_steps=(
             "PNA shows your full inventory position, not just what is sitting on the shelf.",
             "When you place an order, on order goes up before the receipt arrives.",
-            "Use the guided reorder when the item drifts near its order point.",
+            "Wait for PNA to fall below OP, then use the guided reorder.",
         ),
         locked_features=(
             "Custom quantities stay locked until later ordering lessons.",
             "Safety stock, costs, and ASQ stay hidden so the focus stays on basic replenishment.",
         ),
         demand_mode="deterministic",
-        day_window=18,
+        day_window=24,
         scenario=(_item(60, 10, 28, 24, standard_pack=5, hits_per_month=30),),
         visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
         visible_columns=("item", "on_hand", "on_order", "backorder", "pna", "op"),
         allowed_actions=frozenset({"guided_po"}),
-        win_conditions={"guided_order_min": 1, "close_at_or_above_op": True},
+        win_conditions={
+            "guided_order_below_op_min": 1,
+            "close_pna_at_or_above_op": True,
+        },
         global_settings=_settings(),
         layout_variant="intro_pna",
         teaching_goal="Connect the buying action to inventory position.",
@@ -203,24 +206,24 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         index=3,
         level_id="level-3",
         title="Customer Promise: Fill Rate",
-        summary="Watch complete and incomplete line fills so the service target has meaning.",
+        summary="Use a guided reorder and watch how complete lines protect fill rate.",
         formula="Fill rate = complete stock lines / total stock lines",
         tutorial_steps=(
             "Fill rate is a customer-service measurement, not an inventory quantity.",
             "A partially filled stock line counts as missed service in this model.",
-            "Backorder is the visible symptom that the customer promise was missed.",
+            "Use a guided reorder to protect upcoming customer lines before stock runs out.",
         ),
         locked_features=(
-            "Reordering remains locked for one more lesson.",
+            "Custom quantities remain locked until later ordering lessons.",
             "Order point math waits until usage and lead time are introduced.",
         ),
         demand_mode="deterministic",
-        day_window=3,
-        scenario=(_item(60, 10, 24, 3, hits_per_month=30),),
-        visible_panels=frozenset({"service", "inventory", "session"}),
-        visible_columns=("item", "on_hand", "daily_usage", "backorder"),
-        allowed_actions=frozenset(),
-        win_conditions={"fill_rate_min": 0.50, "backorder_min": 1.0},
+        day_window=12,
+        scenario=(_item(60, 4, 24, 8, standard_pack=5, hits_per_month=30),),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
+        visible_columns=("item", "on_hand", "on_order", "daily_usage", "pna", "backorder"),
+        allowed_actions=frozenset({"guided_po"}),
+        win_conditions={"fill_rate_min": 0.80, "guided_order_min": 1},
         global_settings=_settings(stockout_penalty=6.0),
         layout_variant="workspace_basic",
         teaching_goal="Make service failure concrete before introducing more formulas.",
@@ -875,6 +878,15 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
     if level.win_conditions.get("close_at_or_above_op"):
         safe_count = sum(1 for item in state.items if item.on_hand >= item.op)
         rows.append(f"Items closing at/above OP: {safe_count}/{len(state.items)}")
+    if level.win_conditions.get("close_pna_at_or_above_op"):
+        safe_count = sum(1 for item in state.items if item.pna >= item.op)
+        rows.append(f"Close with PNA at/above OP: {safe_count}/{len(state.items)}")
+    if "guided_order_below_op_min" in level.win_conditions:
+        needed = int(level.win_conditions["guided_order_below_op_min"])
+        rows.append(
+            "Reorder triggered after PNA fell below OP: "
+            f"{state.training.guided_orders_below_op}/{needed}"
+        )
     if "guided_order_min" in level.win_conditions:
         needed = int(level.win_conditions["guided_order_min"])
         rows.append(f"Guided reorders used: {state.training.guided_orders_placed}/{needed}")
@@ -942,6 +954,13 @@ def evaluate_active_lesson(state: SimulationState) -> LessonEvaluation | None:
         checks.append(not any(item.stockout_today for item in state.items))
     if level.win_conditions.get("close_at_or_above_op"):
         checks.append(all(item.on_hand >= item.op for item in state.items))
+    if level.win_conditions.get("close_pna_at_or_above_op"):
+        checks.append(all(item.pna >= item.op for item in state.items))
+    if "guided_order_below_op_min" in level.win_conditions:
+        checks.append(
+            state.training.guided_orders_below_op
+            >= int(level.win_conditions["guided_order_below_op_min"])
+        )
     if "guided_order_min" in level.win_conditions:
         checks.append(
             state.training.guided_orders_placed >= int(level.win_conditions["guided_order_min"])
@@ -1037,8 +1056,10 @@ def apply_lesson_evaluation(
     return evaluation
 
 
-def record_guided_order(state: SimulationState) -> None:
+def record_guided_order(state: SimulationState, *, below_op: bool = False) -> None:
     state.training.guided_orders_placed += 1
+    if below_op:
+        state.training.guided_orders_below_op += 1
 
 
 def record_custom_order(state: SimulationState) -> None:
@@ -1089,6 +1110,7 @@ def build_level_state(level_id: str, profile: TrainingProfile | None = None) -> 
     progress.last_result_title = ""
     progress.last_result_message = ""
     progress.guided_orders_placed = 0
+    progress.guided_orders_below_op = 0
     progress.custom_orders_placed = 0
     progress.parameter_updates_applied = 0
     return _state_for_scenario(
@@ -1105,6 +1127,7 @@ def build_simulator_state(profile: TrainingProfile | None = None) -> SimulationS
     progress.last_result_title = ""
     progress.last_result_message = ""
     progress.guided_orders_placed = 0
+    progress.guided_orders_below_op = 0
     progress.custom_orders_placed = 0
     progress.parameter_updates_applied = 0
     certification = final_academy_level()
