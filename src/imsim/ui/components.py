@@ -792,40 +792,48 @@ def service_card_children(state: SimulationState) -> list:
         item = state.items[0]
         at_or_above_op = sum(1 for candidate in state.items if candidate.on_hand >= candidate.op)
         guided_order_target = int(level.win_conditions.get("guided_order_min", 1))
-        return [
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            _lesson_snapshot_table(
-                                "PNA Position",
-                                ("On Hand", "On Order", "Backorder", "PNA", "OP"),
-                                (
-                                    (
-                                        f"{item.on_hand:.1f}",
-                                        f"{item_on_order(item):.1f}",
-                                        f"{item.backorder:.1f}",
-                                        f"{item.pna:.1f}",
-                                        f"{item.op:.1f}",
-                                    ),
-                                ),
-                            ),
-                            _lesson_snapshot_table(
-                                "Goal Check",
-                                ("At/Above OP", "Guided Reorders", "Days Left"),
-                                (
-                                    (
-                                        f"{at_or_above_op}/{len(state.items)}",
-                                        f"{state.training.guided_orders_placed}/{guided_order_target}",
-                                        str(lesson_days_remaining(state)),
-                                    ),
-                                ),
-                            ),
-                        ],
-                        className="lesson-snapshot-grid",
+        snapshot_body = html.Div(
+            [
+                _lesson_snapshot_table(
+                    "PNA Position",
+                    ("On Hand", "On Order", "Backorder", "PNA", "OP"),
+                    (
+                        (
+                            f"{item.on_hand:.1f}",
+                            f"{item_on_order(item):.1f}",
+                            f"{item.backorder:.1f}",
+                            f"{item.pna:.1f}",
+                            f"{item.op:.1f}",
+                        ),
                     ),
+                ),
+                _lesson_snapshot_table(
+                    "Goal Check",
+                    ("At/Above OP", "Guided Reorders", "Days Left"),
+                    (
+                        (
+                            f"{at_or_above_op}/{len(state.items)}",
+                            f"{state.training.guided_orders_placed}/{guided_order_target}",
+                            str(lesson_days_remaining(state)),
+                        ),
+                    ),
+                ),
+            ],
+            className="lesson-snapshot-grid",
+        )
+        return [
+            html.Details(
+                [
+                    html.Summary(
+                        [
+                            html.Span("Show snapshot details"),
+                            html.Span("PNA and goal status", className="lesson-disclosure-hint"),
+                        ],
+                        className="lesson-disclosure-summary",
+                    ),
+                    html.Div(snapshot_body, className="lesson-disclosure-body"),
                 ],
-                className="lesson-snapshot-stack",
+                className="lesson-snapshot-disclosure",
             )
         ]
     if level is not None and state.items:

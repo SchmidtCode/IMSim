@@ -434,6 +434,52 @@ body {
   text-transform: uppercase;
 }
 
+.lesson-snapshot-disclosure {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.lesson-disclosure-summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  list-style: none;
+  min-height: 2.5rem;
+  padding: 0.15rem 0;
+}
+
+.lesson-disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lesson-disclosure-summary::after {
+  border-bottom: 0.12rem solid currentColor;
+  border-right: 0.12rem solid currentColor;
+  content: "";
+  height: 0.48rem;
+  margin-right: 0.2rem;
+  transform: rotate(45deg);
+  transition: transform 120ms ease;
+  width: 0.48rem;
+}
+
+.lesson-snapshot-disclosure[open] .lesson-disclosure-summary::after {
+  transform: rotate(225deg);
+}
+
+.lesson-disclosure-hint {
+  color: var(--imsim-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.lesson-disclosure-body {
+  padding-top: 0.2rem;
+}
+
 .shell-card,
 .metric-card,
 .footer-card {

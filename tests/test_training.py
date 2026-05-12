@@ -34,6 +34,7 @@ from imsim.ui.components import (
     build_po_overview_grid,
     custom_order_grid_options,
     refresh_inventory_figure,
+    service_card_children,
 )
 
 
@@ -199,6 +200,17 @@ def test_inventory_table_uses_ag_grid_with_lesson_visible_columns():
     assert grid.defaultColDef["filter"] is False
     assert grid.dashGridOptions["domLayout"] == "autoHeight"
     assert grid.style["height"] == "auto"
+
+
+def test_level_two_snapshot_is_collapsed_by_default():
+    state = build_level_state("level-2")
+
+    snapshot = service_card_children(state)[0]
+    snapshot_json = snapshot.to_plotly_json()
+
+    assert snapshot_json["type"] == "Details"
+    assert snapshot_json["props"]["className"] == "lesson-snapshot-disclosure"
+    assert "open" not in snapshot_json["props"]
 
 
 def test_custom_order_and_po_overview_use_ag_grid():
