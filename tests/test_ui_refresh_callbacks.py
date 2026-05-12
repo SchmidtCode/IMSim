@@ -33,6 +33,7 @@ def test_dashboard_render_listens_to_session_revision_and_theme(dash_app):
     assert _input_pairs(spec) == {
         ("user-data-store", "data"),
         ("session-revision", "data"),
+        ("dashboard-tick", "data"),
         ("theme-store", "data"),
     }
 
@@ -69,6 +70,7 @@ def test_theme_callback_updates_control_modal_content_classes(dash_app):
 def test_state_changes_emit_session_revision(dash_app):
     cases = [
         [
+            ("dashboard-tick", "data"),
             ("session-revision", "data"),
             ("asq-apply-feedback", "children"),
         ],

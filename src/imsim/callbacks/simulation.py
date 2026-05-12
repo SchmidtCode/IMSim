@@ -36,11 +36,12 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         ],
         Input("user-data-store", "data"),
         Input("session-revision", "data"),
+        Input("dashboard-tick", "data"),
         Input("theme-store", "data"),
         State("inventory-graph", "figure"),
         prevent_initial_call="initial_duplicate",
     )
-    def render_dashboard(client_data, _session_revision, theme, current_figure):
+    def render_dashboard(client_data, _session_revision, _dashboard_tick, theme, current_figure):
         session_id = (client_data or {}).get("uuid")
         state = ctx.repository.get_or_create(session_id) if session_id else default_state()
         theme_name = ctx.theme_name(theme)
@@ -57,15 +58,17 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
 
     @app.callback(
         [
+            Output("dashboard-tick", "data", allow_duplicate=True),
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
         ],
         Input("interval-component", "n_intervals"),
         State("user-data-store", "data"),
+        State("dashboard-tick", "data"),
         State("session-revision", "data"),
         prevent_initial_call=True,
     )
-    def update_on_interval(n_intervals, client_data, session_revision):
+    def update_on_interval(n_intervals, client_data, dashboard_tick, session_revision):
         if not n_intervals:
             raise PreventUpdate
         session_id, state = ctx.require_session(client_data)
@@ -82,7 +85,10 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
                 color="info",
                 duration=4000,
             )
-        return ctx.next_session_revision(session_revision), feedback
+        next_tick = ctx.next_session_revision(dashboard_tick)
+        if state.training.current_view == "simulator":
+            return next_tick, dash.no_update, feedback
+        return next_tick, ctx.next_session_revision(session_revision), feedback
 
     @app.callback(
         Output("session-revision", "data", allow_duplicate=True),

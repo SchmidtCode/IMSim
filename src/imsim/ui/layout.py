@@ -101,6 +101,7 @@ def build_layout(config: IMSimConfig):
                 dcc.Store(id="upload-preview-data"),
                 dcc.Store(id="theme-store", storage_type="local", data="light"),
                 dcc.Store(id="session-revision", data=0),
+                dcc.Store(id="dashboard-tick", data=0),
                 dcc.Interval(id="interval-component", interval=1000, disabled=True),
                 dcc.Interval(
                     id="shutdown-poll",
@@ -777,6 +778,11 @@ def build_layout(config: IMSimConfig):
                                                             id="inventory-graph",
                                                             figure={},
                                                             className="inventory-graph",
+                                                            style={
+                                                                "height": "38rem",
+                                                                "minHeight": "38rem",
+                                                                "width": "100%",
+                                                            },
                                                             config={
                                                                 "responsive": True,
                                                                 "displaylogo": False,

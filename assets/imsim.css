@@ -1221,6 +1221,34 @@ body {
   border-radius: var(--imsim-radius-2xl);
 }
 
+.inventory-graph {
+  height: 38rem;
+  min-height: 38rem;
+  width: 100%;
+}
+
+.dashboard-shell #graph-panel > .card,
+.dashboard-shell #graph-panel > .card > .card-body {
+  height: 100%;
+}
+
+.dashboard-shell #graph-panel > .card > .card-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-shell #graph-panel > .card {
+  overflow: hidden;
+}
+
+.dashboard-shell #graph-panel .dash-graph,
+.dashboard-shell #graph-panel .js-plotly-plot,
+.dashboard-shell #graph-panel .plot-container,
+.dashboard-shell #graph-panel .svg-container {
+  height: 100% !important;
+}
+
 .dashboard-shell.lesson-dashboard {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);

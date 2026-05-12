@@ -77,9 +77,8 @@ def test_level_one_uses_on_hand_lesson_graph():
 
     figure = build_inventory_figure(state)
 
-    assert figure.layout.title.text == "On-hand inventory over time"
-    assert figure.layout.title.font.size == 24.0
-    assert figure.layout.margin.to_plotly_json() == {"l": 24.0, "r": 24.0, "t": 56.0, "b": 24.0}
+    assert figure.layout.title.text is None
+    assert figure.layout.margin.to_plotly_json() == {"l": 24.0, "r": 24.0, "t": 19.2, "b": 24.0}
     assert [trace.name for trace in figure.data] == ["On Hand", "Backorder"]
     assert figure.data[0].line.width == 3.0
     assert figure.data[0].marker.size == 8.0
@@ -91,13 +90,15 @@ def test_level_two_uses_simple_quantity_graph():
 
     figure = build_inventory_figure(state)
 
-    assert figure.layout.title.text == "Basic reorder quantities over time"
+    assert figure.layout.title.text is None
     assert [trace.name for trace in figure.data] == ["On Hand", "On Order", "PNA", "Backorder"]
     assert all(trace.line.width == 3.0 for trace in figure.data)
     assert figure.data[-1].marker.size == 7.0
     assert figure.layout.hovermode == "x unified"
     assert figure.layout.uirevision == "lesson-2:light"
-    assert figure.layout.meta == {"figure_kind": "lesson-2", "theme": "light"}
+    assert figure.layout.meta["figure_kind"] == "lesson-2"
+    assert figure.layout.meta["theme"] == "light"
+    assert figure.layout.meta["layout_signature"] == "static"
 
 
 def test_signal_map_uses_stable_schema_and_uirevision():
@@ -107,7 +108,7 @@ def test_signal_map_uses_stable_schema_and_uirevision():
 
     figure = build_inventory_figure(state, theme="dark")
 
-    assert figure.layout.title.text == "Inventory Signal Map"
+    assert figure.layout.title.text is None
     assert [trace.name for trace in figure.data] == [
         "PNA",
         "PNA + SOQ",
@@ -117,7 +118,9 @@ def test_signal_map_uses_stable_schema_and_uirevision():
     ]
     assert figure.layout.hovermode == "closest"
     assert figure.layout.uirevision == "signal-map:dark"
-    assert figure.layout.meta == {"figure_kind": "signal-map", "theme": "dark"}
+    assert figure.layout.meta["figure_kind"] == "signal-map"
+    assert figure.layout.meta["theme"] == "dark"
+    assert figure.layout.meta["layout_signature"].startswith("items:")
 
 
 def test_refresh_inventory_figure_returns_patch_when_schema_is_stable():
@@ -129,7 +132,7 @@ def test_refresh_inventory_figure_returns_patch_when_schema_is_stable():
     assert isinstance(patch, Patch)
     operations = patch.to_plotly_json()["operations"]
     assert any(op["location"] == ["data", 0, "x"] for op in operations)
-    assert any(op["location"] == ["layout", "uirevision"] for op in operations)
+    assert not any(op["location"][0] == "layout" for op in operations)
 
 
 def test_refresh_inventory_figure_rebuilds_when_theme_or_schema_changes():

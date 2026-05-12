@@ -57,6 +57,7 @@ def _figure_theme(theme: str) -> dict[str, str]:
 _ROOT_FONT_SIZE_PX = 16
 _PLOT_TITLE_SIZE_REM = 1.5
 _PLOT_MARGIN_REM = {"l": 1.5, "r": 1.5, "t": 3.5, "b": 1.5}
+_PLOT_MARGIN_COMPACT_REM = {"l": 1.5, "r": 1.5, "t": 1.2, "b": 1.5}
 _PLOT_LINE_WIDTH_REM = 0.1875
 _PLOT_MARKER_OUTLINE_WIDTH_REM = 0.125
 _PLOT_MARKER_SIZE_REM = {
@@ -75,16 +76,13 @@ def _rem_to_px(rem: float) -> float:
 
 
 def _plot_base_layout(
-    title: str,
+    title: str | None,
     colors: dict[str, str],
     *,
     include_margin: bool = True,
+    height: int | None = None,
 ) -> dict[str, object]:
     layout: dict[str, object] = {
-        "title": {
-            "text": title,
-            "font": {"color": colors["text"], "size": _rem_to_px(_PLOT_TITLE_SIZE_REM)},
-        },
         "paper_bgcolor": "rgba(0,0,0,0)",
         "plot_bgcolor": colors["plot_bg"],
         "font": {"color": colors["text"]},
@@ -96,8 +94,16 @@ def _plot_base_layout(
             "font": {"color": colors["text"]},
         },
     }
+    if title:
+        layout["title"] = {
+            "text": title,
+            "font": {"color": colors["text"], "size": _rem_to_px(_PLOT_TITLE_SIZE_REM)},
+        }
     if include_margin:
-        layout["margin"] = {side: _rem_to_px(size) for side, size in _PLOT_MARGIN_REM.items()}
+        margin_source = _PLOT_MARGIN_REM if title else _PLOT_MARGIN_COMPACT_REM
+        layout["margin"] = {side: _rem_to_px(size) for side, size in margin_source.items()}
+    if height is not None:
+        layout["height"] = height
     return layout
 
 
@@ -229,6 +235,7 @@ def _lesson_item_snapshot_block(level_index: int, items: list[InventoryItem]) ->
 
 _FIGURE_KIND_KEY = "figure_kind"
 _FIGURE_THEME_KEY = "theme"
+_FIGURE_LAYOUT_SIG_KEY = "layout_signature"
 
 
 def _grid_theme_class(theme: str) -> str:
@@ -237,10 +244,16 @@ def _grid_theme_class(theme: str) -> str:
     )
 
 
-def _figure_meta(kind: str, theme: str) -> dict[str, str]:
+def _figure_meta(
+    kind: str,
+    theme: str,
+    *,
+    layout_signature: str = "static",
+) -> dict[str, str]:
     return {
         _FIGURE_KIND_KEY: kind,
         _FIGURE_THEME_KEY: theme,
+        _FIGURE_LAYOUT_SIG_KEY: layout_signature,
     }
 
 
@@ -386,7 +399,7 @@ def _lesson_one_figure(state: SimulationState, theme: str, colors: dict[str, str
         ]
     )
     fig.update_layout(
-        **_plot_base_layout("On-hand inventory over time", colors),
+        **_plot_base_layout(None, colors, height=460),
         xaxis_title="Day",
         yaxis_title="Units",
         hovermode="x unified",
@@ -433,7 +446,7 @@ def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str
         ]
     )
     fig.update_layout(
-        **_plot_base_layout("Basic reorder quantities over time", colors),
+        **_plot_base_layout(None, colors, height=460),
         xaxis_title="Day",
         yaxis_title="Units",
         hovermode="x unified",
@@ -529,15 +542,20 @@ def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str
     )
     fig.update_layout(
         **_plot_base_layout(
-            "Inventory Signal Map",
+            None,
             colors,
             include_margin=not rows.empty,
+            height=600,
         ),
         xaxis_title="Item",
         yaxis_title="Days from OP",
         hovermode="closest",
         uirevision=f"signal-map:{theme}",
-        meta=_figure_meta("signal-map", theme),
+        meta=_figure_meta(
+            "signal-map",
+            theme,
+            layout_signature=f"items:{len(rows)}:r_cycle:{state.global_settings.r_cycle}",
+        ),
     )
     fig.update_traces(x=item_numbers, selector={"name": "PNA"})
     fig.update_traces(y=rows["pna_days_frm_op"].tolist(), selector={"name": "PNA"})
@@ -602,6 +620,7 @@ def refresh_inventory_figure(
     if (
         current_meta.get(_FIGURE_KIND_KEY) != target_meta.get(_FIGURE_KIND_KEY)
         or current_meta.get(_FIGURE_THEME_KEY) != target_meta.get(_FIGURE_THEME_KEY)
+        or current_meta.get(_FIGURE_LAYOUT_SIG_KEY) != target_meta.get(_FIGURE_LAYOUT_SIG_KEY)
         or len((current_figure or {}).get("data") or []) != len(target.data)
     ):
         return target
@@ -615,16 +634,6 @@ def refresh_inventory_figure(
         else:
             patched["data"][index]["customdata"] = []
         patched["data"][index]["hovertemplate"] = trace.hovertemplate
-    patched["layout"]["title"] = target.layout.title.to_plotly_json()
-    patched["layout"]["xaxis"] = target.layout.xaxis.to_plotly_json()
-    patched["layout"]["yaxis"] = target.layout.yaxis.to_plotly_json()
-    patched["layout"]["hovermode"] = target.layout.hovermode
-    patched["layout"]["uirevision"] = target.layout.uirevision
-    patched["layout"]["meta"] = target.layout.meta
-    patched["layout"]["shapes"] = [shape.to_plotly_json() for shape in (target.layout.shapes or [])]
-    patched["layout"]["annotations"] = [
-        annotation.to_plotly_json() for annotation in (target.layout.annotations or [])
-    ]
     return patched
 
 
