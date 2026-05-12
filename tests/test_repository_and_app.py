@@ -202,6 +202,21 @@ def test_dash_layout_and_admin_status(client):
     assert status.get_json()["active"] is False
 
 
+def test_pause_session_endpoint_stops_active_session(dash_app, client):
+    repository = dash_app.server.extensions["imsim_repository"]
+    state = build_level_state("level-1")
+    state.is_initialized = True
+    repository.save("pause-me", state)
+
+    response = client.post("/api/session/pause", json={"uuid": "pause-me"})
+
+    assert response.status_code == 200
+    assert response.get_json() == {"ok": True, "paused": True}
+    loaded = repository.get_or_create("pause-me")
+    assert loaded.is_initialized is False
+    assert loaded.training.current_view == "lesson"
+
+
 def test_dash_component_suites_are_warmed(dash_app):
     registered = dash_app.registered_paths
 

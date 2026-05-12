@@ -57,6 +57,14 @@ def test_training_shell_render_listens_to_session_revision(dash_app):
     }
 
 
+def test_page_lifecycle_changes_refresh_session_state(dash_app):
+    assert any(
+        ("page-lifecycle-store", "data") in _input_pairs(spec)
+        and ("session-revision", "data") in _output_pairs(spec)
+        for spec in dash_app.callback_map.values()
+    )
+
+
 def test_academy_navigation_wires_final_lesson_button(dash_app):
     assert any(
         ("academy-level-18-button", "n_clicks") in _input_pairs(spec)

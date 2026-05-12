@@ -10,7 +10,7 @@ from flask import Flask, abort, jsonify, request
 
 from .callbacks import register_callbacks
 from .config import IMSimConfig
-from .repository import create_session_repository
+from .repository import SessionConflictError, create_session_repository
 from .services.simulation import MaintenanceController
 from .ui.layout import build_layout
 
@@ -74,6 +74,29 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
                 "closing": state.closing,
             }
         )
+
+    @server.post("/api/session/pause")
+    def api_pause_session():
+        data = request.get_json(silent=True) or {}
+        session_id = str(data.get("uuid") or data.get("session_id") or "").strip()
+        if not session_id:
+            return jsonify({"ok": False, "reason": "missing_session"}), 400
+
+        for _ in range(3):
+            state = repository.get_or_create(session_id)
+            if not state.is_initialized:
+                response = jsonify({"ok": True, "paused": False})
+                response.headers["Cache-Control"] = "no-store"
+                return response
+            state.is_initialized = False
+            try:
+                repository.save(session_id, state)
+            except SessionConflictError:
+                continue
+            response = jsonify({"ok": True, "paused": True})
+            response.headers["Cache-Control"] = "no-store"
+            return response
+        return jsonify({"ok": False, "reason": "session_conflict"}), 409
 
     @server.get("/health")
     def health():

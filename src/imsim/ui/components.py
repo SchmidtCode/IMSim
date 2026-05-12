@@ -558,7 +558,7 @@ def _lesson_one_figure(state: SimulationState, theme: str, colors: dict[str, str
         ]
     )
     fig.update_layout(
-        **_plot_base_layout(None, colors, height=460),
+        **_plot_base_layout(None, colors, height=380),
         xaxis_title="Day",
         yaxis_title="Units",
         hovermode="x unified",
@@ -867,13 +867,20 @@ def refresh_inventory_figure(
 
     patched = Patch()
     for index, trace in enumerate(target.data):
-        patched["data"][index]["x"] = list(trace.x) if trace.x is not None else []
-        patched["data"][index]["y"] = list(trace.y) if trace.y is not None else []
+        if getattr(trace, "x", None) is not None:
+            patched["data"][index]["x"] = list(trace.x)
+        if getattr(trace, "y", None) is not None:
+            patched["data"][index]["y"] = list(trace.y)
+        if getattr(trace, "value", None) is not None:
+            patched["data"][index]["value"] = trace.value
+        if getattr(trace, "text", None) is not None:
+            patched["data"][index]["text"] = (
+                trace.text if isinstance(trace.text, str) else list(trace.text)
+            )
         if getattr(trace, "customdata", None) is not None:
             patched["data"][index]["customdata"] = list(trace.customdata)
-        else:
-            patched["data"][index]["customdata"] = []
-        patched["data"][index]["hovertemplate"] = trace.hovertemplate
+        if getattr(trace, "hovertemplate", None) is not None:
+            patched["data"][index]["hovertemplate"] = trace.hovertemplate
     return patched
 
 

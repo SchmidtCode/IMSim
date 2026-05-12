@@ -183,6 +183,33 @@ def test_refresh_inventory_figure_returns_patch_when_schema_is_stable():
     assert not any(op["location"][0] == "layout" for op in operations)
 
 
+def test_refresh_inventory_figure_patches_lesson_three_indicator_value():
+    state = build_level_state("level-3")
+    current_figure = build_inventory_figure(state).to_plotly_json()
+    state.service_totals.orders = 4
+    state.service_totals.orders_stockout = 1
+
+    patch = refresh_inventory_figure(state, current_figure=current_figure)
+
+    assert isinstance(patch, Patch)
+    operations = patch.to_plotly_json()["operations"]
+    assert {
+        "operation": "Assign",
+        "location": ["data", 0, "value"],
+        "params": {"value": 75.0},
+    } in operations
+    assert {
+        "operation": "Assign",
+        "location": ["data", 1, "y"],
+        "params": {"value": [3, 1]},
+    } in operations
+    assert {
+        "operation": "Assign",
+        "location": ["data", 1, "text"],
+        "params": {"value": ["3", "1"]},
+    } in operations
+
+
 def test_refresh_inventory_figure_rebuilds_when_theme_or_schema_changes():
     lesson_one = build_level_state("level-1")
     current_figure = build_inventory_figure(lesson_one).to_plotly_json()
@@ -386,6 +413,19 @@ def test_level_one_passes_when_inventory_depletes_and_backorder_appears():
     assert evaluation is not None
     assert evaluation.completed is True
     assert evaluation.passed is True
+
+
+def test_level_one_tick_completes_on_displayed_day_twenty():
+    state = build_level_state("level-1")
+    state.is_initialized = True
+
+    for _ in range(19):
+        summary = tick_state(state)
+
+    assert state.day == 20
+    assert summary["lesson_completed"] == 1
+    assert state.is_initialized is False
+    assert state.training.lesson_status == "passed"
 
 
 def test_training_tick_forces_auto_po_back_off():

@@ -158,7 +158,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             "Fill rate, order points, costs, and advanced controls unlock later.",
         ),
         demand_mode="deterministic",
-        day_window=20,
+        day_window=19,
         scenario=(_item(60, 15, 35, 34, hits_per_month=30),),
         visible_panels=frozenset({"graph", "service", "inventory", "session"}),
         visible_columns=("item", "on_hand", "daily_usage", "backorder"),

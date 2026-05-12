@@ -102,6 +102,26 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         return data
 
     @app.callback(
+        Output("session-revision", "data", allow_duplicate=True),
+        Input("page-lifecycle-store", "data"),
+        State("user-data-store", "data"),
+        State("session-revision", "data"),
+        prevent_initial_call=True,
+    )
+    def pause_session_when_page_inactive(lifecycle, client_data, session_revision):
+        if not isinstance(lifecycle, dict):
+            raise PreventUpdate
+        session_id, state = ctx.require_session(client_data)
+        is_active = lifecycle.get("active") is not False
+        if is_active:
+            return ctx.next_session_revision(session_revision)
+        if not state.is_initialized:
+            raise PreventUpdate
+        state.is_initialized = False
+        ctx.persist_state(session_id, state)
+        return ctx.next_session_revision(session_revision)
+
+    @app.callback(
         [
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),

@@ -1632,7 +1632,7 @@ body {
   .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-layout {
     display: grid;
     grid-template-columns: minmax(17rem, 23rem) minmax(0, 1fr);
-    grid-template-rows: min-content minmax(24rem, 1fr) min-content min-content;
+    grid-template-rows: min-content minmax(22rem, 1fr) min-content min-content;
     grid-template-areas:
       "actions graph"
       "session graph"
@@ -1719,11 +1719,11 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel {
-    min-height: 32rem;
+    min-height: 26rem;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-graph {
-    min-height: 29rem;
+    min-height: 23rem;
   }
 
   .dashboard-shell.lesson-layout-workspace-basic .dashboard-main-layout,

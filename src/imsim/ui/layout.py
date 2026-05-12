@@ -104,6 +104,7 @@ def build_layout(config: IMSimConfig):
                 dcc.Store(id="theme-store", storage_type="local", data="light"),
                 dcc.Store(id="session-revision", data=0),
                 dcc.Store(id="dashboard-tick", data=0),
+                dcc.Store(id="page-lifecycle-store", data={"active": True, "reason": "initial"}),
                 dcc.Interval(id="interval-component", interval=1000, disabled=True),
                 dcc.Interval(
                     id="shutdown-poll",
