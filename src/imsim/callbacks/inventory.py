@@ -63,11 +63,7 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             )
         )
         pna = int(
-            round(
-                usage * (lead / 30.0)
-                + ((usage * (lead / 30.0)) * (safety_pct / 100.0))
-                + pack
-            )
+            round(usage * (lead / 30.0) + ((usage * (lead / 30.0)) * (safety_pct / 100.0)) + pack)
         )
         hits = max(1, int(rng.poisson(5)))
         return usage, lead, cost, pna, safety_pct, pack, hits
