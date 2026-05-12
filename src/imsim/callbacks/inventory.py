@@ -18,7 +18,12 @@ from ..services.simulation import (
     place_custom_orders,
     place_purchase_orders,
 )
-from ..services.training import is_action_allowed, record_custom_order, record_guided_order
+from ..services.training import (
+    is_action_allowed,
+    record_custom_order,
+    record_guided_order,
+    record_parameter_update,
+)
 from ..services.uploads import coerce_uploaded, parse_contents, read_uploaded_table
 from ..ui.components import (
     build_custom_order_grid,
@@ -274,6 +279,7 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
         state.global_settings.asq.include_transfers = ctx.toggle_enabled(asq_include_transfers)
         for item in state.items:
             update_gs_related_values(item, state.global_settings)
+        record_parameter_update(state)
         ctx.persist_state(session_id, state)
         return ctx.next_session_revision(session_revision), dbc.Alert(
             "Parameters updated.",

@@ -779,11 +779,6 @@ def build_layout(config: IMSimConfig):
                                                             id="inventory-graph",
                                                             figure={},
                                                             className="inventory-graph",
-                                                            style={
-                                                                "height": "38rem",
-                                                                "minHeight": "38rem",
-                                                                "width": "100%",
-                                                            },
                                                             config={
                                                                 "responsive": True,
                                                                 "displaylogo": False,

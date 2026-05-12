@@ -11,6 +11,7 @@ from ..services.planning import format_money, item_on_order
 from ..services.training import (
     academy_level_status,
     academy_levels,
+    active_layout_variant,
     active_level,
     after_overhead_pct,
     evaluate_active_lesson,
@@ -162,6 +163,7 @@ def _compact_lesson_pill_text(row: str) -> str:
         ("Items closing at/above OP: ", "At/above OP: "),
         ("Guided reorders used: ", "Guided reorders: "),
         ("Manual custom orders used: ", "Custom orders: "),
+        ("Parameter updates used: ", "Policy updates: "),
         ("Avg inventory value: ", "Avg inv value: "),
     )
     for old, new in replacements:
@@ -179,6 +181,7 @@ def _lesson_item_snapshot_columns(level_index: int) -> tuple[str, ...]:
         5: ("item", "on_hand", "on_order", "backorder", "pna"),
         6: ("item", "pna", "op", "lp", "soq"),
         7: ("item", "pna", "op", "lp", "soq"),
+        8: ("item", "pna", "op", "lp", "soq"),
     }.get(level_index, ("item", "on_hand", "on_order", "backorder"))
 
 
@@ -230,6 +233,76 @@ def _lesson_item_snapshot_block(level_index: int, items: list[InventoryItem]) ->
             tuple(_lesson_item_snapshot_value(column, index, item) for column in columns)
             for index, item in enumerate(items, start=1)
         ),
+    )
+
+
+def _workspace_graph_height(state: SimulationState) -> int:
+    return {
+        "workspace_signal": 320,
+        "workspace_advanced": 360,
+        "workspace_certification": 380,
+        "simulator": 520,
+    }.get(active_layout_variant(state), 420)
+
+
+def _workspace_grid_height(state: SimulationState, *, surface: str) -> str:
+    variant = active_layout_variant(state)
+    if surface == "inventory":
+        return {
+            "workspace_basic": "36rem",
+            "workspace_signal": "32rem",
+            "workspace_advanced": "28rem",
+            "workspace_certification": "26rem",
+            "simulator": "28rem",
+        }.get(variant, "28rem")
+    return {
+        "workspace_basic": "32rem",
+        "workspace_signal": "30rem",
+        "workspace_advanced": "26rem",
+        "workspace_certification": "26rem",
+        "simulator": "26rem",
+    }.get(variant, "26rem")
+
+
+def _signal_map_layout_signature(state: SimulationState, rows: pd.DataFrame) -> str:
+    return (
+        f"{active_layout_variant(state)}:items:{len(rows)}:"
+        f"r_cycle:{state.global_settings.r_cycle}"
+    )
+
+
+def _lesson_position_snapshot_block(state: SimulationState) -> html.Div:
+    variant = active_layout_variant(state)
+    on_order = sum(item_on_order(item) for item in state.items)
+    backorder = sum(item.backorder for item in state.items)
+    if variant == "workspace_basic":
+        at_or_below_op = sum(1 for item in state.items if item.on_hand <= item.op)
+        rows = (
+            (
+                f"{sum(item.on_hand for item in state.items):.1f}",
+                f"{on_order:.1f}",
+                f"{backorder:.1f}",
+                f"{at_or_below_op}/{len(state.items)}",
+            ),
+        )
+        return _lesson_snapshot_table(
+            "Position",
+            ("ATS", "On Order", "Backorder", "At/Below OP"),
+            rows,
+        )
+    at_or_below_op = sum(1 for item in state.items if item.pna <= item.op)
+    rows = (
+        (
+            f"{sum(item.pna for item in state.items):.1f}",
+            f"{on_order:.1f}",
+            f"{backorder:.1f}",
+            f"{at_or_below_op}/{len(state.items)}",
+        ),
+    )
+    return _lesson_snapshot_table(
+        "Position",
+        ("PNA", "On Order", "Backorder", "At/Below OP"),
+        rows,
     )
 
 
@@ -565,7 +638,7 @@ def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str
             None,
             colors,
             include_margin=not rows.empty,
-            height=600,
+            height=_workspace_graph_height(state),
         ),
         xaxis_title="Item",
         yaxis_title="Days from OP",
@@ -574,7 +647,7 @@ def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str
         meta=_figure_meta(
             "signal-map",
             theme,
-            layout_signature=f"items:{len(rows)}:r_cycle:{state.global_settings.r_cycle}",
+            layout_signature=_signal_map_layout_signature(state, rows),
         ),
     )
     fig.update_traces(x=item_numbers, selector={"name": "PNA"})
@@ -707,22 +780,26 @@ def service_card_children(state: SimulationState) -> list:
             )
         ]
     if level is not None and state.items:
+        top_blocks = [
+            _lesson_snapshot_table(
+                "Service",
+                ("Orders", "Stockouts", "Today Fill", "Cum Fill", "Zero ATS"),
+                (
+                    (
+                        str(today.orders),
+                        str(today.orders_stockout),
+                        _format_pct(fill_today),
+                        _format_pct(fill_total),
+                        str(today.zero_on_hand_hits),
+                    ),
+                ),
+            ),
+            _lesson_position_snapshot_block(state),
+        ]
         return [
             html.Div(
                 [
-                    _lesson_snapshot_table(
-                        "Service",
-                        ("Orders", "Stockouts", "Today Fill", "Cum Fill", "Zero ATS"),
-                        (
-                            (
-                                str(today.orders),
-                                str(today.orders_stockout),
-                                _format_pct(fill_today),
-                                _format_pct(fill_total),
-                                str(today.zero_on_hand_hits),
-                            ),
-                        ),
-                    ),
+                    html.Div(top_blocks, className="lesson-snapshot-grid"),
                     _lesson_item_snapshot_block(level.index, state.items),
                 ],
                 className="lesson-snapshot-stack",
@@ -929,7 +1006,7 @@ def build_po_overview_grid(state: SimulationState, theme: str = "light") -> dag.
         className=_grid_theme_class(theme),
         columnSize="sizeToFit",
         dashGridOptions=po_overview_grid_options(),
-        style={"height": "420px", "width": "100%"},
+        style={"height": _workspace_grid_height(state, surface="modal"), "width": "100%"},
     )
 
 
@@ -983,7 +1060,7 @@ def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag
         className=_grid_theme_class(theme),
         columnSize="sizeToFit",
         dashGridOptions={"animateRows": False, "stopEditingWhenCellsLoseFocus": True},
-        style={"height": "420px", "width": "100%"},
+        style={"height": _workspace_grid_height(state, surface="modal"), "width": "100%"},
     )
 
 
@@ -1052,7 +1129,7 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             "paginationPageSizeSelector": False,
             "animateRows": False,
         },
-        style={"height": "460px", "width": "100%"},
+        style={"height": _workspace_grid_height(state, surface="inventory"), "width": "100%"},
     )
 
 

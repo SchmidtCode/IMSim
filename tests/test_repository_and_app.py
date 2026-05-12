@@ -192,6 +192,7 @@ def test_dash_layout_and_admin_status(client):
     payload = response.get_data(as_text=True)
     assert "IMSim Academy" in payload
     assert "academy-simulator-button" in payload
+    assert "academy-level-8-button" in payload
     assert '"disabled":true' in payload
     health = client.get("/health")
     assert health.status_code == 200

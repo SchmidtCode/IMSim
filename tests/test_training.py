@@ -3,7 +3,7 @@ from __future__ import annotations
 from dash import Patch
 from dash_ag_grid import AgGrid
 
-from imsim.models import Receipt
+from imsim.models import Receipt, TrainingProfile
 from imsim.services import simulation as simulation_service
 from imsim.services.simulation import (
     expedite_or_cancel_receipt,
@@ -13,10 +13,12 @@ from imsim.services.simulation import (
 )
 from imsim.services.training import (
     academy_level,
+    active_layout_variant,
     apply_lesson_evaluation,
     build_level_state,
     build_simulator_state,
     evaluate_active_lesson,
+    final_academy_level,
     is_action_allowed,
     reset_progress_state,
 )
@@ -126,7 +128,26 @@ def test_signal_map_uses_stable_schema_and_uirevision():
     assert figure.layout.uirevision == "signal-map:dark"
     assert figure.layout.meta["figure_kind"] == "signal-map"
     assert figure.layout.meta["theme"] == "dark"
-    assert figure.layout.meta["layout_signature"].startswith("items:")
+    assert figure.layout.meta["layout_signature"].startswith("simulator:items:")
+
+
+def test_workspace_variants_drive_figure_and_grid_sizes():
+    basic_state = build_level_state("level-3")
+    signal_state = build_level_state("level-5")
+    certification_state = build_level_state("level-8")
+
+    basic_grid = build_inventory_table(basic_state)
+    signal_grid = build_inventory_table(signal_state)
+    certification_figure = build_inventory_figure(certification_state)
+
+    assert isinstance(basic_grid, AgGrid)
+    assert basic_grid.style["height"] == "36rem"
+    assert isinstance(signal_grid, AgGrid)
+    assert signal_grid.style["height"] == "32rem"
+    assert certification_figure.layout.height == 380
+    assert certification_figure.layout.meta["layout_signature"].startswith(
+        "workspace_certification:items:"
+    )
 
 
 def test_refresh_inventory_figure_returns_patch_when_schema_is_stable():
@@ -195,6 +216,8 @@ def test_custom_order_and_po_overview_use_ag_grid():
     assert po_grid.dashGridOptions["rowSelection"]["enableSelectionWithoutKeys"] is True
     assert po_grid.dashGridOptions["rowSelection"]["checkboxes"] is True
     assert po_grid.dashGridOptions["rowSelection"]["headerCheckbox"] is True
+    assert custom_order_grid.style["height"] == "26rem"
+    assert po_grid.style["height"] == "26rem"
 
 
 def test_expedite_receipt_can_jump_to_one_week_when_supplier_has_stock(monkeypatch):
@@ -338,9 +361,33 @@ def test_level_two_requires_guided_order_to_pass():
     assert evaluation.passed is True
 
 
-def test_final_lesson_pass_unlocks_simulator_reward():
+def test_bridge_lesson_requires_policy_update_to_pass():
     state = build_level_state("level-7")
     level = academy_level("level-7")
+    assert level is not None
+    state.day = level.day_window + 1
+    state.service_totals.orders = 100
+    state.service_totals.orders_stockout = 0
+    state.sales.revenue = 1000.0
+    state.sales.cogs = 600.0
+    state.costs.total = 100.0
+
+    evaluation = evaluate_active_lesson(state)
+    assert evaluation is not None
+    assert evaluation.completed is True
+    assert evaluation.passed is False
+
+    state.training.parameter_updates_applied = 1
+    evaluation = evaluate_active_lesson(state)
+
+    assert evaluation is not None
+    assert evaluation.completed is True
+    assert evaluation.passed is True
+
+
+def test_final_lesson_pass_unlocks_simulator_reward():
+    state = build_level_state("level-8")
+    level = academy_level("level-8")
     assert level is not None
     state.day = level.day_window + 1
     state.service_totals.orders = 100
@@ -360,6 +407,42 @@ def test_final_lesson_pass_unlocks_simulator_reward():
 
     assert state.training.simulator_unlocked is True
     assert state.training.auto_po_reward_unlocked is True
-    assert "level-7" in state.training.completed_levels
+    assert "level-8" in state.training.completed_levels
     assert state.training.current_view == "lesson"
-    assert state.training.active_level_id == "level-7"
+    assert state.training.active_level_id == "level-8"
+
+
+def test_simulator_state_uses_final_academy_lesson_seed():
+    simulator_state = build_simulator_state()
+    certification = final_academy_level()
+
+    assert certification.level_id == "level-8"
+    assert len(simulator_state.items) == len(certification.scenario)
+    assert simulator_state.global_settings.asq.enabled == certification.global_settings.asq.enabled
+
+
+def test_training_profile_migrates_legacy_certification_progress():
+    legacy = TrainingProfile.from_dict(
+        {
+            "training_schema_version": 1,
+            "active_level_id": "level-7",
+            "highest_unlocked_level": 7,
+            "completed_levels": ["level-1", "level-7"],
+            "simulator_unlocked": True,
+            "auto_po_reward_unlocked": True,
+        }
+    )
+
+    assert legacy.training_schema_version == 2
+    assert legacy.active_level_id == "level-8"
+    assert legacy.highest_unlocked_level == 8
+    assert legacy.completed_levels == ["level-1", "level-8"]
+    assert legacy.simulator_unlocked is True
+    assert legacy.auto_po_reward_unlocked is True
+
+
+def test_active_layout_variant_tracks_bridge_and_certification():
+    assert active_layout_variant(build_level_state("level-3")) == "workspace_basic"
+    assert active_layout_variant(build_level_state("level-5")) == "workspace_signal"
+    assert active_layout_variant(build_level_state("level-7")) == "workspace_advanced"
+    assert active_layout_variant(build_level_state("level-8")) == "workspace_certification"

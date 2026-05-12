@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from imsim.callbacks.training import dashboard_shell_class_name
+from imsim.services.training import build_level_state
+
 
 def _output_pairs(spec):
     outputs = spec["output"]
@@ -52,6 +55,28 @@ def test_training_shell_render_listens_to_session_revision(dash_app):
         ("user-data-store", "data"),
         ("session-revision", "data"),
     }
+
+
+def test_academy_navigation_wires_level_eight_button(dash_app):
+    assert any(
+        ("academy-level-8-button", "n_clicks") in _input_pairs(spec)
+        for spec in dash_app.callback_map.values()
+    )
+
+
+def test_dashboard_shell_class_names_follow_lesson_variants():
+    assert "lesson-layout-workspace-basic" in dashboard_shell_class_name(
+        build_level_state("level-3")
+    )
+    assert "lesson-layout-workspace-signal" in dashboard_shell_class_name(
+        build_level_state("level-5")
+    )
+    assert "lesson-layout-workspace-advanced" in dashboard_shell_class_name(
+        build_level_state("level-7")
+    )
+    assert "lesson-layout-workspace-certification" in dashboard_shell_class_name(
+        build_level_state("level-8")
+    )
 
 
 def test_theme_callback_updates_control_modal_content_classes(dash_app):

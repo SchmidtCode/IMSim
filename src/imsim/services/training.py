@@ -34,6 +34,7 @@ class LevelDefinition:
     allowed_actions: frozenset[str]
     win_conditions: dict[str, float | int | bool]
     global_settings: GlobalSettings
+    layout_variant: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +146,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         allowed_actions=frozenset(),
         win_conditions={"on_hand_zero_close": True, "backorder_min": 2.0},
         global_settings=_settings(),
+        layout_variant="intro_trend",
     ),
     LevelDefinition(
         index=2,
@@ -194,6 +196,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         allowed_actions=frozenset({"guided_po"}),
         win_conditions={"guided_order_min": 1, "close_at_or_above_op": True},
         global_settings=_settings(),
+        layout_variant="intro_pna",
     ),
     LevelDefinition(
         index=3,
@@ -247,8 +250,13 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         visible_panels=frozenset({"service", "inventory", "session", "actions"}),
         visible_columns=("item", "on_hand", "usage_rate", "lead_time", "op", "days_to_op"),
         allowed_actions=frozenset({"guided_po"}),
-        win_conditions={"fill_rate_min": 0.97, "close_at_or_above_op": True},
+        win_conditions={
+            "fill_rate_min": 0.97,
+            "close_at_or_above_op": True,
+            "guided_order_min": 2,
+        },
         global_settings=_settings(),
+        layout_variant="workspace_basic",
     ),
     LevelDefinition(
         index=4,
@@ -326,6 +334,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             "zero_backorder_close": True,
         },
         global_settings=_settings(),
+        layout_variant="workspace_basic",
     ),
     LevelDefinition(
         index=5,
@@ -385,7 +394,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
                 hits_per_month=16,
             ),
         ),
-        visible_panels=frozenset({"service", "inventory", "session", "actions"}),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
         visible_columns=(
             "item",
             "on_hand",
@@ -400,6 +409,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         allowed_actions=frozenset({"guided_po", "custom_order"}),
         win_conditions={"fill_rate_min": 0.95, "avg_inventory_value_max": 10500.0},
         global_settings=_settings(stockout_penalty=6.5, gm=0.18),
+        layout_variant="workspace_signal",
     ),
     LevelDefinition(
         index=6,
@@ -500,10 +510,133 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         global_settings=_settings(
             r_cycle=14, r_cost=8.0, k_cost=0.18, stockout_penalty=5.5, expedite_rate=0.03, gm=0.18
         ),
+        layout_variant="workspace_advanced",
     ),
     LevelDefinition(
         index=7,
         level_id="level-7",
+        title="Policy Tuning and Tradeoffs",
+        summary=(
+            "Open the parameter deck and prove you can tune policy without buying "
+            "service at any cost."
+        ),
+        formula="Review cycle, costs, and margin targets shift how the signal map behaves",
+        tutorial_steps=(
+            "Global parameters are now part of the workflow, not just background math.",
+            "Make at least one policy update and watch the signal map and margin respond.",
+            "Keep service and after-overhead GM above the bridge targets before certification.",
+        ),
+        locked_features=(
+            "ASQ, the exception center, and imports remain locked for certification.",
+            "Auto purchase orders still unlock only after the final lesson is passed.",
+        ),
+        demand_mode="stochastic",
+        day_window=30,
+        scenario=(
+            ScenarioItem(
+                usage_rate=48,
+                lead_time=21,
+                item_cost=95,
+                initial_pna=40,
+                safety_allowance_pct=35,
+                standard_pack=5,
+                hits_per_month=10,
+            ),
+            ScenarioItem(
+                usage_rate=90,
+                lead_time=45,
+                item_cost=22,
+                initial_pna=120,
+                safety_allowance_pct=20,
+                standard_pack=10,
+                hits_per_month=18,
+            ),
+            ScenarioItem(
+                usage_rate=16,
+                lead_time=14,
+                item_cost=145,
+                initial_pna=25,
+                safety_allowance_pct=50,
+                standard_pack=1,
+                hits_per_month=4,
+            ),
+            ScenarioItem(
+                usage_rate=60,
+                lead_time=18,
+                item_cost=60,
+                initial_pna=55,
+                safety_allowance_pct=20,
+                standard_pack=5,
+                hits_per_month=12,
+            ),
+            ScenarioItem(
+                usage_rate=72,
+                lead_time=24,
+                item_cost=42,
+                initial_pna=76,
+                safety_allowance_pct=25,
+                standard_pack=4,
+                hits_per_month=14,
+            ),
+            ScenarioItem(
+                usage_rate=36,
+                lead_time=16,
+                item_cost=75,
+                initial_pna=32,
+                safety_allowance_pct=30,
+                standard_pack=2,
+                hits_per_month=8,
+            ),
+        ),
+        visible_panels=frozenset(
+            {
+                "kpi",
+                "graph",
+                "service",
+                "costs",
+                "sales",
+                "inventory",
+                "session",
+                "actions",
+                "policy",
+            }
+        ),
+        visible_columns=(
+            "item",
+            "usage_rate",
+            "lead_time",
+            "op",
+            "lp",
+            "oq",
+            "pna",
+            "on_hand",
+            "on_order",
+            "backorder",
+            "soq",
+        ),
+        allowed_actions=frozenset(
+            {
+                "guided_po",
+                "custom_order",
+                "po_overview",
+                "expedite_receipt",
+                "cancel_receipt",
+                "update_parameters",
+            }
+        ),
+        win_conditions={
+            "fill_rate_min": 0.96,
+            "after_overhead_min": 0.0,
+            "parameter_update_min": 1,
+        },
+        global_settings=_settings(
+            r_cycle=14, r_cost=8.0, k_cost=0.18, stockout_penalty=5.5, expedite_rate=0.03, gm=0.18
+        ),
+        layout_variant="workspace_advanced",
+    ),
+    LevelDefinition(
+        index=8,
+        level_id="level-8",
         title="Certification",
         summary=(
             "Run the full dashboard and prove you can balance service, "
@@ -604,6 +737,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             gm=0.18,
             asq_enabled=True,
         ),
+        layout_variant="workspace_certification",
     ),
 )
 
@@ -618,6 +752,10 @@ def academy_levels() -> tuple[LevelDefinition, ...]:
     return LESSON_DEFINITIONS
 
 
+def final_academy_level() -> LevelDefinition:
+    return LESSON_DEFINITIONS[-1]
+
+
 def academy_level(level_id: str | None) -> LevelDefinition | None:
     if not level_id:
         return None
@@ -628,6 +766,13 @@ def active_level(state: SimulationState) -> LevelDefinition | None:
     if state.training.current_view != "lesson":
         return None
     return academy_level(state.training.active_level_id)
+
+
+def active_layout_variant(state: SimulationState) -> str:
+    if state.training.current_view == "simulator":
+        return "simulator"
+    level = active_level(state)
+    return level.layout_variant if level is not None else "simulator"
 
 
 def academy_level_status(profile: TrainingProfile, level: LevelDefinition) -> str:
@@ -747,6 +892,9 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
     if "manual_custom_order_min" in level.win_conditions:
         needed = int(level.win_conditions["manual_custom_order_min"])
         rows.append(f"Manual custom orders used: {state.training.custom_orders_placed}/{needed}")
+    if "parameter_update_min" in level.win_conditions:
+        needed = int(level.win_conditions["parameter_update_min"])
+        rows.append(f"Parameter updates used: {state.training.parameter_updates_applied}/{needed}")
     if level.win_conditions.get("zero_backorder_close"):
         backorder_total = sum(item.backorder for item in state.items)
         rows.append(f"Backorder at close: {backorder_total:.0f}")
@@ -797,6 +945,11 @@ def evaluate_active_lesson(state: SimulationState) -> LessonEvaluation | None:
         checks.append(
             state.training.custom_orders_placed
             >= int(level.win_conditions["manual_custom_order_min"])
+        )
+    if "parameter_update_min" in level.win_conditions:
+        checks.append(
+            state.training.parameter_updates_applied
+            >= int(level.win_conditions["parameter_update_min"])
         )
     if level.win_conditions.get("zero_backorder_close"):
         checks.append(sum(item.backorder for item in state.items) <= 0)
@@ -869,6 +1022,10 @@ def record_custom_order(state: SimulationState) -> None:
     state.training.custom_orders_placed += 1
 
 
+def record_parameter_update(state: SimulationState) -> None:
+    state.training.parameter_updates_applied += 1
+
+
 def _state_for_scenario(
     *,
     profile: TrainingProfile,
@@ -910,6 +1067,7 @@ def build_level_state(level_id: str, profile: TrainingProfile | None = None) -> 
     progress.last_result_message = ""
     progress.guided_orders_placed = 0
     progress.custom_orders_placed = 0
+    progress.parameter_updates_applied = 0
     return _state_for_scenario(
         profile=progress, scenario=level.scenario, settings=level.global_settings
     )
@@ -925,7 +1083,8 @@ def build_simulator_state(profile: TrainingProfile | None = None) -> SimulationS
     progress.last_result_message = ""
     progress.guided_orders_placed = 0
     progress.custom_orders_placed = 0
-    certification = LEVELS_BY_ID["level-7"]
+    progress.parameter_updates_applied = 0
+    certification = final_academy_level()
     return _state_for_scenario(
         profile=progress,
         scenario=certification.scenario,
