@@ -254,7 +254,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         lesson_terminal = ctx.lesson_terminal(state)
         po_label = (
             "Place SOQ Order"
-            if (is_simulator or (level is not None and level.index >= 6))
+            if (is_simulator or (level is not None and level.index >= 13))
             else "Place Guided Reorder"
         )
         graph_title = (

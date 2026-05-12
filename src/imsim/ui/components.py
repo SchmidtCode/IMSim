@@ -197,12 +197,22 @@ def _lesson_item_snapshot_columns(level_index: int) -> tuple[str, ...]:
     return {
         1: ("item", "on_hand", "daily_usage", "backorder"),
         2: ("item", "on_hand", "on_order", "backorder", "pna"),
-        3: ("item", "on_hand", "usage_rate", "op", "days_to_op"),
-        4: ("item", "on_hand", "on_order", "backorder", "soq"),
-        5: ("item", "on_hand", "on_order", "backorder", "pna"),
-        6: ("item", "pna", "op", "lp", "soq"),
-        7: ("item", "pna", "op", "lp", "soq"),
-        8: ("item", "pna", "op", "lp", "soq"),
+        3: ("item", "on_hand", "daily_usage", "backorder"),
+        4: ("item", "usage_rate", "hits_per_month", "on_hand"),
+        5: ("item", "usage_rate", "daily_usage", "on_hand"),
+        6: ("item", "on_hand", "on_order", "lead_time", "pna"),
+        7: ("item", "on_hand", "on_order", "backorder", "pna"),
+        8: ("item", "on_hand", "usage_rate", "op", "days_to_op"),
+        9: ("item", "safety_allowance", "op", "on_hand"),
+        10: ("item", "pna", "op", "safety_allowance", "soq"),
+        11: ("item", "hits_per_month", "usage_rate", "pna"),
+        12: ("item", "pna", "op", "lp", "soq"),
+        13: ("item", "pna", "op", "lp", "soq"),
+        14: ("item", "item_cost", "pna", "soq"),
+        15: ("item", "eoq", "oq", "pna", "op"),
+        16: ("item", "pna", "oq", "standard_pack", "soq"),
+        17: ("item", "pna", "cp", "surplus_line"),
+        18: ("item", "pna", "op", "lp", "soq"),
     }.get(level_index, ("item", "on_hand", "on_order", "backorder"))
 
 
@@ -215,6 +225,12 @@ def _lesson_item_snapshot_value(column: str, index: int, item: InventoryItem) ->
         return f"{item.daily_ur:.1f}"
     if column == "usage_rate":
         return f"{item.usage_rate:.1f}"
+    if column == "lead_time":
+        return f"{item.lead_time:.1f}"
+    if column == "hits_per_month":
+        return f"{item.hits_per_month:.1f}"
+    if column == "item_cost":
+        return format_money(item.item_cost)
     if column == "on_order":
         return f"{item_on_order(item):.1f}"
     if column == "backorder":
@@ -225,8 +241,20 @@ def _lesson_item_snapshot_value(column: str, index: int, item: InventoryItem) ->
         return f"{item.op:.1f}"
     if column == "lp":
         return f"{item.lp:.1f}"
+    if column == "eoq":
+        return f"{item.eoq:.1f}"
+    if column == "oq":
+        return f"{item.oq:.1f}"
     if column == "soq":
         return f"{item.soq:.1f}"
+    if column == "standard_pack":
+        return f"{item.standard_pack:.1f}"
+    if column == "safety_allowance":
+        return f"{item.safety_allowance * 100.0:.1f}%"
+    if column == "cp":
+        return f"{item.cp:.1f}"
+    if column == "surplus_line":
+        return f"{item.surplus_line:.1f}"
     if column == "days_to_op":
         return f"{item.ats_days_frm_op:.1f}"
     raise ValueError(f"Unsupported lesson snapshot column: {column}")
@@ -238,12 +266,21 @@ def _lesson_item_snapshot_block(level_index: int, items: list[InventoryItem]) ->
         "on_hand": "On Hand",
         "daily_usage": "Daily Usage",
         "usage_rate": "Usage",
+        "lead_time": "Lead Time",
+        "hits_per_month": "Hits",
+        "item_cost": "Cost",
         "on_order": "On Order",
         "backorder": "Backorder",
         "pna": "PNA",
         "op": "OP",
         "lp": "LP",
+        "eoq": "EOQ",
+        "oq": "OQ",
         "soq": "SOQ",
+        "standard_pack": "Pack",
+        "safety_allowance": "Safety %",
+        "cp": "CP",
+        "surplus_line": "Surplus",
         "days_to_op": "Days to OP",
     }
     columns = _lesson_item_snapshot_columns(level_index)
@@ -287,8 +324,7 @@ def _workspace_grid_height(state: SimulationState, *, surface: str) -> str:
 
 def _signal_map_layout_signature(state: SimulationState, rows: pd.DataFrame) -> str:
     return (
-        f"{active_layout_variant(state)}:items:{len(rows)}:"
-        f"r_cycle:{state.global_settings.r_cycle}"
+        f"{active_layout_variant(state)}:items:{len(rows)}:r_cycle:{state.global_settings.r_cycle}"
     )
 
 
@@ -1181,16 +1217,22 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
     column_config = {
         "item": ("item", "Item"),
         "usage_rate": ("usage_rate", "Usage"),
+        "hits_per_month": ("hits_per_month", "Hits"),
+        "item_cost": ("item_cost", "Cost"),
         "lead_time": ("lead_time", "Lead Time"),
         "op": ("op", "OP"),
         "lp": ("lp", "LP"),
+        "eoq": ("eoq", "EOQ"),
         "oq": ("oq", "OQ"),
         "pna": ("pna", "PNA"),
         "on_hand": ("on_hand", "On Hand"),
         "on_order": ("on_order", "On Order"),
         "backorder": ("backorder", "Backorder"),
         "soq": ("soq", "SOQ"),
+        "standard_pack": ("standard_pack", "Pack"),
         "safety_allowance": ("safety_allowance", "Safety %"),
+        "cp": ("cp", "CP"),
+        "surplus_line": ("surplus_line", "Surplus"),
         "days_to_op": ("days_to_op", "Days to OP"),
         "daily_usage": ("daily_usage", "Daily Usage"),
     }
@@ -1200,16 +1242,22 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             {
                 "item": index,
                 "usage_rate": round(item.usage_rate, 2),
+                "hits_per_month": round(item.hits_per_month, 2),
+                "item_cost": round(item.item_cost, 2),
                 "lead_time": round(item.lead_time, 2),
                 "op": round(item.op, 2),
                 "lp": round(item.lp, 2),
+                "eoq": round(item.eoq, 2),
                 "oq": round(item.oq, 2),
                 "pna": round(item.pna, 2),
                 "on_hand": round(item.on_hand, 2),
                 "on_order": round(item_on_order(item), 2),
                 "backorder": round(item.backorder, 2),
                 "soq": round(item.soq, 2),
+                "standard_pack": round(item.standard_pack, 2),
                 "safety_allowance": round(item.safety_allowance * 100.0, 1),
+                "cp": round(item.cp, 2),
+                "surplus_line": round(item.surplus_line, 2),
                 "days_to_op": round(item.ats_days_frm_op, 2),
                 "daily_usage": round(item.daily_ur, 2),
             }
@@ -1219,7 +1267,10 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             "No items loaded yet. Add an item or import a sample workbook.", color="secondary"
         )
     selected_columns = visible_columns(state) or tuple(column_config.keys())
-    compact_lesson_items = level is not None and level.index in {2, 3}
+    compact_lesson_items = level is not None and level.layout_variant in {
+        "intro_pna",
+        "workspace_basic",
+    }
     compact_lesson_widths = {
         "item": {"maxWidth": 76},
         "on_hand": {"minWidth": 120},
@@ -1228,8 +1279,11 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
         "pna": {"minWidth": 108},
         "op": {"minWidth": 96},
         "usage_rate": {"minWidth": 112},
+        "hits_per_month": {"minWidth": 96},
+        "item_cost": {"minWidth": 96},
         "lead_time": {"minWidth": 120},
         "days_to_op": {"minWidth": 132},
+        "daily_usage": {"minWidth": 128},
     }
     column_defs = []
     for key in selected_columns:
@@ -1388,6 +1442,19 @@ def lesson_tutorial_children(state: SimulationState) -> list:
     level = active_level(state)
     if level is None:
         return [dbc.Alert("Select a lesson from the academy menu.", color="secondary")]
+    framing = []
+    if level.teaching_goal:
+        framing.append(html.Div(level.teaching_goal, className="helper-copy mb-2"))
+    if level.concept_tags:
+        framing.append(
+            html.Div(
+                [
+                    dbc.Badge(tag, color="secondary", pill=True, class_name="me-1")
+                    for tag in level.concept_tags
+                ],
+                className="mb-2",
+            )
+        )
     if level.index == 2 and state.items:
         item = state.items[0]
         on_order = item_on_order(item)
@@ -1395,6 +1462,7 @@ def lesson_tutorial_children(state: SimulationState) -> list:
         committed = 0.0
         received = 0.0
         return [
+            *framing,
             html.Div(level.formula, className="lesson-formula-chip"),
             html.Div(
                 (
@@ -1414,6 +1482,7 @@ def lesson_tutorial_children(state: SimulationState) -> list:
             html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
         ]
     return [
+        *framing,
         html.Div(level.formula, className="lesson-formula-chip"),
         html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
     ]

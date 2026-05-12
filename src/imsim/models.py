@@ -283,7 +283,7 @@ class InventoryItem:
 
 @dataclass(slots=True)
 class TrainingProfile:
-    training_schema_version: int = 2
+    training_schema_version: int = 3
     current_view: str = "main_menu"
     active_level_id: str | None = None
     highest_unlocked_level: int = 1
@@ -322,6 +322,45 @@ class TrainingProfile:
                 highest_unlocked_level = max(highest_unlocked_level, 8)
             migrated["highest_unlocked_level"] = highest_unlocked_level
             migrated["training_schema_version"] = 2
+            schema_version = 2
+        if schema_version < 3:
+            level_map = {
+                "level-1": "level-1",
+                "level-2": "level-2",
+                "level-3": "level-8",
+                "level-4": "level-16",
+                "level-5": "level-10",
+                "level-6": "level-13",
+                "level-7": "level-17",
+                "level-8": "level-18",
+            }
+            completed_levels = [str(level_id) for level_id in migrated.get("completed_levels", [])]
+            migrated["completed_levels"] = list(
+                dict.fromkeys(level_map.get(level_id, level_id) for level_id in completed_levels)
+            )
+            active_level_id = migrated.get("active_level_id")
+            if active_level_id in level_map:
+                migrated["active_level_id"] = level_map[str(active_level_id)]
+            highest_map = {
+                1: 1,
+                2: 2,
+                3: 3,
+                4: 9,
+                5: 10,
+                6: 13,
+                7: 17,
+                8: 18,
+            }
+            highest_unlocked_level = max(1, int(migrated.get("highest_unlocked_level", 1)))
+            migrated["highest_unlocked_level"] = highest_map.get(
+                min(highest_unlocked_level, 8),
+                highest_unlocked_level,
+            )
+            if migrated.get("simulator_unlocked") or migrated.get("auto_po_reward_unlocked"):
+                migrated["highest_unlocked_level"] = max(migrated["highest_unlocked_level"], 18)
+            if "level-18" in migrated["completed_levels"]:
+                migrated["highest_unlocked_level"] = max(migrated["highest_unlocked_level"], 18)
+            migrated["training_schema_version"] = 3
         return migrated
 
     @classmethod
@@ -329,7 +368,7 @@ class TrainingProfile:
         data = cls._migrate_training_data(data or {})
         completed_levels = [str(level_id) for level_id in data.get("completed_levels", [])]
         return cls(
-            training_schema_version=max(2, int(data.get("training_schema_version", 2))),
+            training_schema_version=max(3, int(data.get("training_schema_version", 3))),
             current_view=str(data.get("current_view", "main_menu")),
             active_level_id=(
                 None

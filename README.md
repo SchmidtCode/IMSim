@@ -1,13 +1,13 @@
 # IMSim
 
-IMSim is an inventory management training app built with Dash 4. It now starts with an academy-style lesson path that teaches order points, fill rate, PNA, review cycles, and dashboard controls step by step before unlocking the full simulator.
+IMSim is an inventory management training app built with Dash 4. It starts with an 18-step academy path that teaches inventory management from first principles: on-hand stock, fill rate, hits, usage, lead time, PNA, order points, safety stock, review cycles, line point, EOQ, SOQ, exceptions, and dashboard controls before unlocking the full simulator.
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://imsim.pythonanywhere.com/)
 
 ## Highlights
 
 - Dash 4 app factory under `src/imsim/` with installable package and WSGI entrypoint
-- Training-first UI with academy menu, unlockable lessons, lesson objectives, and a full simulator reward
+- Training-first UI with academy menu, 18 unlockable lessons, lesson objectives, and a full simulator reward
 - Inventory policy engine for OP, LP, EOQ, OQ, SOQ, pack rounding, and auto-PO behavior
 - Deterministic early lessons for clean tutorial concepts plus stochastic later lessons for real-world behavior
 - Daily demand simulation with stockout, holding, expedite, purchase, revenue, and COGS tracking

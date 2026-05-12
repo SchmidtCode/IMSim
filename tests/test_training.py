@@ -14,6 +14,7 @@ from imsim.services.simulation import (
 )
 from imsim.services.training import (
     academy_level,
+    academy_levels,
     active_layout_variant,
     apply_lesson_evaluation,
     build_level_state,
@@ -136,8 +137,8 @@ def test_signal_map_uses_stable_schema_and_uirevision():
 
 def test_workspace_variants_drive_figure_and_grid_sizes():
     basic_state = build_level_state("level-3")
-    signal_state = build_level_state("level-5")
-    certification_state = build_level_state("level-8")
+    signal_state = build_level_state("level-10")
+    certification_state = build_level_state("level-18")
 
     basic_grid = build_inventory_table(basic_state)
     signal_grid = build_inventory_table(signal_state)
@@ -397,33 +398,61 @@ def test_level_two_requires_guided_order_to_pass():
     assert evaluation.passed is True
 
 
-def test_bridge_lesson_requires_policy_update_to_pass():
-    state = build_level_state("level-7")
-    level = academy_level("level-7")
+def test_academy_expands_to_eighteen_lessons():
+    levels = academy_levels()
+
+    assert len(levels) == 18
+    assert levels[2].title == "Customer Promise: Fill Rate"
+    assert levels[-1].level_id == "level-18"
+
+
+def test_lead_time_lesson_requires_on_order_inventory():
+    state = build_level_state("level-6")
+    level = academy_level("level-6")
     assert level is not None
     state.day = level.day_window + 1
-    state.service_totals.orders = 100
-    state.service_totals.orders_stockout = 0
-    state.sales.revenue = 1000.0
-    state.sales.cogs = 600.0
-    state.costs.total = 100.0
+    state.training.guided_orders_placed = 1
 
     evaluation = evaluate_active_lesson(state)
     assert evaluation is not None
     assert evaluation.completed is True
     assert evaluation.passed is False
 
-    state.training.parameter_updates_applied = 1
+    state.items[0].pipeline.append(Receipt(receipt_id="lead", qty=5, eta_day=state.day + 4))
     evaluation = evaluate_active_lesson(state)
 
     assert evaluation is not None
-    assert evaluation.completed is True
     assert evaluation.passed is True
 
 
+def test_line_point_and_exception_lessons_track_new_objectives():
+    line_point = build_level_state("level-13")
+    line_level = academy_level("level-13")
+    assert line_level is not None
+    line_point.day = line_level.day_window + 1
+    line_point.training.guided_orders_placed = 1
+
+    evaluation = evaluate_active_lesson(line_point)
+
+    assert evaluation is not None
+    assert evaluation.passed is True
+
+    exceptions = build_level_state("level-17")
+    exception_level = academy_level("level-17")
+    assert exception_level is not None
+    exceptions.day = exception_level.day_window + 1
+
+    evaluation = evaluate_active_lesson(exceptions)
+
+    assert evaluation is not None
+    assert evaluation.passed is True
+    assert any("critical point" in row for row in evaluation.metric_rows)
+    assert any("surplus line" in row for row in evaluation.metric_rows)
+
+
 def test_final_lesson_pass_unlocks_simulator_reward():
-    state = build_level_state("level-8")
-    level = academy_level("level-8")
+    state = build_level_state("level-18")
+    level = academy_level("level-18")
     assert level is not None
     state.day = level.day_window + 1
     state.service_totals.orders = 100
@@ -443,16 +472,16 @@ def test_final_lesson_pass_unlocks_simulator_reward():
 
     assert state.training.simulator_unlocked is True
     assert state.training.auto_po_reward_unlocked is True
-    assert "level-8" in state.training.completed_levels
+    assert "level-18" in state.training.completed_levels
     assert state.training.current_view == "lesson"
-    assert state.training.active_level_id == "level-8"
+    assert state.training.active_level_id == "level-18"
 
 
 def test_simulator_state_uses_final_academy_lesson_seed():
     simulator_state = build_simulator_state()
     certification = final_academy_level()
 
-    assert certification.level_id == "level-8"
+    assert certification.level_id == "level-18"
     assert len(simulator_state.items) == len(certification.scenario)
     assert simulator_state.global_settings.asq.enabled == certification.global_settings.asq.enabled
 
@@ -460,25 +489,25 @@ def test_simulator_state_uses_final_academy_lesson_seed():
 def test_training_profile_migrates_legacy_certification_progress():
     legacy = TrainingProfile.from_dict(
         {
-            "training_schema_version": 1,
-            "active_level_id": "level-7",
-            "highest_unlocked_level": 7,
-            "completed_levels": ["level-1", "level-7"],
+            "training_schema_version": 2,
+            "active_level_id": "level-8",
+            "highest_unlocked_level": 8,
+            "completed_levels": ["level-1", "level-8"],
             "simulator_unlocked": True,
             "auto_po_reward_unlocked": True,
         }
     )
 
-    assert legacy.training_schema_version == 2
-    assert legacy.active_level_id == "level-8"
-    assert legacy.highest_unlocked_level == 8
-    assert legacy.completed_levels == ["level-1", "level-8"]
+    assert legacy.training_schema_version == 3
+    assert legacy.active_level_id == "level-18"
+    assert legacy.highest_unlocked_level == 18
+    assert legacy.completed_levels == ["level-1", "level-18"]
     assert legacy.simulator_unlocked is True
     assert legacy.auto_po_reward_unlocked is True
 
 
 def test_active_layout_variant_tracks_bridge_and_certification():
     assert active_layout_variant(build_level_state("level-3")) == "workspace_basic"
-    assert active_layout_variant(build_level_state("level-5")) == "workspace_signal"
-    assert active_layout_variant(build_level_state("level-7")) == "workspace_advanced"
-    assert active_layout_variant(build_level_state("level-8")) == "workspace_certification"
+    assert active_layout_variant(build_level_state("level-10")) == "workspace_signal"
+    assert active_layout_variant(build_level_state("level-15")) == "workspace_advanced"
+    assert active_layout_variant(build_level_state("level-18")) == "workspace_certification"

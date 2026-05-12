@@ -57,9 +57,9 @@ def test_training_shell_render_listens_to_session_revision(dash_app):
     }
 
 
-def test_academy_navigation_wires_level_eight_button(dash_app):
+def test_academy_navigation_wires_final_lesson_button(dash_app):
     assert any(
-        ("academy-level-8-button", "n_clicks") in _input_pairs(spec)
+        ("academy-level-18-button", "n_clicks") in _input_pairs(spec)
         for spec in dash_app.callback_map.values()
     )
 
@@ -69,13 +69,13 @@ def test_dashboard_shell_class_names_follow_lesson_variants():
         build_level_state("level-3")
     )
     assert "lesson-layout-workspace-signal" in dashboard_shell_class_name(
-        build_level_state("level-5")
+        build_level_state("level-10")
     )
     assert "lesson-layout-workspace-advanced" in dashboard_shell_class_name(
-        build_level_state("level-7")
+        build_level_state("level-15")
     )
     assert "lesson-layout-workspace-certification" in dashboard_shell_class_name(
-        build_level_state("level-8")
+        build_level_state("level-18")
     )
 
 
