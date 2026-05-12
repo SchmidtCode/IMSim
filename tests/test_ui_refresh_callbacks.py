@@ -67,6 +67,22 @@ def test_theme_callback_updates_control_modal_content_classes(dash_app):
     assert _input_pairs(spec) == {("theme-store", "data")}
 
 
+def test_randomize_button_populates_manual_item_fields(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("usage-rate-input", "value"),
+            ("lead-time-input", "value"),
+            ("item-cost-input", "value"),
+            ("pna-input", "value"),
+            ("safety-allowance-input", "value"),
+            ("standard-pack-input", "value"),
+            ("hits-per-month-input", "value"),
+        ],
+    )
+    assert _input_pairs(spec) == {("randomize-button", "n_clicks")}
+
+
 def test_state_changes_emit_session_revision(dash_app):
     cases = [
         [

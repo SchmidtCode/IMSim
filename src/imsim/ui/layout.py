@@ -10,6 +10,7 @@ from ..services.training import academy_levels
 from .components import (
     academy_level_card_children,
     github_footer_card,
+    po_overview_grid_options,
     simulator_unlock_children,
 )
 
@@ -1065,6 +1066,10 @@ def build_layout(config: IMSimConfig):
                                 rowData=[],
                                 columnDefs=[],
                                 className="ag-theme-quartz imsim-ag-grid",
+                                dashGridOptions={
+                                    "animateRows": False,
+                                    "stopEditingWhenCellsLoseFocus": True,
+                                },
                                 style={"height": "420px", "width": "100%"},
                             )
                         ),
@@ -1098,6 +1103,7 @@ def build_layout(config: IMSimConfig):
                                 rowData=[],
                                 columnDefs=[],
                                 className="ag-theme-quartz imsim-ag-grid",
+                                dashGridOptions=po_overview_grid_options(),
                                 style={"height": "420px", "width": "100%"},
                             )
                         ),

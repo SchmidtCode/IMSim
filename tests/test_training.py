@@ -4,7 +4,13 @@ from dash import Patch
 from dash_ag_grid import AgGrid
 
 from imsim.models import Receipt
-from imsim.services.simulation import place_purchase_orders, tick_state
+from imsim.services import simulation as simulation_service
+from imsim.services.simulation import (
+    expedite_or_cancel_receipt,
+    expedite_or_cancel_receipts,
+    place_purchase_orders,
+    tick_state,
+)
 from imsim.services.training import (
     academy_level,
     apply_lesson_evaluation,
@@ -183,6 +189,92 @@ def test_custom_order_and_po_overview_use_ag_grid():
     assert isinstance(po_grid, AgGrid)
     assert po_grid.id == "po-overview-grid"
     assert po_grid.rowData[0]["receipt_id"]
+    assert po_grid.columnDefs[1]["headerName"] == "PO Line"
+    assert po_grid.dashGridOptions["rowSelection"]["mode"] == "multiRow"
+    assert po_grid.dashGridOptions["rowSelection"]["enableClickSelection"] is True
+    assert po_grid.dashGridOptions["rowSelection"]["enableSelectionWithoutKeys"] is True
+    assert po_grid.dashGridOptions["rowSelection"]["checkboxes"] is True
+    assert po_grid.dashGridOptions["rowSelection"]["headerCheckbox"] is True
+
+
+def test_expedite_receipt_can_jump_to_one_week_when_supplier_has_stock(monkeypatch):
+    class StubRng:
+        def random(self):
+            return 0.0
+
+        def integers(self, low, high):
+            raise AssertionError("Queue-jump expedites should not use the fallback range.")
+
+    monkeypatch.setattr(simulation_service, "_rng", lambda: StubRng())
+    state = build_simulator_state()
+    item = state.items[0]
+    item.lead_time = 21
+    item.pipeline.append(Receipt(receipt_id="exp123", qty=10, eta_day=31))
+
+    changed = expedite_or_cancel_receipt(state, "exp123", "expedite")
+
+    expected_cost = 2.0 * item.item_cost * 10 * state.global_settings.expedite_rate
+    assert changed is True
+    assert item.pipeline[0].eta_day == state.day + 7
+    assert state.costs.expedite == expected_cost
+    assert state.costs.total == expected_cost
+
+
+def test_expedite_receipt_can_still_make_a_smaller_random_improvement(monkeypatch):
+    class StubRng:
+        def random(self):
+            return 0.99
+
+        def integers(self, low, high):
+            assert (low, high) == (1, 4)
+            return 3
+
+    monkeypatch.setattr(simulation_service, "_rng", lambda: StubRng())
+    state = build_simulator_state()
+    item = state.items[0]
+    item.lead_time = 21
+    item.pipeline.append(Receipt(receipt_id="exp234", qty=10, eta_day=13))
+
+    changed = expedite_or_cancel_receipt(state, "exp234", "expedite")
+
+    expected_cost = item.item_cost * 10 * state.global_settings.expedite_rate
+    assert changed is True
+    assert item.pipeline[0].eta_day == 10
+    assert state.costs.expedite == expected_cost
+    assert state.costs.total == expected_cost
+
+
+def test_receipt_actions_handle_multiple_selected_rows():
+    state = build_simulator_state()
+    state.items[0].pipeline.append(Receipt(receipt_id="keep-me", qty=5, eta_day=9))
+    state.items[0].pipeline.append(Receipt(receipt_id="cancel-a", qty=7, eta_day=11))
+    state.items[1].pipeline.append(Receipt(receipt_id="cancel-b", qty=9, eta_day=12))
+
+    changed = expedite_or_cancel_receipts(state, ["cancel-a", "cancel-b"], "cancel")
+
+    assert changed == 2
+    assert [receipt.receipt_id for receipt in state.items[0].pipeline] == ["keep-me"]
+    assert state.items[1].pipeline == []
+
+
+def test_long_lead_expedite_queue_jump_stays_possible(monkeypatch):
+    class StubRng:
+        def random(self):
+            return 0.01
+
+        def integers(self, low, high):
+            raise AssertionError("Queue jump should win before fallback for this test.")
+
+    monkeypatch.setattr(simulation_service, "_rng", lambda: StubRng())
+    state = build_simulator_state()
+    item = state.items[0]
+    item.lead_time = 700
+    item.pipeline.append(Receipt(receipt_id="long-hop", qty=4, eta_day=701))
+
+    changed = expedite_or_cancel_receipt(state, "long-hop", "expedite")
+
+    assert changed is True
+    assert item.pipeline[0].eta_day == state.day + 7
 
 
 def test_plot_sizing_helpers_keep_default_plot_dimensions():

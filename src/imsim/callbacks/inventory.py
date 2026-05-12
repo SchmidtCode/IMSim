@@ -14,7 +14,7 @@ from ..services.planning import (
     update_gs_related_values,
 )
 from ..services.simulation import (
-    expedite_or_cancel_receipt,
+    expedite_or_cancel_receipts,
     place_custom_orders,
     place_purchase_orders,
 )
@@ -29,6 +29,48 @@ from .common import CallbackRegistrarContext
 
 def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
     app = ctx.app
+
+    @app.callback(
+        [
+            Output("usage-rate-input", "value"),
+            Output("lead-time-input", "value"),
+            Output("item-cost-input", "value"),
+            Output("pna-input", "value"),
+            Output("safety-allowance-input", "value"),
+            Output("standard-pack-input", "value"),
+            Output("hits-per-month-input", "value"),
+        ],
+        Input("randomize-button", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def randomize_item_values(n_clicks):
+        if not n_clicks:
+            raise PreventUpdate
+        rng = dash.get_app().server.config.get("IMSIM_RNG")
+        if rng is None:
+            import numpy as np
+
+            rng = np.random.default_rng()
+            dash.get_app().server.config["IMSIM_RNG"] = rng
+        usage = int(rng.integers(1, 101))
+        lead = max(7, int(abs(rng.normal(30, 30))))
+        cost = max(1, int(abs(rng.normal(100, 100))))
+        safety_pct = 50 if lead < 60 else max(1, int(round(3000 / lead)))
+        pack = int(
+            rng.choice(
+                [1, 5, 10, 20, 25, 40, 50],
+                p=[0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1],
+            )
+        )
+        pna = int(
+            round(
+                usage * (lead / 30.0)
+                + ((usage * (lead / 30.0)) * (safety_pct / 100.0))
+                + pack
+            )
+        )
+        hits = max(1, int(rng.poisson(5)))
+        return usage, lead, cost, pna, safety_pct, pack, hits
 
     @app.callback(
         [
@@ -482,12 +524,19 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             raise PreventUpdate
         if not selected_rows:
             raise PreventUpdate
-        selected = selected_rows[0]
         action = "expedite" if dash_ctx.triggered_id == "po-expedite-button" else "cancel"
         action_name = "expedite_receipt" if action == "expedite" else "cancel_receipt"
         if not is_action_allowed(state, action_name):
             raise PreventUpdate
-        expedite_or_cancel_receipt(state, str(selected["receipt_id"]), action)
+        receipt_ids = [
+            str(selected_row.get("receipt_id"))
+            for selected_row in selected_rows
+            if selected_row.get("receipt_id")
+        ]
+        if not receipt_ids:
+            raise PreventUpdate
+        if expedite_or_cancel_receipts(state, receipt_ids, action) <= 0:
+            raise PreventUpdate
         ctx.persist_state(session_id, state)
         grid = build_po_overview_grid(state, theme_name)
         if isinstance(grid, dbc.Alert):

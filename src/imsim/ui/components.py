@@ -244,6 +244,26 @@ def _grid_theme_class(theme: str) -> str:
     )
 
 
+def po_overview_grid_options() -> dict[str, object]:
+    return {
+        "animateRows": False,
+        "rowSelection": {
+            "mode": "multiRow",
+            "checkboxes": True,
+            "headerCheckbox": True,
+            "enableClickSelection": True,
+            "enableSelectionWithoutKeys": True,
+        },
+        "selectionColumnDef": {
+            "width": 56,
+            "maxWidth": 56,
+            "resizable": False,
+            "sortable": False,
+            "pinned": "left",
+        },
+    }
+
+
 def _figure_meta(
     kind: str,
     theme: str,
@@ -900,7 +920,7 @@ def build_po_overview_grid(state: SimulationState, theme: str = "light") -> dag.
         rowData=rows,
         columnDefs=[
             {"field": "item", "headerName": "Item", "pinned": "left", "maxWidth": 90},
-            {"field": "receipt_id", "headerName": "Receipt"},
+            {"field": "receipt_id", "headerName": "PO Line"},
             {"field": "qty", "headerName": "Qty", "type": "numericColumn"},
             {"field": "eta_day", "headerName": "ETA", "type": "numericColumn"},
             {"field": "days_left", "headerName": "Days Left", "type": "numericColumn"},
@@ -908,11 +928,7 @@ def build_po_overview_grid(state: SimulationState, theme: str = "light") -> dag.
         defaultColDef={"sortable": True, "filter": True, "resizable": True},
         className=_grid_theme_class(theme),
         columnSize="sizeToFit",
-        dashGridOptions={
-            "animateRows": False,
-            "rowSelection": {"mode": "singleRow"},
-            "suppressRowClickSelection": False,
-        },
+        dashGridOptions=po_overview_grid_options(),
         style={"height": "420px", "width": "100%"},
     )
 
