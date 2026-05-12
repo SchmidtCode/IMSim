@@ -202,7 +202,8 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         title="Simple Order Point",
         summary=(
             "Manage a small group of items with a guided reorder "
-            "button and a clean order-point signal."
+            "button and a clean order-point signal. ATS means Available to Sell: "
+            "the on-hand stock that can ship now."
         ),
         formula="Order when on hand is near OP",
         tutorial_steps=(

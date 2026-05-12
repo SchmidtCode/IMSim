@@ -1840,6 +1840,37 @@ body {
     overflow: auto;
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-3 .dashboard-main-layout {
+    grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
+    grid-template-rows: min-content min-content;
+    grid-template-areas:
+      "actions inventory"
+      "session service";
+    align-items: start;
+    gap: 0.4rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #session-panel .session-card {
+    margin-top: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #service-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #session-panel > .card {
+    height: auto;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-panel .card-body {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-table-shell,
+  .dashboard-shell.lesson-dashboard.lesson-level-3 .table-scroll-shell {
+    max-height: none;
+    overflow: visible;
+  }
+
   .dashboard-shell.lesson-layout-workspace-advanced .dashboard-rail-column,
   .dashboard-shell.lesson-layout-workspace-certification .dashboard-rail-column {
     max-width: 19rem;

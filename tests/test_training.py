@@ -144,7 +144,8 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     certification_figure = build_inventory_figure(certification_state)
 
     assert isinstance(basic_grid, AgGrid)
-    assert basic_grid.style["height"] == "36rem"
+    assert basic_grid.style["height"] == "auto"
+    assert basic_grid.dashGridOptions["domLayout"] == "autoHeight"
     assert isinstance(signal_grid, AgGrid)
     assert signal_grid.style["height"] == "32rem"
     assert certification_figure.layout.height == 380
@@ -202,15 +203,16 @@ def test_inventory_table_uses_ag_grid_with_lesson_visible_columns():
     assert grid.style["height"] == "auto"
 
 
-def test_level_two_snapshot_is_collapsed_by_default():
-    state = build_level_state("level-2")
+def test_early_ordering_snapshots_are_collapsed_by_default():
+    for level_id in ("level-2", "level-3"):
+        state = build_level_state(level_id)
 
-    snapshot = service_card_children(state)[0]
-    snapshot_json = snapshot.to_plotly_json()
+        snapshot = service_card_children(state)[0]
+        snapshot_json = snapshot.to_plotly_json()
 
-    assert snapshot_json["type"] == "Details"
-    assert snapshot_json["props"]["className"] == "lesson-snapshot-disclosure"
-    assert "open" not in snapshot_json["props"]
+        assert snapshot_json["type"] == "Details"
+        assert snapshot_json["props"]["className"] == "lesson-snapshot-disclosure"
+        assert "open" not in snapshot_json["props"]
 
 
 def test_custom_order_and_po_overview_use_ag_grid():
