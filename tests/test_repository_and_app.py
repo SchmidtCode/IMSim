@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -277,7 +278,13 @@ def test_config_from_env_uses_checkout_root(monkeypatch, tmp_path):
 
 
 def test_config_from_env_uses_installed_distribution_root(monkeypatch, tmp_path):
-    site_packages = tmp_path / "venv" / "lib" / "python3.12" / "site-packages"
+    site_packages = (
+        tmp_path
+        / "venv"
+        / "lib"
+        / f"python{sys.version_info.major}.{sys.version_info.minor}"
+        / "site-packages"
+    )
     package_dir = site_packages / "imsim"
     package_dir.mkdir(parents=True)
     (site_packages / "assets").mkdir()
