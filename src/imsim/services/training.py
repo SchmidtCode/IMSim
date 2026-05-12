@@ -185,13 +185,11 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
         visible_columns=(
             "item",
-            "daily_usage",
             "on_hand",
             "on_order",
             "backorder",
             "pna",
             "op",
-            "soq",
         ),
         allowed_actions=frozenset({"guided_po"}),
         win_conditions={"guided_order_min": 1, "close_at_or_above_op": True},

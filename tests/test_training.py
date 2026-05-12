@@ -8,6 +8,7 @@ from imsim.services import simulation as simulation_service
 from imsim.services.simulation import (
     expedite_or_cancel_receipt,
     expedite_or_cancel_receipts,
+    place_custom_orders,
     place_purchase_orders,
     tick_state,
 )
@@ -31,6 +32,7 @@ from imsim.ui.components import (
     build_inventory_figure,
     build_inventory_table,
     build_po_overview_grid,
+    custom_order_grid_options,
     refresh_inventory_figure,
 )
 
@@ -187,15 +189,16 @@ def test_inventory_table_uses_ag_grid_with_lesson_visible_columns():
     assert grid.id == "inventory-table-grid"
     assert [column["field"] for column in grid.columnDefs] == [
         "item",
-        "daily_usage",
         "on_hand",
         "on_order",
         "backorder",
         "pna",
         "op",
-        "soq",
     ]
     assert grid.columnDefs[0]["pinned"] == "left"
+    assert grid.defaultColDef["filter"] is False
+    assert grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert grid.style["height"] == "auto"
 
 
 def test_custom_order_and_po_overview_use_ag_grid():
@@ -207,6 +210,13 @@ def test_custom_order_and_po_overview_use_ag_grid():
     assert isinstance(custom_order_grid, AgGrid)
     assert custom_order_grid.id == "custom-order-grid"
     assert custom_order_grid.rowData[0]["order_qty"] >= 0
+    order_qty_col = custom_order_grid.columnDefs[-1]
+    assert order_qty_col["field"] == "order_qty"
+    assert order_qty_col["editable"] is True
+    assert order_qty_col["cellEditor"] == "agNumberCellEditor"
+    assert order_qty_col["cellClass"] == "custom-order-qty-cell"
+    assert custom_order_grid.dashGridOptions == custom_order_grid_options()
+    assert custom_order_grid.dashGridOptions["singleClickEdit"] is True
     assert isinstance(po_grid, AgGrid)
     assert po_grid.id == "po-overview-grid"
     assert po_grid.rowData[0]["receipt_id"]
@@ -218,6 +228,18 @@ def test_custom_order_and_po_overview_use_ag_grid():
     assert po_grid.dashGridOptions["rowSelection"]["headerCheckbox"] is True
     assert custom_order_grid.style["height"] == "26rem"
     assert po_grid.style["height"] == "26rem"
+
+
+def test_custom_orders_accept_user_quantities_and_ignore_bad_entries():
+    state = build_simulator_state()
+    first_item = state.items[0]
+    first_item.standard_pack = 5
+
+    changed = place_custom_orders(state, ["12", "", "not a number"])
+
+    assert changed is True
+    assert len(first_item.pipeline) == 1
+    assert first_item.pipeline[0].qty == 10
 
 
 def test_expedite_receipt_can_jump_to_one_week_when_supplier_has_stock(monkeypatch):

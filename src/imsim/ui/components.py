@@ -337,6 +337,15 @@ def po_overview_grid_options() -> dict[str, object]:
     }
 
 
+def custom_order_grid_options() -> dict[str, object]:
+    return {
+        "animateRows": False,
+        "singleClickEdit": True,
+        "stopEditingWhenCellsLoseFocus": True,
+        "enterNavigatesVerticallyAfterEdit": True,
+    }
+
+
 def _figure_meta(
     kind: str,
     theme: str,
@@ -779,6 +788,46 @@ def service_card_children(state: SimulationState) -> list:
                 className="lesson-snapshot-stack",
             )
         ]
+    if level is not None and level.index == 2 and state.items:
+        item = state.items[0]
+        at_or_above_op = sum(1 for candidate in state.items if candidate.on_hand >= candidate.op)
+        guided_order_target = int(level.win_conditions.get("guided_order_min", 1))
+        return [
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            _lesson_snapshot_table(
+                                "PNA Position",
+                                ("On Hand", "On Order", "Backorder", "PNA", "OP"),
+                                (
+                                    (
+                                        f"{item.on_hand:.1f}",
+                                        f"{item_on_order(item):.1f}",
+                                        f"{item.backorder:.1f}",
+                                        f"{item.pna:.1f}",
+                                        f"{item.op:.1f}",
+                                    ),
+                                ),
+                            ),
+                            _lesson_snapshot_table(
+                                "Goal Check",
+                                ("At/Above OP", "Guided Reorders", "Days Left"),
+                                (
+                                    (
+                                        f"{at_or_above_op}/{len(state.items)}",
+                                        f"{state.training.guided_orders_placed}/{guided_order_target}",
+                                        str(lesson_days_remaining(state)),
+                                    ),
+                                ),
+                            ),
+                        ],
+                        className="lesson-snapshot-grid",
+                    ),
+                ],
+                className="lesson-snapshot-stack",
+            )
+        ]
     if level is not None and state.items:
         top_blocks = [
             _lesson_snapshot_table(
@@ -1040,7 +1089,7 @@ def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag
         rowData=rows,
         columnDefs=[
             {"field": "item", "headerName": "Item", "pinned": "left", "maxWidth": 90},
-            {"field": "on_hand", "headerName": "ATS", "type": "numericColumn"},
+            {"field": "on_hand", "headerName": "ATS (On Hand)", "type": "numericColumn"},
             {"field": "on_order", "headerName": "On-Order", "type": "numericColumn"},
             {"field": "backorder", "headerName": "Backorder", "type": "numericColumn"},
             {"field": "usage_rate", "headerName": "Usage", "type": "numericColumn"},
@@ -1053,18 +1102,26 @@ def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag
                 "headerName": "Order Qty",
                 "type": "numericColumn",
                 "editable": True,
+                "cellClass": "custom-order-qty-cell",
                 "cellEditor": "agNumberCellEditor",
+                "cellEditorParams": {
+                    "min": 0,
+                    "step": 1,
+                    "showStepperButtons": True,
+                },
+                "headerTooltip": "Current SOQ; adjust before placing the custom order.",
             },
         ],
         defaultColDef={"sortable": True, "filter": True, "resizable": True},
         className=_grid_theme_class(theme),
         columnSize="sizeToFit",
-        dashGridOptions={"animateRows": False, "stopEditingWhenCellsLoseFocus": True},
+        dashGridOptions=custom_order_grid_options(),
         style={"height": _workspace_grid_height(state, surface="modal"), "width": "100%"},
     )
 
 
 def build_inventory_table(state: SimulationState, theme: str = "light"):
+    level = active_level(state)
     column_config = {
         "item": ("item", "Item"),
         "usage_rate": ("usage_rate", "Usage"),
@@ -1106,6 +1163,15 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             "No items loaded yet. Add an item or import a sample workbook.", color="secondary"
         )
     selected_columns = visible_columns(state) or tuple(column_config.keys())
+    is_level_two = level is not None and level.index == 2
+    level_two_widths = {
+        "item": {"maxWidth": 76},
+        "on_hand": {"minWidth": 120},
+        "on_order": {"minWidth": 124},
+        "backorder": {"minWidth": 128},
+        "pna": {"minWidth": 108},
+        "op": {"minWidth": 96},
+    }
     column_defs = []
     for key in selected_columns:
         field, header = column_config[key]
@@ -1115,21 +1181,30 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             column_def["maxWidth"] = 90
         else:
             column_def["type"] = "numericColumn"
+        if is_level_two:
+            column_def.update(level_two_widths.get(key, {}))
         column_defs.append(column_def)
+    default_col_def = {"sortable": True, "filter": True, "resizable": True}
+    dash_grid_options = {
+        "pagination": True,
+        "paginationPageSize": min(12, max(1, len(rows))),
+        "paginationPageSizeSelector": False,
+        "animateRows": False,
+    }
+    grid_style = {"height": _workspace_grid_height(state, surface="inventory"), "width": "100%"}
+    if is_level_two:
+        default_col_def.update({"sortable": False, "filter": False})
+        dash_grid_options = {"animateRows": False, "domLayout": "autoHeight"}
+        grid_style = {"height": "auto", "minHeight": "7.5rem", "width": "100%"}
     return dag.AgGrid(
         id="inventory-table-grid",
         rowData=rows,
         columnDefs=column_defs,
-        defaultColDef={"sortable": True, "filter": True, "resizable": True},
+        defaultColDef=default_col_def,
         className=_grid_theme_class(theme),
         columnSize="sizeToFit",
-        dashGridOptions={
-            "pagination": True,
-            "paginationPageSize": min(12, max(1, len(rows))),
-            "paginationPageSizeSelector": False,
-            "animateRows": False,
-        },
-        style={"height": _workspace_grid_height(state, surface="inventory"), "width": "100%"},
+        dashGridOptions=dash_grid_options,
+        style=grid_style,
     )
 
 
