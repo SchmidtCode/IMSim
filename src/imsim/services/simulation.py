@@ -243,28 +243,77 @@ def place_custom_orders(state: SimulationState, quantities: list[float | None]) 
     return changed
 
 
-def expedite_or_cancel_receipt(state: SimulationState, receipt_id: str, action: str) -> bool:
-    changed = False
+def _queue_jump_probability(lead_time_days: float) -> float:
+    lead_time_days = max(1.0, float(lead_time_days))
+    probability = 0.58 * ((30.0 / (lead_time_days + 30.0)) ** 0.55)
+    return min(0.6, max(0.08, probability))
+
+
+def _expedite_outcome(
+    state: SimulationState, item: InventoryItem, receipt: Receipt
+) -> tuple[int, float]:
+    days_until_receipt = max(0, receipt.eta_day - state.day)
+    max_reducible_days = max(0, days_until_receipt - 1)
+    if max_reducible_days <= 0:
+        return 0, 0.0
+    rng = _rng()
+    jump_target_days = 7
+    queue_jump = rng.random() < _queue_jump_probability(item.lead_time)
+    if days_until_receipt > jump_target_days and queue_jump:
+        return days_until_receipt - jump_target_days, 2.0
+    # Otherwise, fall back to a smaller pull-forward so expedites still help
+    # when the supplier cannot short-ship from available stock.
+    random_cap = max(1, math.ceil(days_until_receipt * 0.25))
+    days_reduced = int(rng.integers(1, min(max_reducible_days, random_cap, 5) + 1))
+    return days_reduced, 1.0
+
+
+def expedite_or_cancel_receipts(
+    state: SimulationState, receipt_ids: list[str] | tuple[str, ...], action: str
+) -> int:
+    target_ids = {str(receipt_id) for receipt_id in receipt_ids if receipt_id}
+    if not target_ids:
+        return 0
+    changed = 0
     for item in state.items:
-        for receipt in list(item.pipeline):
-            if receipt.receipt_id != receipt_id:
-                continue
-            if action == "expedite" and receipt.eta_day > state.day + 1:
-                receipt.eta_day = max(receipt.eta_day - 1, state.day + 1)
-                state.costs.expedite += (
-                    receipt.qty * item.item_cost * state.global_settings.expedite_rate
-                )
-                changed = True
-            elif action == "cancel":
-                item.pipeline = [rec for rec in item.pipeline if rec.receipt_id != receipt_id]
+        if action == "cancel":
+            remaining_pipeline: list[Receipt] = []
+            removed = 0
+            for receipt in item.pipeline:
+                if receipt.receipt_id in target_ids:
+                    removed += 1
+                    continue
+                remaining_pipeline.append(receipt)
+            if removed:
+                item.pipeline = remaining_pipeline
                 update_planning_fields(item, state.global_settings)
-                changed = True
-            break
+                changed += removed
+            continue
+        if action != "expedite":
+            continue
+        for receipt in item.pipeline:
+            if receipt.receipt_id not in target_ids:
+                continue
+            days_reduced, surcharge_multiplier = _expedite_outcome(state, item, receipt)
+            if days_reduced <= 0:
+                continue
+            receipt.eta_day = max(receipt.eta_day - days_reduced, state.day + 1)
+            state.costs.expedite += (
+                surcharge_multiplier
+                * receipt.qty
+                * item.item_cost
+                * state.global_settings.expedite_rate
+            )
+            changed += 1
     if changed:
         state.costs.total = (
             state.costs.ordering + state.costs.holding + state.costs.stockout + state.costs.expedite
         )
     return changed
+
+
+def expedite_or_cancel_receipt(state: SimulationState, receipt_id: str, action: str) -> bool:
+    return expedite_or_cancel_receipts(state, [receipt_id], action) > 0
 
 
 @dataclass(slots=True)

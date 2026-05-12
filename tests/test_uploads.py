@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from dash_ag_grid import AgGrid
 
 from imsim.services.uploads import coerce_uploaded, parse_contents, read_uploaded_table
 
@@ -98,3 +99,7 @@ def test_parse_contents_returns_preview_card():
     payload = _encode_bytes(frame.to_csv(index=False).encode("utf-8"))
     preview = parse_contents(payload, "sample.csv", 0)
     assert getattr(preview, "className", "") == "preview-card"
+    grid = preview.children.children[3]
+    assert isinstance(grid, AgGrid)
+    assert grid.rowData[0]["usage_rate"] == 10
+    assert grid.dashGridOptions["paginationPageSize"] == 10

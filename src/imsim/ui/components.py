@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
-from dash import dcc, html
+from dash import Patch, html
 
 from ..models import InventoryItem, SimulationState
 from ..services.planning import format_money, item_on_order
@@ -56,6 +57,7 @@ def _figure_theme(theme: str) -> dict[str, str]:
 _ROOT_FONT_SIZE_PX = 16
 _PLOT_TITLE_SIZE_REM = 1.5
 _PLOT_MARGIN_REM = {"l": 1.5, "r": 1.5, "t": 3.5, "b": 1.5}
+_PLOT_MARGIN_COMPACT_REM = {"l": 1.5, "r": 1.5, "t": 1.2, "b": 1.5}
 _PLOT_LINE_WIDTH_REM = 0.1875
 _PLOT_MARKER_OUTLINE_WIDTH_REM = 0.125
 _PLOT_MARKER_SIZE_REM = {
@@ -74,16 +76,13 @@ def _rem_to_px(rem: float) -> float:
 
 
 def _plot_base_layout(
-    title: str,
+    title: str | None,
     colors: dict[str, str],
     *,
     include_margin: bool = True,
+    height: int | None = None,
 ) -> dict[str, object]:
     layout: dict[str, object] = {
-        "title": {
-            "text": title,
-            "font": {"color": colors["text"], "size": _rem_to_px(_PLOT_TITLE_SIZE_REM)},
-        },
         "paper_bgcolor": "rgba(0,0,0,0)",
         "plot_bgcolor": colors["plot_bg"],
         "font": {"color": colors["text"]},
@@ -95,8 +94,16 @@ def _plot_base_layout(
             "font": {"color": colors["text"]},
         },
     }
+    if title:
+        layout["title"] = {
+            "text": title,
+            "font": {"color": colors["text"], "size": _rem_to_px(_PLOT_TITLE_SIZE_REM)},
+        }
     if include_margin:
-        layout["margin"] = {side: _rem_to_px(size) for side, size in _PLOT_MARGIN_REM.items()}
+        margin_source = _PLOT_MARGIN_REM if title else _PLOT_MARGIN_COMPACT_REM
+        layout["margin"] = {side: _rem_to_px(size) for side, size in margin_source.items()}
+    if height is not None:
+        layout["height"] = height
     return layout
 
 
@@ -226,276 +233,428 @@ def _lesson_item_snapshot_block(level_index: int, items: list[InventoryItem]) ->
     )
 
 
-def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.Figure:
-    colors = _figure_theme(theme)
-    level = active_level(state)
-    if level is not None and level.index == 1:
-        history = state.history or []
-        fig = go.Figure()
-        fig.update_layout(
-            **_plot_base_layout("On-hand inventory over time", colors),
-            xaxis_title="Day",
-            yaxis_title="Units",
-        )
-        if history:
-            days = [point.day for point in history]
-            on_hand = [point.total_on_hand for point in history]
-            backorder = [point.total_backorder for point in history]
-            fig.add_scatter(
-                x=days,
-                y=on_hand,
-                mode="lines+markers",
-                name="On Hand",
-                line=_plot_line(colors["pna"]),
-                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["lesson"]),
-                hovertemplate="Day %{x}<br>On hand %{y:.1f}<extra></extra>",
-            )
-            fig.add_scatter(
-                x=days,
-                y=backorder,
-                mode="lines+markers",
-                name="Backorder",
-                line=_plot_line(colors["zero"], dash="dash"),
-                marker=_plot_marker(colors["zero"], _PLOT_MARKER_SIZE_REM["lesson_backorder"]),
-                hovertemplate="Day %{x}<br>Backorder %{y:.1f}<extra></extra>",
-            )
-        fig.add_hline(
-            y=0,
-            line_dash="dot",
-            line_color=colors["guide"],
-            annotation_text="Zero on hand",
-            annotation_font_color=colors["text"],
-        )
-        fig.update_xaxes(
-            tickmode="linear",
-            dtick=1,
-            color=colors["text"],
-            gridcolor=colors["line"],
-            linecolor=colors["line"],
-            title_font={"color": colors["text"]},
-            tickfont={"color": colors["text"]},
-        )
-        fig.update_yaxes(
-            color=colors["text"],
-            gridcolor=colors["line"],
-            linecolor=colors["line"],
-            title_font={"color": colors["text"]},
-            tickfont={"color": colors["text"]},
-            rangemode="tozero",
-        )
-        return fig
-    if level is not None and level.index == 2:
-        history = state.history or []
-        fig = go.Figure()
-        fig.update_layout(
-            **_plot_base_layout("Basic reorder quantities over time", colors),
-            xaxis_title="Day",
-            yaxis_title="Units",
-        )
-        if history:
-            days = [point.day for point in history]
-            fig.add_scatter(
-                x=days,
-                y=[point.total_on_hand for point in history],
-                mode="lines+markers",
-                name="On Hand",
-                line=_plot_line(colors["pna"]),
-                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["lesson"]),
-                hovertemplate="Day %{x}<br>On hand %{y:.1f}<extra></extra>",
-            )
-            fig.add_scatter(
-                x=days,
-                y=[point.total_on_order for point in history],
-                mode="lines+markers",
-                name="On Order",
-                line=_plot_line(colors["ats"]),
-                marker=_plot_marker(colors["ats"], _PLOT_MARKER_SIZE_REM["lesson"]),
-                hovertemplate="Day %{x}<br>On order %{y:.1f}<extra></extra>",
-            )
-            fig.add_scatter(
-                x=days,
-                y=[point.total_pna for point in history],
-                mode="lines+markers",
-                name="PNA",
-                line=_plot_line(colors["proposed"]),
-                marker=_plot_marker(colors["proposed"], _PLOT_MARKER_SIZE_REM["lesson"]),
-                hovertemplate="Day %{x}<br>PNA %{y:.1f}<extra></extra>",
-            )
-            fig.add_scatter(
-                x=days,
-                y=[point.total_backorder for point in history],
-                mode="lines+markers",
-                name="Backorder",
-                line=_plot_line(colors["zero"], dash="dash"),
-                marker=_plot_marker(colors["zero"], _PLOT_MARKER_SIZE_REM["lesson_backorder"]),
-                hovertemplate="Day %{x}<br>Backorder %{y:.1f}<extra></extra>",
-            )
-        fig.add_hline(
-            y=0,
-            line_dash="dot",
-            line_color=colors["guide"],
-            annotation_text="Zero",
-            annotation_font_color=colors["text"],
-        )
-        fig.update_xaxes(
-            tickmode="linear",
-            dtick=1,
-            color=colors["text"],
-            gridcolor=colors["line"],
-            linecolor=colors["line"],
-            title_font={"color": colors["text"]},
-            tickfont={"color": colors["text"]},
-        )
-        fig.update_yaxes(
-            color=colors["text"],
-            gridcolor=colors["line"],
-            linecolor=colors["line"],
-            title_font={"color": colors["text"]},
-            tickfont={"color": colors["text"]},
-            rangemode="tozero",
-        )
-        return fig
-    if not state.items:
-        fig = go.Figure()
-        fig.update_layout(
-            **_plot_base_layout("Inventory Signal Map", colors, include_margin=False),
-            xaxis_title="Item",
-            yaxis_title="Days from OP",
-        )
-        fig.add_hline(
-            y=0,
-            line_dash="dot",
-            line_color=colors["guide"],
-            annotation_text="OP",
-            annotation_font_color=colors["text"],
-        )
-        fig.add_hline(
-            y=state.global_settings.r_cycle,
-            line_dash="dot",
-            line_color=colors["guide"],
-            annotation_text="LP",
-            annotation_font_color=colors["text"],
-        )
-        fig.update_xaxes(
-            color=colors["text"],
-            gridcolor=colors["line"],
-            linecolor=colors["line"],
-        )
-        fig.update_yaxes(
-            color=colors["text"],
-            gridcolor=colors["line"],
-            linecolor=colors["line"],
-        )
-        return fig
+_FIGURE_KIND_KEY = "figure_kind"
+_FIGURE_THEME_KEY = "theme"
+_FIGURE_LAYOUT_SIG_KEY = "layout_signature"
 
-    df = _items_frame(state.items)
-    fig = go.Figure()
-    fig.update_layout(
-        **_plot_base_layout("Inventory Signal Map", colors),
-        xaxis_title="Item",
-        yaxis_title="Days from OP",
+
+def _grid_theme_class(theme: str) -> str:
+    return (
+        "ag-theme-quartz-dark imsim-ag-grid" if theme == "dark" else "ag-theme-quartz imsim-ag-grid"
     )
-    hover = "Item %{x}<br>%{y:.1f} days<extra>%{fullData.name}</extra>"
 
-    fig.add_scatter(
-        x=df["idx"] + 1,
-        y=df["pna_days_frm_op"],
+
+def po_overview_grid_options() -> dict[str, object]:
+    return {
+        "animateRows": False,
+        "rowSelection": {
+            "mode": "multiRow",
+            "checkboxes": True,
+            "headerCheckbox": True,
+            "enableClickSelection": True,
+            "enableSelectionWithoutKeys": True,
+        },
+        "selectionColumnDef": {
+            "width": 56,
+            "maxWidth": 56,
+            "resizable": False,
+            "sortable": False,
+            "pinned": "left",
+        },
+    }
+
+
+def _figure_meta(
+    kind: str,
+    theme: str,
+    *,
+    layout_signature: str = "static",
+) -> dict[str, str]:
+    return {
+        _FIGURE_KIND_KEY: kind,
+        _FIGURE_THEME_KEY: theme,
+        _FIGURE_LAYOUT_SIG_KEY: layout_signature,
+    }
+
+
+def _stable_history_points(state: SimulationState) -> list:
+    return state.history or []
+
+
+def _empty_marker_trace(
+    *,
+    name: str,
+    marker: dict[str, object],
+    hovertemplate: str,
+    customdata: list | None = None,
+) -> go.Scatter:
+    trace = go.Scatter(
+        x=[],
+        y=[],
         mode="markers",
-        name="PNA",
-        marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["signal"]),
-        hovertemplate=hover,
+        name=name,
+        marker=marker,
+        hovertemplate=hovertemplate,
+    )
+    if customdata is not None:
+        trace.customdata = customdata
+    return trace
+
+
+def _empty_line_trace(
+    *,
+    name: str,
+    line: dict[str, object],
+    marker: dict[str, object],
+    hovertemplate: str,
+) -> go.Scatter:
+    return go.Scatter(
+        x=[],
+        y=[],
+        mode="lines+markers",
+        name=name,
+        line=line,
+        marker=marker,
+        hovertemplate=hovertemplate,
     )
 
-    mask_proposed = (df["pro_pna_days_frm_op"] != df["pna_days_frm_op"]) & (df["pna"] <= df["lp"])
-    if mask_proposed.any():
-        dfp = df[mask_proposed]
-        fig.add_scatter(
-            x=dfp["idx"] + 1,
-            y=dfp["pro_pna_days_frm_op"],
-            mode="markers",
-            name="PNA + SOQ",
-            marker=_plot_marker(
-                colors["proposed"],
-                _PLOT_MARKER_SIZE_REM["signal_proposed"],
-                symbol="circle-open",
-                line=_plot_marker_outline(colors["proposed"]),
-            ),
-            hovertemplate=hover,
-        )
 
-    fig.add_scatter(
-        x=df["idx"] + 1,
-        y=df["ats_days_frm_op"],
-        mode="markers",
-        name="Available to Sell",
-        marker=_plot_marker(
-            colors["ats"],
-            _PLOT_MARKER_SIZE_REM["signal_ats"],
-            symbol="x",
-        ),
-        customdata=df["ats_days_to_stockout"],
-        hovertemplate="Item %{x}<br>%{customdata:.1f} days to stockout<extra>ATS</extra>",
-    )
-    fig.add_scatter(
-        x=df["idx"] + 1,
-        y=df["no_pna_days_frm_op"],
-        mode="markers",
-        name="0 PNA",
-        marker=_plot_marker(colors["zero"], _PLOT_MARKER_SIZE_REM["signal_zero"]),
-        hovertemplate=hover,
-    )
+def _finalize_axes(
+    fig: go.Figure,
+    colors: dict[str, str],
+    *,
+    x_linear: bool = False,
+    x_range: list[float] | None = None,
+    y_tozero: bool = False,
+) -> go.Figure:
+    xaxis: dict[str, object] = {
+        "color": colors["text"],
+        "gridcolor": colors["line"],
+        "linecolor": colors["line"],
+        "title_font": {"color": colors["text"]},
+        "tickfont": {"color": colors["text"]},
+    }
+    if x_linear:
+        xaxis.update({"tickmode": "linear", "dtick": 1, "tick0": 1})
+    if x_range is not None:
+        xaxis["range"] = x_range
+        xaxis["tickformat"] = "d"
+    yaxis: dict[str, object] = {
+        "color": colors["text"],
+        "gridcolor": colors["line"],
+        "linecolor": colors["line"],
+        "title_font": {"color": colors["text"]},
+        "tickfont": {"color": colors["text"]},
+    }
+    if y_tozero:
+        yaxis["rangemode"] = "tozero"
+    else:
+        yaxis["zerolinecolor"] = colors["guide"]
+    fig.update_xaxes(**xaxis)
+    fig.update_yaxes(**yaxis)
+    return fig
 
-    stockouts = df[df["stockout_today"]]
-    if not stockouts.empty:
-        fig.add_scatter(
-            x=stockouts["idx"] + 1,
-            y=stockouts["pna_days_frm_op"],
-            mode="markers",
-            name="Stockout Today",
-            marker=_plot_marker(
-                colors["zero"],
-                _PLOT_MARKER_SIZE_REM["signal_stockout"],
-                symbol="circle-open-dot",
-                line=_plot_marker_outline(colors["zero"]),
-            ),
-            hovertemplate=hover,
-        )
 
+def _apply_signal_guides(
+    fig: go.Figure,
+    colors: dict[str, str],
+    *,
+    lower_label: str,
+    upper_label: str,
+    upper_y: float,
+) -> go.Figure:
     fig.add_hline(
         y=0,
         line_dash="dot",
         line_color=colors["guide"],
-        annotation_text="OP",
+        annotation_text=lower_label,
         annotation_font_color=colors["text"],
     )
     fig.add_hline(
-        y=state.global_settings.r_cycle,
+        y=upper_y,
         line_dash="dot",
         line_color=colors["guide"],
-        annotation_text="LP",
+        annotation_text=upper_label,
         annotation_font_color=colors["text"],
     )
-    fig.update_xaxes(
-        tickmode="linear",
-        dtick=1,
-        tick0=1,
-        tickformat="d",
-        range=[0.5, len(df) + 0.5],
-        color=colors["text"],
-        gridcolor=colors["line"],
-        linecolor=colors["line"],
-        title_font={"color": colors["text"]},
-        tickfont={"color": colors["text"]},
-    )
-    fig.update_yaxes(
-        color=colors["text"],
-        gridcolor=colors["line"],
-        linecolor=colors["line"],
-        title_font={"color": colors["text"]},
-        tickfont={"color": colors["text"]},
-        zerolinecolor=colors["guide"],
+    return fig
+
+
+def _apply_single_guide(
+    fig: go.Figure,
+    colors: dict[str, str],
+    *,
+    y: float,
+    label: str,
+) -> go.Figure:
+    fig.add_hline(
+        y=y,
+        line_dash="dot",
+        line_color=colors["guide"],
+        annotation_text=label,
+        annotation_font_color=colors["text"],
     )
     return fig
+
+
+def _lesson_one_figure(state: SimulationState, theme: str, colors: dict[str, str]) -> go.Figure:
+    history = _stable_history_points(state)
+    days = [point.day for point in history]
+    on_hand = [point.total_on_hand for point in history]
+    backorder = [point.total_backorder for point in history]
+    fig = go.Figure(
+        data=[
+            _empty_line_trace(
+                name="On Hand",
+                line=_plot_line(colors["pna"]),
+                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["lesson"]),
+                hovertemplate="On hand %{y:.1f}<extra></extra>",
+            ),
+            _empty_line_trace(
+                name="Backorder",
+                line=_plot_line(colors["zero"], dash="dash"),
+                marker=_plot_marker(colors["zero"], _PLOT_MARKER_SIZE_REM["lesson_backorder"]),
+                hovertemplate="Backorder %{y:.1f}<extra></extra>",
+            ),
+        ]
+    )
+    fig.update_layout(
+        **_plot_base_layout(None, colors, height=460),
+        xaxis_title="Day",
+        yaxis_title="Units",
+        hovermode="x unified",
+        uirevision=f"lesson-1:{theme}",
+        meta=_figure_meta("lesson-1", theme),
+    )
+    fig.update_traces(x=days, selector={"name": "On Hand"})
+    fig.update_traces(y=on_hand, selector={"name": "On Hand"})
+    fig.update_traces(x=days, selector={"name": "Backorder"})
+    fig.update_traces(y=backorder, selector={"name": "Backorder"})
+    _apply_single_guide(fig, colors, y=0, label="Zero on hand")
+    return _finalize_axes(fig, colors, x_linear=True, y_tozero=True)
+
+
+def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str]) -> go.Figure:
+    history = _stable_history_points(state)
+    days = [point.day for point in history]
+    fig = go.Figure(
+        data=[
+            _empty_line_trace(
+                name="On Hand",
+                line=_plot_line(colors["pna"]),
+                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["lesson"]),
+                hovertemplate="On hand %{y:.1f}<extra></extra>",
+            ),
+            _empty_line_trace(
+                name="On Order",
+                line=_plot_line(colors["ats"]),
+                marker=_plot_marker(colors["ats"], _PLOT_MARKER_SIZE_REM["lesson"]),
+                hovertemplate="On order %{y:.1f}<extra></extra>",
+            ),
+            _empty_line_trace(
+                name="PNA",
+                line=_plot_line(colors["proposed"]),
+                marker=_plot_marker(colors["proposed"], _PLOT_MARKER_SIZE_REM["lesson"]),
+                hovertemplate="PNA %{y:.1f}<extra></extra>",
+            ),
+            _empty_line_trace(
+                name="Backorder",
+                line=_plot_line(colors["zero"], dash="dash"),
+                marker=_plot_marker(colors["zero"], _PLOT_MARKER_SIZE_REM["lesson_backorder"]),
+                hovertemplate="Backorder %{y:.1f}<extra></extra>",
+            ),
+        ]
+    )
+    fig.update_layout(
+        **_plot_base_layout(None, colors, height=460),
+        xaxis_title="Day",
+        yaxis_title="Units",
+        hovermode="x unified",
+        uirevision=f"lesson-2:{theme}",
+        meta=_figure_meta("lesson-2", theme),
+    )
+    fig.update_traces(x=days, selector={"name": "On Hand"})
+    fig.update_traces(y=[point.total_on_hand for point in history], selector={"name": "On Hand"})
+    fig.update_traces(x=days, selector={"name": "On Order"})
+    fig.update_traces(
+        y=[point.total_on_order for point in history],
+        selector={"name": "On Order"},
+    )
+    fig.update_traces(x=days, selector={"name": "PNA"})
+    fig.update_traces(y=[point.total_pna for point in history], selector={"name": "PNA"})
+    fig.update_traces(x=days, selector={"name": "Backorder"})
+    fig.update_traces(
+        y=[point.total_backorder for point in history],
+        selector={"name": "Backorder"},
+    )
+    _apply_single_guide(fig, colors, y=0, label="Zero")
+    return _finalize_axes(fig, colors, x_linear=True, y_tozero=True)
+
+
+def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str]) -> go.Figure:
+    rows = _items_frame(state.items)
+    if rows.empty:
+        rows = pd.DataFrame(
+            columns=[
+                "idx",
+                "pna_days_frm_op",
+                "pro_pna_days_frm_op",
+                "pna",
+                "lp",
+                "ats_days_frm_op",
+                "ats_days_to_stockout",
+                "no_pna_days_frm_op",
+                "stockout_today",
+            ]
+        )
+    item_numbers = (rows["idx"] + 1).tolist() if "idx" in rows else []
+    hover = "Item %{x}<br>%{y:.1f} days<extra>%{fullData.name}</extra>"
+    proposed_mask = (
+        (rows["pro_pna_days_frm_op"] != rows["pna_days_frm_op"]) & (rows["pna"] <= rows["lp"])
+        if not rows.empty
+        else pd.Series(dtype=bool)
+    )
+    proposed_rows = rows[proposed_mask] if not rows.empty else rows
+    stockout_rows = rows[rows["stockout_today"]] if not rows.empty else rows
+    fig = go.Figure(
+        data=[
+            _empty_marker_trace(
+                name="PNA",
+                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["signal"]),
+                hovertemplate=hover,
+            ),
+            _empty_marker_trace(
+                name="PNA + SOQ",
+                marker=_plot_marker(
+                    colors["proposed"],
+                    _PLOT_MARKER_SIZE_REM["signal_proposed"],
+                    symbol="circle-open",
+                    line=_plot_marker_outline(colors["proposed"]),
+                ),
+                hovertemplate=hover,
+            ),
+            _empty_marker_trace(
+                name="Available to Sell",
+                marker=_plot_marker(
+                    colors["ats"],
+                    _PLOT_MARKER_SIZE_REM["signal_ats"],
+                    symbol="x",
+                ),
+                hovertemplate="Item %{x}<br>%{customdata:.1f} days to stockout<extra>ATS</extra>",
+                customdata=[],
+            ),
+            _empty_marker_trace(
+                name="0 PNA",
+                marker=_plot_marker(colors["zero"], _PLOT_MARKER_SIZE_REM["signal_zero"]),
+                hovertemplate=hover,
+            ),
+            _empty_marker_trace(
+                name="Stockout Today",
+                marker=_plot_marker(
+                    colors["zero"],
+                    _PLOT_MARKER_SIZE_REM["signal_stockout"],
+                    symbol="circle-open-dot",
+                    line=_plot_marker_outline(colors["zero"]),
+                ),
+                hovertemplate=hover,
+            ),
+        ]
+    )
+    fig.update_layout(
+        **_plot_base_layout(
+            None,
+            colors,
+            include_margin=not rows.empty,
+            height=600,
+        ),
+        xaxis_title="Item",
+        yaxis_title="Days from OP",
+        hovermode="closest",
+        uirevision=f"signal-map:{theme}",
+        meta=_figure_meta(
+            "signal-map",
+            theme,
+            layout_signature=f"items:{len(rows)}:r_cycle:{state.global_settings.r_cycle}",
+        ),
+    )
+    fig.update_traces(x=item_numbers, selector={"name": "PNA"})
+    fig.update_traces(y=rows["pna_days_frm_op"].tolist(), selector={"name": "PNA"})
+    fig.update_traces(
+        x=(proposed_rows["idx"] + 1).tolist() if not proposed_rows.empty else [],
+        selector={"name": "PNA + SOQ"},
+    )
+    fig.update_traces(
+        y=proposed_rows["pro_pna_days_frm_op"].tolist() if not proposed_rows.empty else [],
+        selector={"name": "PNA + SOQ"},
+    )
+    fig.update_traces(x=item_numbers, selector={"name": "Available to Sell"})
+    fig.update_traces(y=rows["ats_days_frm_op"].tolist(), selector={"name": "Available to Sell"})
+    fig.update_traces(
+        customdata=rows["ats_days_to_stockout"].tolist(),
+        selector={"name": "Available to Sell"},
+    )
+    fig.update_traces(x=item_numbers, selector={"name": "0 PNA"})
+    fig.update_traces(y=rows["no_pna_days_frm_op"].tolist(), selector={"name": "0 PNA"})
+    fig.update_traces(
+        x=(stockout_rows["idx"] + 1).tolist() if not stockout_rows.empty else [],
+        selector={"name": "Stockout Today"},
+    )
+    fig.update_traces(
+        y=stockout_rows["pna_days_frm_op"].tolist() if not stockout_rows.empty else [],
+        selector={"name": "Stockout Today"},
+    )
+    _apply_signal_guides(
+        fig,
+        colors,
+        lower_label="OP",
+        upper_label="LP",
+        upper_y=state.global_settings.r_cycle,
+    )
+    return _finalize_axes(
+        fig,
+        colors,
+        x_linear=True,
+        x_range=[0.5, max(1, len(rows)) + 0.5],
+    )
+
+
+def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.Figure:
+    colors = _figure_theme(theme)
+    level = active_level(state)
+    if level is not None and level.index == 1:
+        return _lesson_one_figure(state, theme, colors)
+    if level is not None and level.index == 2:
+        return _lesson_two_figure(state, theme, colors)
+    return _signal_map_figure(state, theme, colors)
+
+
+def refresh_inventory_figure(
+    state: SimulationState,
+    theme: str = "light",
+    current_figure: dict | None = None,
+) -> go.Figure | Patch:
+    target = build_inventory_figure(state, theme)
+    layout = (current_figure or {}).get("layout") or {}
+    current_meta = layout.get("meta") or {}
+    target_meta = dict(target.layout.meta or {})
+    if (
+        current_meta.get(_FIGURE_KIND_KEY) != target_meta.get(_FIGURE_KIND_KEY)
+        or current_meta.get(_FIGURE_THEME_KEY) != target_meta.get(_FIGURE_THEME_KEY)
+        or current_meta.get(_FIGURE_LAYOUT_SIG_KEY) != target_meta.get(_FIGURE_LAYOUT_SIG_KEY)
+        or len((current_figure or {}).get("data") or []) != len(target.data)
+    ):
+        return target
+
+    patched = Patch()
+    for index, trace in enumerate(target.data):
+        patched["data"][index]["x"] = list(trace.x) if trace.x is not None else []
+        patched["data"][index]["y"] = list(trace.y) if trace.y is not None else []
+        if getattr(trace, "customdata", None) is not None:
+            patched["data"][index]["customdata"] = list(trace.customdata)
+        else:
+            patched["data"][index]["customdata"] = []
+        patched["data"][index]["hovertemplate"] = trace.hovertemplate
+    return patched
 
 
 def service_card_children(state: SimulationState) -> list:
@@ -735,85 +894,100 @@ def build_kpi_strip(state: SimulationState) -> list:
     ]
 
 
-def build_po_overview_table(state: SimulationState) -> list:
-    rows = []
+def build_po_overview_rows(state: SimulationState) -> list[dict[str, int | float | str]]:
+    rows: list[dict[str, int | float | str]] = []
     for item_index, item in enumerate(state.items):
         for receipt in item.pipeline:
             days_left = max(0, receipt.eta_day - state.day)
             rows.append(
-                dbc.Row(
-                    [
-                        dbc.Col(item_index + 1, width=1),
-                        dbc.Col(receipt.receipt_id, width=2),
-                        dbc.Col(int(receipt.qty), width=2),
-                        dbc.Col(int(receipt.eta_day), width=2),
-                        dbc.Col(days_left, width=2),
-                        dbc.Col(
-                            html.Div(
-                                [
-                                    html.Button(
-                                        "Expedite -1d",
-                                        id={"type": "po-expedite", "rid": receipt.receipt_id},
-                                        n_clicks=0,
-                                        className="imsim-button button-warning button-sm",
-                                    ),
-                                    html.Button(
-                                        "Cancel",
-                                        id={"type": "po-cancel", "rid": receipt.receipt_id},
-                                        n_clicks=0,
-                                        className="imsim-button button-danger button-sm",
-                                    ),
-                                ],
-                                className="inline-button-group",
-                            ),
-                            width=3,
-                        ),
-                    ],
-                    className="po-row",
-                )
+                {
+                    "item": item_index + 1,
+                    "receipt_id": receipt.receipt_id,
+                    "qty": int(receipt.qty),
+                    "eta_day": int(receipt.eta_day),
+                    "days_left": days_left,
+                }
             )
-    header = dbc.Row(
-        [
-            dbc.Col(html.Strong("Item"), width=1),
-            dbc.Col(html.Strong("Receipt"), width=2),
-            dbc.Col(html.Strong("Qty"), width=2),
-            dbc.Col(html.Strong("ETA"), width=2),
-            dbc.Col(html.Strong("Days Left"), width=2),
-            dbc.Col(html.Strong("Actions"), width=3),
-        ],
-        className="po-header",
-    )
-    return [header] + rows if rows else [dbc.Alert("No open purchase orders.", color="secondary")]
+    return rows
 
 
-def build_custom_order_row(index: int, item: InventoryItem):
-    return dbc.Row(
-        [
-            dbc.Col(index + 1, width=1),
-            dbc.Col(int(item.on_hand)),
-            dbc.Col(int(item_on_order(item))),
-            dbc.Col(int(item.backorder)),
-            dbc.Col(round(item.usage_rate)),
-            dbc.Col(round(item.lead_time)),
-            dbc.Col(round(item.op)),
-            dbc.Col(round(item.lp)),
-            dbc.Col(round(item.oq)),
-            dbc.Col(
-                dcc.Input(
-                    value=int(round(item.soq)),
-                    type="number",
-                    min=0,
-                    id={"type": "order-quantity", "index": index},
-                    className="control-input control-input-compact",
-                ),
-                width=2,
-            ),
+def build_po_overview_grid(state: SimulationState, theme: str = "light") -> dag.AgGrid | dbc.Alert:
+    rows = build_po_overview_rows(state)
+    if not rows:
+        return dbc.Alert("No open purchase orders.", color="secondary")
+    return dag.AgGrid(
+        id="po-overview-grid",
+        rowData=rows,
+        columnDefs=[
+            {"field": "item", "headerName": "Item", "pinned": "left", "maxWidth": 90},
+            {"field": "receipt_id", "headerName": "PO Line"},
+            {"field": "qty", "headerName": "Qty", "type": "numericColumn"},
+            {"field": "eta_day", "headerName": "ETA", "type": "numericColumn"},
+            {"field": "days_left", "headerName": "Days Left", "type": "numericColumn"},
         ],
-        className="custom-order-row",
+        defaultColDef={"sortable": True, "filter": True, "resizable": True},
+        className=_grid_theme_class(theme),
+        columnSize="sizeToFit",
+        dashGridOptions=po_overview_grid_options(),
+        style={"height": "420px", "width": "100%"},
     )
 
 
-def build_inventory_table(state: SimulationState):
+def build_custom_order_rows(state: SimulationState) -> list[dict[str, int | float]]:
+    rows: list[dict[str, int | float]] = []
+    for index, item in enumerate(state.items, start=1):
+        rows.append(
+            {
+                "item_index": index - 1,
+                "item": index,
+                "on_hand": int(item.on_hand),
+                "on_order": int(item_on_order(item)),
+                "backorder": int(item.backorder),
+                "usage_rate": round(item.usage_rate),
+                "lead_time": round(item.lead_time),
+                "op": round(item.op),
+                "lp": round(item.lp),
+                "oq": round(item.oq),
+                "order_qty": int(round(item.soq)),
+            }
+        )
+    return rows
+
+
+def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag.AgGrid | dbc.Alert:
+    rows = build_custom_order_rows(state)
+    if not rows:
+        return dbc.Alert("No items available.", color="warning")
+    return dag.AgGrid(
+        id="custom-order-grid",
+        rowData=rows,
+        columnDefs=[
+            {"field": "item", "headerName": "Item", "pinned": "left", "maxWidth": 90},
+            {"field": "on_hand", "headerName": "ATS", "type": "numericColumn"},
+            {"field": "on_order", "headerName": "On-Order", "type": "numericColumn"},
+            {"field": "backorder", "headerName": "Backorder", "type": "numericColumn"},
+            {"field": "usage_rate", "headerName": "Usage", "type": "numericColumn"},
+            {"field": "lead_time", "headerName": "Lead Time", "type": "numericColumn"},
+            {"field": "op", "headerName": "OP", "type": "numericColumn"},
+            {"field": "lp", "headerName": "LP", "type": "numericColumn"},
+            {"field": "oq", "headerName": "OQ", "type": "numericColumn"},
+            {
+                "field": "order_qty",
+                "headerName": "Order Qty",
+                "type": "numericColumn",
+                "editable": True,
+                "cellEditor": "agNumberCellEditor",
+            },
+        ],
+        defaultColDef={"sortable": True, "filter": True, "resizable": True},
+        className=_grid_theme_class(theme),
+        columnSize="sizeToFit",
+        dashGridOptions={"animateRows": False, "stopEditingWhenCellsLoseFocus": True},
+        style={"height": "420px", "width": "100%"},
+    )
+
+
+def build_inventory_table(state: SimulationState, theme: str = "light"):
     column_config = {
         "item": ("item", "Item"),
         "usage_rate": ("usage_rate", "Usage"),
@@ -855,20 +1029,30 @@ def build_inventory_table(state: SimulationState):
             "No items loaded yet. Add an item or import a sample workbook.", color="secondary"
         )
     selected_columns = visible_columns(state) or tuple(column_config.keys())
-    table_rows = []
-    for row in rows:
-        table_rows.append(
-            {column_config[key][1]: row[column_config[key][0]] for key in selected_columns}
-        )
-    return html.Div(
-        dbc.Table.from_dataframe(
-            pd.DataFrame(table_rows),
-            striped=True,
-            bordered=False,
-            hover=True,
-            class_name="inventory-table",
-        ),
-        className="table-scroll-shell",
+    column_defs = []
+    for key in selected_columns:
+        field, header = column_config[key]
+        column_def: dict[str, object] = {"field": field, "headerName": header}
+        if key == "item":
+            column_def["pinned"] = "left"
+            column_def["maxWidth"] = 90
+        else:
+            column_def["type"] = "numericColumn"
+        column_defs.append(column_def)
+    return dag.AgGrid(
+        id="inventory-table-grid",
+        rowData=rows,
+        columnDefs=column_defs,
+        defaultColDef={"sortable": True, "filter": True, "resizable": True},
+        className=_grid_theme_class(theme),
+        columnSize="sizeToFit",
+        dashGridOptions={
+            "pagination": True,
+            "paginationPageSize": min(12, max(1, len(rows))),
+            "paginationPageSizeSelector": False,
+            "animateRows": False,
+        },
+        style={"height": "460px", "width": "100%"},
     )
 
 

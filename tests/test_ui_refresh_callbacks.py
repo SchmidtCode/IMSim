@@ -20,50 +20,95 @@ def _find_callback(dash_app, required_outputs):
     raise AssertionError(f"Callback with outputs {sorted(required)} not found")
 
 
-def test_refresh_driven_panels_listen_to_ui_refresh(dash_app):
-    for component_id in (
-        "kpi-strip",
-        "inventory-table-shell",
-        "exception-center-shell",
-    ):
-        spec = _find_callback(dash_app, [(component_id, "children")])
-        assert _input_pairs(spec) == {("ui-refresh", "data")}
-
-
-def test_state_changes_emit_ui_refresh(dash_app):
-    cases = [
+def test_dashboard_render_listens_to_session_revision_and_theme(dash_app):
+    spec = _find_callback(
+        dash_app,
         [
-            ("day-display", "children"),
             ("inventory-graph", "figure"),
-            ("service-card", "children"),
-            ("costs-card", "children"),
-            ("sales-card", "children"),
+            ("kpi-strip", "children"),
+            ("inventory-table-shell", "children"),
+            ("exception-center-shell", "children"),
         ],
+    )
+    assert _input_pairs(spec) == {
+        ("user-data-store", "data"),
+        ("session-revision", "data"),
+        ("dashboard-tick", "data"),
+        ("theme-store", "data"),
+    }
+
+
+def test_training_shell_render_listens_to_session_revision(dash_app):
+    spec = _find_callback(
+        dash_app,
         [
-            ("day-display", "children"),
-            ("asq-apply-feedback", "children"),
+            ("academy-menu-shell", "style"),
+            ("lesson-shell", "style"),
+            ("dashboard-shell", "className"),
             ("interval-component", "disabled"),
         ],
+    )
+    assert _input_pairs(spec) == {
+        ("user-data-store", "data"),
+        ("session-revision", "data"),
+    }
+
+
+def test_theme_callback_updates_control_modal_content_classes(dash_app):
+    spec = _find_callback(
+        dash_app,
         [
-            ("user-data-store", "data"),
+            ("lesson-intro-modal", "content_class_name"),
+            ("add-item-modal", "content_class_name"),
+            ("place-custom-order-modal", "content_class_name"),
+            ("po-overview-modal", "content_class_name"),
+        ],
+    )
+    assert _input_pairs(spec) == {("theme-store", "data")}
+
+
+def test_randomize_button_populates_manual_item_fields(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("usage-rate-input", "value"),
+            ("lead-time-input", "value"),
+            ("item-cost-input", "value"),
+            ("pna-input", "value"),
+            ("safety-allowance-input", "value"),
+            ("standard-pack-input", "value"),
+            ("hits-per-month-input", "value"),
+        ],
+    )
+    assert _input_pairs(spec) == {("randomize-button", "n_clicks")}
+
+
+def test_state_changes_emit_session_revision(dash_app):
+    cases = [
+        [
+            ("dashboard-tick", "data"),
+            ("session-revision", "data"),
             ("asq-apply-feedback", "children"),
         ],
         [
-            ("add-item-modal", "is_open"),
+            ("session-revision", "data"),
             ("add-item-error", "children"),
         ],
-        [("update-params-conf", "children")],
-        [("upload-feedback", "children")],
+        [("session-revision", "data"), ("update-params-conf", "children")],
+        [("session-revision", "data"), ("upload-feedback", "children")],
         [
-            ("custom-order-items-div", "children"),
-            ("place-custom-order-modal", "is_open"),
+            ("custom-order-grid", "rowData"),
+            ("custom-order-grid", "columnDefs"),
+            ("session-revision", "data"),
         ],
         [
-            ("po-overview-modal", "is_open"),
-            ("po-overview-table", "children"),
+            ("po-overview-grid", "rowData"),
+            ("po-overview-grid", "columnDefs"),
+            ("po-overview-grid", "selectedRows"),
+            ("session-revision", "data"),
         ],
     ]
 
     for required_outputs in cases:
         spec = _find_callback(dash_app, required_outputs)
-        assert ("ui-refresh", "data") in _output_pairs(spec)
+        assert ("session-revision", "data") in _output_pairs(spec)

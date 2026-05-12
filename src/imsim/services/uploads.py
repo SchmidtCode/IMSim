@@ -5,10 +5,11 @@ import datetime as dt
 import io
 from typing import Any
 
+import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
-from dash import dash_table, html
+from dash import html
 
 CANONICAL_COLS = [
     "usage_rate",
@@ -114,7 +115,18 @@ def read_uploaded_table(contents: str, filename: str | None) -> pd.DataFrame:
     raise ValueError("The input file must be .csv or .xlsx.")
 
 
-def parse_contents(contents: str, filename: str | None, modified_at: float | None):
+def _grid_theme_class(theme: str) -> str:
+    return (
+        "ag-theme-quartz-dark imsim-ag-grid" if theme == "dark" else "ag-theme-quartz imsim-ag-grid"
+    )
+
+
+def parse_contents(
+    contents: str,
+    filename: str | None,
+    modified_at: float | None,
+    theme: str = "light",
+):
     try:
         raw = read_uploaded_table(contents, filename)
         df = coerce_uploaded(raw)
@@ -145,13 +157,19 @@ def parse_contents(contents: str, filename: str | None, modified_at: float | Non
                 html.H5(filename or "Uploaded file", className="card-title"),
                 html.H6(when_str, className="card-subtitle text-muted"),
                 html.Br(),
-                dash_table.DataTable(
-                    data=preview_records,
-                    columns=[{"name": column, "id": column} for column in df.columns],
-                    page_size=10,
-                    style_table={"overflowX": "auto"},
-                    style_header={"fontWeight": "600"},
-                    style_cell={"padding": "0.65rem", "whiteSpace": "normal"},
+                dag.AgGrid(
+                    rowData=preview_records,
+                    columnDefs=[{"field": column, "headerName": column} for column in df.columns],
+                    defaultColDef={"sortable": True, "filter": True, "resizable": True},
+                    className=_grid_theme_class(theme),
+                    columnSize="sizeToFit",
+                    dashGridOptions={
+                        "pagination": True,
+                        "paginationPageSize": 10,
+                        "paginationPageSizeSelector": False,
+                        "animateRows": False,
+                    },
+                    style={"height": "320px", "width": "100%"},
                 ),
             ]
         ),

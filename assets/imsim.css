@@ -273,6 +273,22 @@ body {
   color: var(--imsim-ink);
 }
 
+.imsim-modal-content {
+  background: linear-gradient(180deg, var(--imsim-surface-strong), var(--imsim-surface));
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-3xl);
+  box-shadow: var(--imsim-shadow-modal);
+  color: var(--imsim-ink);
+}
+
+.imsim-modal-content .modal-header,
+.imsim-modal-content .modal-body,
+.imsim-modal-content .modal-footer {
+  background: transparent;
+  border-color: var(--imsim-line);
+  color: var(--imsim-ink);
+}
+
 .lesson-intro-header,
 .lesson-intro-body,
 .lesson-intro-footer {
@@ -818,6 +834,84 @@ body {
   margin-bottom: 0.85rem;
 }
 
+.imsim-ag-grid {
+  --ag-font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --ag-border-radius: var(--imsim-radius-lg);
+  --ag-wrapper-border-radius: var(--imsim-radius-lg);
+  --ag-border-color: var(--imsim-line);
+  --ag-row-border-color: var(--imsim-line);
+  --ag-header-column-resize-handle-color: var(--imsim-muted);
+  --ag-cell-horizontal-padding: 0.75rem;
+  --ag-header-height: 2.9rem;
+  --ag-row-height: 2.75rem;
+}
+
+.theme-light .imsim-ag-grid {
+  --ag-background-color: rgba(255, 253, 248, 0.98);
+  --ag-chrome-background-color: rgba(244, 241, 234, 0.96);
+  --ag-foreground-color: var(--imsim-ink);
+  --ag-secondary-foreground-color: var(--imsim-muted);
+  --ag-header-background-color: rgba(244, 241, 234, 0.96);
+  --ag-header-foreground-color: var(--imsim-ink);
+  --ag-odd-row-background-color: rgba(15, 118, 110, 0.04);
+  --ag-row-hover-color: rgba(37, 99, 235, 0.08);
+  --ag-selected-row-background-color: rgba(37, 99, 235, 0.14);
+  --ag-subheader-background-color: rgba(244, 241, 234, 0.92);
+  --ag-modal-overlay-background-color: rgba(255, 253, 248, 0.9);
+  --ag-menu-background-color: rgba(255, 253, 248, 0.98);
+  --ag-tooltip-background-color: rgba(255, 253, 248, 0.98);
+  --ag-input-focus-border-color: var(--imsim-blue);
+  --ag-range-selection-border-color: rgba(37, 99, 235, 0.3);
+}
+
+.theme-dark .imsim-ag-grid {
+  --ag-background-color: rgba(18, 31, 49, 0.96);
+  --ag-chrome-background-color: rgba(10, 19, 32, 0.96);
+  --ag-foreground-color: var(--imsim-ink);
+  --ag-secondary-foreground-color: var(--imsim-muted);
+  --ag-header-background-color: rgba(10, 19, 32, 0.96);
+  --ag-header-foreground-color: var(--imsim-ink);
+  --ag-border-color: rgba(214, 228, 255, 0.14);
+  --ag-row-border-color: rgba(214, 228, 255, 0.1);
+  --ag-odd-row-background-color: rgba(15, 118, 110, 0.08);
+  --ag-row-hover-color: rgba(37, 99, 235, 0.18);
+  --ag-selected-row-background-color: rgba(37, 99, 235, 0.26);
+  --ag-subheader-background-color: rgba(10, 19, 32, 0.96);
+  --ag-modal-overlay-background-color: rgba(10, 19, 32, 0.92);
+  --ag-menu-background-color: rgba(18, 31, 49, 0.98);
+  --ag-tooltip-background-color: rgba(18, 31, 49, 0.98);
+  --ag-input-focus-border-color: #60a5fa;
+  --ag-range-selection-border-color: rgba(96, 165, 250, 0.45);
+}
+
+.imsim-ag-grid .ag-root-wrapper,
+.imsim-ag-grid .ag-picker-field-wrapper,
+.imsim-ag-grid .ag-input-field-input,
+.imsim-ag-grid .ag-text-field-input {
+  border-radius: var(--imsim-radius-lg);
+}
+
+.imsim-ag-grid .ag-root-wrapper {
+  border: 1px solid var(--ag-border-color);
+  overflow: hidden;
+}
+
+.imsim-ag-grid .ag-paging-panel,
+.imsim-ag-grid .ag-status-bar {
+  border-top-color: var(--ag-border-color);
+  color: var(--ag-foreground-color);
+}
+
+.imsim-ag-grid .ag-header,
+.imsim-ag-grid .ag-row,
+.imsim-ag-grid .ag-cell,
+.imsim-ag-grid .ag-floating-filter,
+.imsim-ag-grid .ag-picker-field-wrapper,
+.imsim-ag-grid .ag-input-field-input,
+.imsim-ag-grid .ag-text-field-input {
+  color: inherit;
+}
+
 .exception-stack {
   display: grid;
   gap: 0.85rem;
@@ -899,6 +993,7 @@ body {
 .theme-dark .form-select,
 .theme-dark .form-check-input,
 .theme-dark .form-range,
+.theme-dark.modal-content,
 .theme-dark .modal-content,
 .theme-dark .table,
 .theme-dark .alert {
@@ -1124,6 +1219,34 @@ body {
 
 .js-plotly-plot .plotly .main-svg {
   border-radius: var(--imsim-radius-2xl);
+}
+
+.inventory-graph {
+  height: 38rem;
+  min-height: 38rem;
+  width: 100%;
+}
+
+.dashboard-shell #graph-panel > .card,
+.dashboard-shell #graph-panel > .card > .card-body {
+  height: 100%;
+}
+
+.dashboard-shell #graph-panel > .card > .card-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-shell #graph-panel > .card {
+  overflow: hidden;
+}
+
+.dashboard-shell #graph-panel .dash-graph,
+.dashboard-shell #graph-panel .js-plotly-plot,
+.dashboard-shell #graph-panel .plot-container,
+.dashboard-shell #graph-panel .svg-container {
+  height: 100% !important;
 }
 
 .dashboard-shell.lesson-dashboard {

@@ -4,7 +4,7 @@ services:
     runtime: docker
     plan: free
     autoDeploy: true
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       - key: IMSIM_HOST
         value: 0.0.0.0
