@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from imsim.services.simulation import tick_state
+from dash import Patch
+from dash_ag_grid import AgGrid
+
+from imsim.models import Receipt
+from imsim.services.simulation import place_purchase_orders, tick_state
 from imsim.services.training import (
     academy_level,
     apply_lesson_evaluation,
@@ -15,7 +19,11 @@ from imsim.ui.components import (
     _plot_line,
     _plot_marker,
     _plot_marker_outline,
+    build_custom_order_grid,
     build_inventory_figure,
+    build_inventory_table,
+    build_po_overview_grid,
+    refresh_inventory_figure,
 )
 
 
@@ -87,6 +95,91 @@ def test_level_two_uses_simple_quantity_graph():
     assert [trace.name for trace in figure.data] == ["On Hand", "On Order", "PNA", "Backorder"]
     assert all(trace.line.width == 3.0 for trace in figure.data)
     assert figure.data[-1].marker.size == 7.0
+    assert figure.layout.hovermode == "x unified"
+    assert figure.layout.uirevision == "lesson-2:light"
+    assert figure.layout.meta == {"figure_kind": "lesson-2", "theme": "light"}
+
+
+def test_signal_map_uses_stable_schema_and_uirevision():
+    state = build_simulator_state()
+    state.items[0].pipeline.append(Receipt(receipt_id="abc123", qty=5, eta_day=5))
+    state.items[0].stockout_today = True
+
+    figure = build_inventory_figure(state, theme="dark")
+
+    assert figure.layout.title.text == "Inventory Signal Map"
+    assert [trace.name for trace in figure.data] == [
+        "PNA",
+        "PNA + SOQ",
+        "Available to Sell",
+        "0 PNA",
+        "Stockout Today",
+    ]
+    assert figure.layout.hovermode == "closest"
+    assert figure.layout.uirevision == "signal-map:dark"
+    assert figure.layout.meta == {"figure_kind": "signal-map", "theme": "dark"}
+
+
+def test_refresh_inventory_figure_returns_patch_when_schema_is_stable():
+    state = build_level_state("level-1")
+    current_figure = build_inventory_figure(state).to_plotly_json()
+
+    patch = refresh_inventory_figure(state, current_figure=current_figure)
+
+    assert isinstance(patch, Patch)
+    operations = patch.to_plotly_json()["operations"]
+    assert any(op["location"] == ["data", 0, "x"] for op in operations)
+    assert any(op["location"] == ["layout", "uirevision"] for op in operations)
+
+
+def test_refresh_inventory_figure_rebuilds_when_theme_or_schema_changes():
+    lesson_one = build_level_state("level-1")
+    current_figure = build_inventory_figure(lesson_one).to_plotly_json()
+
+    themed = refresh_inventory_figure(lesson_one, theme="dark", current_figure=current_figure)
+    lesson_two = refresh_inventory_figure(
+        build_level_state("level-2"),
+        current_figure=current_figure,
+    )
+
+    assert not isinstance(themed, Patch)
+    assert not isinstance(lesson_two, Patch)
+    assert themed.layout.uirevision == "lesson-1:dark"
+    assert lesson_two.layout.uirevision == "lesson-2:light"
+
+
+def test_inventory_table_uses_ag_grid_with_lesson_visible_columns():
+    state = build_level_state("level-2")
+
+    grid = build_inventory_table(state)
+
+    assert isinstance(grid, AgGrid)
+    assert grid.id == "inventory-table-grid"
+    assert [column["field"] for column in grid.columnDefs] == [
+        "item",
+        "daily_usage",
+        "on_hand",
+        "on_order",
+        "backorder",
+        "pna",
+        "op",
+        "soq",
+    ]
+    assert grid.columnDefs[0]["pinned"] == "left"
+
+
+def test_custom_order_and_po_overview_use_ag_grid():
+    state = build_simulator_state()
+    custom_order_grid = build_custom_order_grid(state)
+    place_purchase_orders(state)
+    po_grid = build_po_overview_grid(state)
+
+    assert isinstance(custom_order_grid, AgGrid)
+    assert custom_order_grid.id == "custom-order-grid"
+    assert custom_order_grid.rowData[0]["order_qty"] >= 0
+    assert isinstance(po_grid, AgGrid)
+    assert po_grid.id == "po-overview-grid"
+    assert po_grid.rowData[0]["receipt_id"]
 
 
 def test_plot_sizing_helpers_keep_default_plot_dimensions():

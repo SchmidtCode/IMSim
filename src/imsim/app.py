@@ -75,6 +75,10 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
             }
         )
 
+    @server.get("/health")
+    def health():
+        return jsonify({"status": "ok"})
+
     @server.post("/shutdown")
     def shutdown():
         if not config.allow_dev_shutdown:

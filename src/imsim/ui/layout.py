@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
@@ -99,7 +100,7 @@ def build_layout(config: IMSimConfig):
                 dcc.Store(id="gh-footer-store", storage_type="local", data=True),
                 dcc.Store(id="upload-preview-data"),
                 dcc.Store(id="theme-store", storage_type="local", data="light"),
-                dcc.Store(id="ui-refresh", data=0),
+                dcc.Store(id="session-revision", data=0),
                 dcc.Interval(id="interval-component", interval=1000, disabled=True),
                 dcc.Interval(
                     id="shutdown-poll",
@@ -776,6 +777,15 @@ def build_layout(config: IMSimConfig):
                                                             id="inventory-graph",
                                                             figure={},
                                                             className="inventory-graph",
+                                                            config={
+                                                                "responsive": True,
+                                                                "displaylogo": False,
+                                                                "modeBarButtonsToRemove": [
+                                                                    "lasso2d",
+                                                                    "select2d",
+                                                                    "toggleSpikelines",
+                                                                ],
+                                                            },
                                                         ),
                                                     ]
                                                 ),
@@ -1038,29 +1048,19 @@ def build_layout(config: IMSimConfig):
                     id="add-item-modal",
                     is_open=False,
                     size="xl",
+                    content_class_name="imsim-modal-content",
                 ),
                 dbc.Modal(
                     [
                         dbc.ModalHeader("Place Custom Order"),
                         dbc.ModalBody(
-                            [
-                                dbc.Row(
-                                    [
-                                        dbc.Col(html.Strong("Item"), width=1),
-                                        dbc.Col(html.Strong("ATS")),
-                                        dbc.Col(html.Strong("On-Order")),
-                                        dbc.Col(html.Strong("Backorder")),
-                                        dbc.Col(html.Strong("Usage")),
-                                        dbc.Col(html.Strong("Lead Time")),
-                                        dbc.Col(html.Strong("OP")),
-                                        dbc.Col(html.Strong("LP")),
-                                        dbc.Col(html.Strong("OQ")),
-                                        dbc.Col(html.Strong("Order Qty"), width=2),
-                                    ],
-                                    className="custom-order-head",
-                                ),
-                                html.Div(id="custom-order-items-div"),
-                            ]
+                            dag.AgGrid(
+                                id="custom-order-grid",
+                                rowData=[],
+                                columnDefs=[],
+                                className="ag-theme-quartz imsim-ag-grid",
+                                style={"height": "420px", "width": "100%"},
+                            )
                         ),
                         dbc.ModalFooter(
                             [
@@ -1081,23 +1081,45 @@ def build_layout(config: IMSimConfig):
                     id="place-custom-order-modal",
                     is_open=False,
                     size="xl",
+                    content_class_name="imsim-modal-content",
                 ),
                 dbc.Modal(
                     [
                         dbc.ModalHeader("PO Overview"),
-                        dbc.ModalBody(html.Div(id="po-overview-table")),
+                        dbc.ModalBody(
+                            dag.AgGrid(
+                                id="po-overview-grid",
+                                rowData=[],
+                                columnDefs=[],
+                                className="ag-theme-quartz imsim-ag-grid",
+                                style={"height": "420px", "width": "100%"},
+                            )
+                        ),
                         dbc.ModalFooter(
-                            _action_button(
-                                "Close",
-                                "po-overview-close",
-                                "secondary",
-                            ),
+                            [
+                                _action_button(
+                                    "Expedite Selected",
+                                    "po-expedite-button",
+                                    "warning",
+                                ),
+                                _action_button(
+                                    "Cancel Selected",
+                                    "po-cancel-button",
+                                    "danger",
+                                ),
+                                _action_button(
+                                    "Close",
+                                    "po-overview-close",
+                                    "secondary",
+                                ),
+                            ],
                             className="modal-actions",
                         ),
                     ],
                     id="po-overview-modal",
                     is_open=False,
                     size="xl",
+                    content_class_name="imsim-modal-content",
                 ),
                 github_footer_card(config.github_url),
             ],

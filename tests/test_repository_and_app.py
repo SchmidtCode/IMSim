@@ -193,6 +193,9 @@ def test_dash_layout_and_admin_status(client):
     assert "IMSim Academy" in payload
     assert "academy-simulator-button" in payload
     assert '"disabled":true' in payload
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert health.get_json() == {"status": "ok"}
     status = client.get("/api/admin/shutdown_status")
     assert status.status_code == 200
     assert status.get_json()["active"] is False
@@ -202,6 +205,7 @@ def test_dash_component_suites_are_warmed(dash_app):
     registered = dash_app.registered_paths
 
     assert "dash" in registered
+    assert "dash_ag_grid" in registered
     assert "dash_bootstrap_components" in registered
 
 
