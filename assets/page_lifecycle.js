@@ -8,8 +8,12 @@
       window.dash_clientside &&
       typeof window.dash_clientside.set_props === "function"
     ) {
-      window.dash_clientside.set_props(id, props);
-      return true;
+      try {
+        window.dash_clientside.set_props(id, props);
+        return true;
+      } catch (_err) {
+        return false;
+      }
     }
     return false;
   }

@@ -127,7 +127,9 @@ Common header aliases are normalized automatically. The import preview rejects m
 ## Performance load testing
 
 The `imsim-perf` CLI runs repeatable virtual-user load tests against the same simulation tick,
-session persistence, and optional dashboard rendering paths used by the Dash callbacks.
+session persistence, and dashboard rendering paths used by the Dash callbacks. It reports total
+throughput plus stage-level p95 timings for state load, simulation tick, save, figure/card/grid
+builders, JSON serialization, and payload size.
 
 Examples:
 
@@ -135,14 +137,29 @@ Examples:
 # Equivalent to four browsers running at the 6x dashboard speed.
 uv run imsim-perf --scenario simulator --users 4 --tick-rate 6 --ticks 120
 
-# Approximate forty users running at normal 1x speed.
-uv run imsim-perf --scenario simulator --users 40 --tick-rate 1 --duration 120
+# Stretch target: eighty users running at normal 1x speed with the current server-rendered dashboard.
+uv run imsim-perf --scenario simulator --users 80 --tick-rate 1 --duration 120 --render-profile full-server
 
-# Mix simulator users with academy users cycling through lessons.
-uv run imsim-perf --scenario mixed --users 40 --tick-rate 1 --duration 120
+# Measure tick + persistence capacity only.
+uv run imsim-perf --scenario simulator --users 80 --tick-rate 1 --duration 120 --render-profile tick-only
+
+# Model a future client-rendered dashboard by returning compact plain JSON instead of Dash components.
+uv run imsim-perf --scenario simulator --users 80 --tick-rate 1 --duration 120 --render-profile payload-only --json-output tmp/payload-perf.json
+
+# Isolate expensive dashboard panel builders.
+uv run imsim-perf --scenario simulator --users 80 --tick-rate 1 --duration 120 --render-profile split-panels --split-panel grid
 ```
 
-By default, the run uses an auto-deleted temporary file-session directory so it does not touch real user sessions. Add `--session-dir var/perf-sessions` to keep the generated session files, or pass `--database-url ...` to test database-backed persistence. Use `--no-render` when you only want tick and persistence throughput.
+By default, the run uses an auto-deleted temporary file-session directory so it does not touch real user sessions. Add `--session-dir var/perf-sessions` to keep the generated session files, or pass `--database-url ...` to test database-backed persistence. `--no-render` is still available as an alias for `--render-profile tick-only`.
+
+For real-browser validation, start the app locally and run:
+
+```bash
+uv run playwright install chromium
+uv run imsim-browser-perf --url http://127.0.0.1:8050 --contexts 1 5 10 --duration 300 --json-output tmp/browser-perf.json
+```
+
+The browser check runs each context batch sequentially, so the example above takes about 15 minutes plus setup time. It uses the academy override to open simulator mode, enables auto purchasing, starts the simulation, then reports update gaps, frame gaps, console/page errors, HTTP 5xx responses, and browser heap samples where Chromium exposes them.
 
 ## Development
 

@@ -27,10 +27,12 @@ dependencies = [
 
 [project.scripts]
 imsim = "imsim.__main__:main"
+imsim-browser-perf = "imsim.browser_perf:main"
 imsim-perf = "imsim.performance:main"
 
 [dependency-groups]
 dev = [
+    "playwright>=1.56.0,<2",
     "pytest>=9.0.3,<10",
     "ruff>=0.12.0,<1",
     "isort>=8.0.1",
