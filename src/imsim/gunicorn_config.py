@@ -6,7 +6,7 @@ import os
 def _env_int(name: str, default: int) -> int:
     try:
         return max(1, int(os.environ.get(name, default)))
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return default
 
 

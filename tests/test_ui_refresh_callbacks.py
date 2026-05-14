@@ -92,12 +92,29 @@ def test_theme_callback_updates_control_modal_content_classes(dash_app):
         dash_app,
         [
             ("lesson-intro-modal", "content_class_name"),
+            ("academy-cheat-code-modal", "content_class_name"),
             ("add-item-modal", "content_class_name"),
             ("place-custom-order-modal", "content_class_name"),
             ("po-overview-modal", "content_class_name"),
         ],
     )
     assert _input_pairs(spec) == {("theme-store", "data")}
+
+
+def test_academy_cheat_code_modal_updates_progress(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("academy-cheat-code-modal", "is_open"),
+            ("academy-cheat-code-feedback", "children"),
+            ("session-revision", "data"),
+        ],
+    )
+    assert _input_pairs(spec) == {
+        ("academy-cheat-code-button", "n_clicks"),
+        ("academy-cheat-code-cancel", "n_clicks"),
+        ("academy-cheat-code-submit", "n_clicks"),
+    }
 
 
 def test_randomize_button_populates_manual_item_fields(dash_app):

@@ -124,6 +124,26 @@ Uploads accept `.csv` and `.xlsx` files with these seven numeric columns:
 
 Common header aliases are normalized automatically. The import preview rejects missing columns, duplicate logical columns, non-numeric values, and non-positive inputs other than `Initial PNA`.
 
+## Performance load testing
+
+The `imsim-perf` CLI runs repeatable virtual-user load tests against the same simulation tick,
+session persistence, and optional dashboard rendering paths used by the Dash callbacks.
+
+Examples:
+
+```bash
+# Equivalent to four browsers running at the 6x dashboard speed.
+uv run imsim-perf --scenario simulator --users 4 --tick-rate 6 --ticks 120
+
+# Approximate forty users running at normal 1x speed.
+uv run imsim-perf --scenario simulator --users 40 --tick-rate 1 --duration 120
+
+# Mix simulator users with academy users cycling through lessons.
+uv run imsim-perf --scenario mixed --users 40 --tick-rate 1 --duration 120
+```
+
+By default, the run uses an auto-deleted temporary file-session directory so it does not touch real user sessions. Add `--session-dir var/perf-sessions` to keep the generated session files, or pass `--database-url ...` to test database-backed persistence. Use `--no-render` when you only want tick and persistence throughput.
+
 ## Development
 
 ### Commands

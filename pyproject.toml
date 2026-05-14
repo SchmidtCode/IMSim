@@ -27,6 +27,7 @@ dependencies = [
 
 [project.scripts]
 imsim = "imsim.__main__:main"
+imsim-perf = "imsim.performance:main"
 
 [dependency-groups]
 dev = [

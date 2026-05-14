@@ -23,6 +23,8 @@ def _action_button(
     *,
     disabled: bool = False,
     class_name: str = "",
+    title: str | None = None,
+    aria_label: str | None = None,
 ) -> html.Button:
     classes = " ".join(
         part
@@ -39,6 +41,8 @@ def _action_button(
         n_clicks=0,
         className=classes,
         disabled=disabled,
+        title=title,
+        **({"aria-label": aria_label} if aria_label else {}),
     )
 
 
@@ -208,6 +212,19 @@ def build_layout(config: IMSimConfig):
                                                                 disabled=True,
                                                                 class_name="button-block mt-3",
                                                             ),
+                                                            html.Div(
+                                                                _action_button(
+                                                                    ".",
+                                                                    "academy-cheat-code-button",
+                                                                    "link",
+                                                                    class_name="cheat-code-button",
+                                                                    title="Secret",
+                                                                    aria_label=(
+                                                                        "Open academy cheat code"
+                                                                    ),
+                                                                ),
+                                                                className="cheat-code-row",
+                                                            ),
                                                         ]
                                                     ),
                                                     className="shell-card academy-card h-100",
@@ -319,6 +336,49 @@ def build_layout(config: IMSimConfig):
                     ],
                     id="lesson-shell",
                     style={"display": "none"},
+                ),
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader("Academy Override"),
+                        dbc.ModalBody(
+                            [
+                                html.Label(
+                                    "Magic words",
+                                    htmlFor="academy-cheat-code-input",
+                                    className="control-label",
+                                ),
+                                dbc.Input(
+                                    id="academy-cheat-code-input",
+                                    type="password",
+                                    placeholder="Password",
+                                    className="control-input",
+                                ),
+                                html.Div(
+                                    id="academy-cheat-code-feedback",
+                                    className="mt-3",
+                                ),
+                            ]
+                        ),
+                        dbc.ModalFooter(
+                            [
+                                _action_button(
+                                    "Cancel",
+                                    "academy-cheat-code-cancel",
+                                    "secondary",
+                                ),
+                                _action_button(
+                                    "Unlock",
+                                    "academy-cheat-code-submit",
+                                    "primary",
+                                ),
+                            ],
+                            className="modal-actions",
+                        ),
+                    ],
+                    id="academy-cheat-code-modal",
+                    is_open=False,
+                    centered=True,
+                    content_class_name="imsim-modal-content",
                 ),
                 html.Div(
                     [

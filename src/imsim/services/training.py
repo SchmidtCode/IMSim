@@ -734,6 +734,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
 )
 
 LEVELS_BY_ID = {level.level_id: level for level in LESSON_DEFINITIONS}
+CHEAT_UNLOCK_PASSWORD = "spreadsheets rule"
 
 
 def clone_training_profile(profile: TrainingProfile) -> TrainingProfile:
@@ -742,6 +743,23 @@ def clone_training_profile(profile: TrainingProfile) -> TrainingProfile:
 
 def academy_levels() -> tuple[LevelDefinition, ...]:
     return LESSON_DEFINITIONS
+
+
+def cheat_unlock_password_matches(password: str | None) -> bool:
+    normalized = " ".join(str(password or "").strip().casefold().split())
+    return normalized == CHEAT_UNLOCK_PASSWORD
+
+
+def unlock_all_academy_levels(profile: TrainingProfile) -> TrainingProfile:
+    profile.highest_unlocked_level = len(LESSON_DEFINITIONS)
+    profile.simulator_unlocked = True
+    profile.auto_po_reward_unlocked = True
+    profile.lesson_status = "idle"
+    profile.last_result_title = "Academy unlocked"
+    profile.last_result_message = (
+        "All lessons, simulator mode, and the sandbox reward controls are now available."
+    )
+    return profile
 
 
 def final_academy_level() -> LevelDefinition:

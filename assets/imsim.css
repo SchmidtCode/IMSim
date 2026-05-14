@@ -219,6 +219,27 @@ body {
   margin-top: 0.85rem;
 }
 
+.cheat-code-row {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 1.25rem;
+  padding-top: 0.45rem;
+}
+
+.cheat-code-button {
+  color: var(--imsim-muted);
+  font-size: 0.9rem;
+  line-height: 1;
+  opacity: 0.18;
+  padding: 0 0.2rem;
+}
+
+.cheat-code-button:hover,
+.cheat-code-button:focus-visible {
+  color: var(--imsim-blue);
+  opacity: 1;
+}
+
 .academy-result-alert {
   border-radius: var(--imsim-radius-xl);
   margin-bottom: 0;

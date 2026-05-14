@@ -86,7 +86,7 @@ class CallbackRegistrarContext:
             return None
         try:
             return int(value) if integer else float(value)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return None
 
     def next_session_revision(self, revision: int | None) -> int:
