@@ -1842,18 +1842,27 @@ body {
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 .dashboard-main-layout {
     grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
-    grid-template-rows: minmax(20rem, auto) min-content min-content;
+    grid-template-rows: minmax(28rem, auto) min-content min-content;
     grid-template-areas:
       "actions graph"
       "session inventory"
       ". service";
     align-items: start;
+    align-content: start;
     gap: 0.4rem;
+    height: auto;
+    padding-bottom: 1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-3 {
+    height: calc(100vh - 3.5rem);
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 #graph-panel {
     grid-area: graph;
-    min-height: 20rem;
+    min-height: 28rem;
     width: 100% !important;
     max-width: none !important;
     min-width: 0;
@@ -1887,7 +1896,7 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-graph {
-    min-height: 17rem;
+    min-height: 25rem;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-panel .card-body {

@@ -23,7 +23,7 @@ IMSim is an inventory management training app built with Dash 4. It starts with 
 ```bash
 git clone https://github.com/SchmidtCode/IMSim
 cd IMSim
-uv python install 3.14
+uv python install 3.14.5
 uv sync --group dev
 uv run imsim
 ```
