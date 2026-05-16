@@ -37,18 +37,18 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
     server.extensions["imsim_maintenance"] = maintenance
 
     def _authorized(req) -> bool:
-        if not config.admin_token:
-            return True
-        bearer = req.headers.get("Authorization") or ""
-        if bearer.startswith("Bearer "):
-            bearer = bearer.split(" ", 1)[1]
-        header_token = req.headers.get("X-IMSIM-ADMIN-TOKEN") or bearer
-        return header_token == config.admin_token
+        if config.admin_token:
+            bearer = req.headers.get("Authorization") or ""
+            if bearer.startswith("Bearer "):
+                bearer = bearer.split(" ", 1)[1]
+            header_token = req.headers.get("X-IMSIM-ADMIN-TOKEN") or bearer
+            return header_token == config.admin_token
+        return bool(config.allow_dev_shutdown)
 
     @server.post("/api/admin/schedule_shutdown")
     def api_schedule_shutdown():
         if not _authorized(request):
-            return abort(401)
+            return abort(401 if config.admin_token else 403)
         data = request.get_json(silent=True) or {}
         minutes = float(data.get("minutes", 0))
         message = str(data.get("message", "Maintenance"))
@@ -58,7 +58,7 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
     @server.post("/api/admin/cancel_shutdown")
     def api_cancel_shutdown():
         if not _authorized(request):
-            return abort(401)
+            return abort(401 if config.admin_token else 403)
         maintenance.cancel_shutdown()
         return jsonify({"ok": True, "active": False})
 

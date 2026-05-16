@@ -219,7 +219,7 @@ def _custom_order_qty(raw_qty: float | str | None) -> float:
         return 0.0
     try:
         return max(0.0, float(raw_qty))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return 0.0
 
 

@@ -9,6 +9,16 @@ description = "Inventory management simulator and operations console built with 
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.14.5,<3.15"
+keywords = ["inventory", "simulator", "training", "dash", "operations"]
+classifiers = [
+    "Framework :: Dash",
+    "Framework :: Flask",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+]
 dependencies = [
     "dash>=4.1.0,<5",
     "dash-ag-grid>=35.2.0,<36",
@@ -24,6 +34,12 @@ dependencies = [
     "psycopg[binary]>=3.2.9,<4",
     "sqlalchemy>=2.0.43,<3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/SchmidtCode/IMSim"
+Repository = "https://github.com/SchmidtCode/IMSim"
+Documentation = "https://github.com/SchmidtCode/IMSim/tree/main/docs"
+Issues = "https://github.com/SchmidtCode/IMSim/issues"
 
 [project.scripts]
 imsim = "imsim.__main__:main"

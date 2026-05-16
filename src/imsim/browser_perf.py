@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import sys
 import time
@@ -52,9 +53,7 @@ def run_browser_performance(options: BrowserPerfOptions) -> BrowserPerfResult:
         from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
-        raise SystemExit(
-            "Playwright is not installed. Run `uv sync --group dev` first."
-        ) from exc
+        raise SystemExit("Playwright is not installed. Run `uv sync --group dev` first.") from exc
 
     runs: list[BrowserContextResult] = []
     with sync_playwright() as playwright:
@@ -206,9 +205,7 @@ def _count_http_error(index: int, counts: dict[int, int], samples: list[str]):
             detail = f" body={text[:500].replace(chr(10), ' ')}"
         except Exception:
             detail = ""
-        samples.append(
-            f"page {index} http {response.status}: {response.url}{detail}"
-        )
+        samples.append(f"page {index} http {response.status}: {response.url}{detail}")
 
     return handler
 
@@ -419,15 +416,10 @@ def _summarize_browser_batch(
         for update in (page.get("dayUpdates") or [])
     ]
     frame_gaps = [
-        float(gap)
-        for page in telemetry
-        for gap in (page.get("frameGaps") or [])
-        if float(gap) > 0
+        float(gap) for page in telemetry for gap in (page.get("frameGaps") or []) if float(gap) > 0
     ]
     memory_samples = [
-        float(sample)
-        for page in telemetry
-        for sample in (page.get("memorySamples") or [])
+        float(sample) for page in telemetry for sample in (page.get("memorySamples") or [])
     ]
     sample_errors = tuple([*setup_errors, *console_samples][:10])
     return BrowserContextResult(
@@ -444,9 +436,7 @@ def _summarize_browser_batch(
         console_errors=sum(console_error_counts.values()),
         page_errors=sum(page_error_counts.values()),
         http_errors=sum(http_error_counts.values()),
-        max_used_js_heap_mb=(
-            max(memory_samples) / (1024.0 * 1024.0) if memory_samples else None
-        ),
+        max_used_js_heap_mb=(max(memory_samples) / (1024.0 * 1024.0) if memory_samples else None),
         sample_errors=sample_errors,
     )
 
@@ -480,11 +470,7 @@ def format_result(result: BrowserPerfResult) -> str:
         f"Headless: {result.options.headless}",
     ]
     for run in result.runs:
-        memory = (
-            "n/a"
-            if run.max_used_js_heap_mb is None
-            else f"{run.max_used_js_heap_mb:.2f} MiB"
-        )
+        memory = "n/a" if run.max_used_js_heap_mb is None else f"{run.max_used_js_heap_mb:.2f} MiB"
         lines.extend(
             [
                 "",
@@ -524,7 +510,10 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--duration", type=float, default=300.0)
     parser.add_argument("--headed", action="store_true", help="Show the browser window.")
-    parser.add_argument("--password", default="spreadsheets rule")
+    parser.add_argument(
+        "--password",
+        default=os.environ.get("IMSIM_CHEAT_UNLOCK_PASSWORD", "spreadsheets rule"),
+    )
     parser.add_argument("--json-output", type=Path)
     parser.add_argument(
         "--progress-interval",

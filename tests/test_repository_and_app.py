@@ -230,6 +230,14 @@ def test_shutdown_endpoint_disabled_by_default(client):
     assert response.status_code == 404
 
 
+def test_admin_endpoints_disabled_without_token_or_dev_shutdown(client):
+    schedule = client.post("/api/admin/schedule_shutdown", json={"minutes": 5})
+    cancel = client.post("/api/admin/cancel_shutdown")
+
+    assert schedule.status_code == 403
+    assert cancel.status_code == 403
+
+
 def test_triggered_click_count_ignores_recreated_buttons():
     click_map = {
         "academy-level-1-button": 0,
@@ -271,6 +279,33 @@ def test_admin_token_is_enforced(tmp_path):
     assert ok.status_code == 200
     payload = ok.get_json()
     assert payload["active"] is True
+
+
+def test_dev_shutdown_mode_allows_admin_api_without_token(tmp_path):
+    repo_root = Path.cwd()
+    app = create_app(
+        IMSimConfig(
+            repo_root=repo_root,
+            assets_dir=repo_root / "assets",
+            session_dir=tmp_path / "sessions",
+            examples_dir=repo_root / "examples",
+            database_url=None,
+            github_url="https://example.com/imsim",
+            admin_token=None,
+            allow_dev_shutdown=True,
+            shutdown_url=None,
+            host="127.0.0.1",
+            port=8050,
+            debug=False,
+        )
+    )
+    client = app.server.test_client()
+
+    schedule = client.post("/api/admin/schedule_shutdown", json={"minutes": 1})
+    cancel = client.post("/api/admin/cancel_shutdown")
+
+    assert schedule.status_code == 200
+    assert cancel.status_code == 200
 
 
 def test_config_from_env_uses_checkout_root(monkeypatch, tmp_path):
@@ -342,6 +377,33 @@ def test_config_from_env_reads_database_url(monkeypatch, tmp_path):
     config = IMSimConfig.from_env()
 
     assert config.database_url == "sqlite+pysqlite:///imsim.db"
+
+
+def test_config_from_env_loads_repo_dotenv_without_overriding_process_env(monkeypatch, tmp_path):
+    repo_root = tmp_path / "repo"
+    package_dir = repo_root / "src" / "imsim"
+    package_dir.mkdir(parents=True)
+    (repo_root / "pyproject.toml").write_text("[project]\nname = 'imsim'\n", encoding="utf-8")
+    (repo_root / "assets").mkdir()
+    (repo_root / "examples").mkdir()
+    (repo_root / ".env").write_text(
+        "IMSIM_ADMIN_TOKEN=from-dotenv\nIMSIM_CHEAT_UNLOCK_PASSWORD='TUG rocks'\n",
+        encoding="utf-8",
+    )
+    fake_file = package_dir / "config.py"
+    fake_file.write_text("# test fixture\n", encoding="utf-8")
+
+    monkeypatch.setattr(config_module, "__file__", str(fake_file))
+    monkeypatch.delenv("IMSIM_DATA_DIR", raising=False)
+    monkeypatch.delenv("IMSIM_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("IMSIM_ADMIN_TOKEN", raising=False)
+    monkeypatch.setenv("IMSIM_CHEAT_UNLOCK_PASSWORD", "from-env")
+
+    config = IMSimConfig.from_env()
+
+    assert config.admin_token == "from-dotenv"
+    assert config.cheat_unlock_password == "from-env"
 
 
 def test_config_from_env_reads_platform_host_and_port_fallbacks(monkeypatch, tmp_path):

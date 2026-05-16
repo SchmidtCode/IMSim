@@ -375,8 +375,7 @@ def compact_dashboard_snapshot(state: SimulationState, theme: str = "light") -> 
             "units_sold": state.sales.units_sold,
         },
         "items": [
-            _compact_item_row(index, item)
-            for index, item in enumerate(state.items, start=1)
+            _compact_item_row(index, item) for index, item in enumerate(state.items, start=1)
         ],
         "history": [
             {
@@ -480,9 +479,7 @@ def _render_split_panels(
         )
         _serialize_payload(result, {"figure": figure})
         next_figure = (
-            figure.to_plotly_json()
-            if hasattr(figure, "to_plotly_json")
-            else current_figure
+            figure.to_plotly_json() if hasattr(figure, "to_plotly_json") else current_figure
         )
     if split_panel in {"all", "cards"}:
         cards = _timed(result, "build_cards", lambda: _server_cards_payload(state))
@@ -581,11 +578,7 @@ def _summarize_results(
     session_dir: Path | None,
 ) -> PerformanceResult:
     result_list = list(results)
-    latencies = [
-        latency
-        for result in result_list
-        for latency in (result.latency_seconds or [])
-    ]
+    latencies = [latency for result in result_list for latency in (result.latency_seconds or [])]
     stage_latency = {
         stage: _latency_summary(
             [
@@ -596,11 +589,7 @@ def _summarize_results(
         )
         for stage in STAGE_NAMES
     }
-    payload_bytes = [
-        size
-        for result in result_list
-        for size in (result.payload_bytes or [])
-    ]
+    payload_bytes = [size for result in result_list for size in (result.payload_bytes or [])]
     error_messages = tuple(
         message for result in result_list for message in (result.error_messages or [])
     )
@@ -853,10 +842,7 @@ def format_result(result: PerformanceResult) -> str:
         "IMSim performance run",
         f"Scenario: {result.options.scenario}",
         f"Users: {result.options.users} virtual users, {result.options.workers} workers",
-        (
-            f"Tick rate: {result.options.tick_rate:.2f}/user/sec, "
-            f"throttle={result.options.throttle}"
-        ),
+        (f"Tick rate: {result.options.tick_rate:.2f}/user/sec, throttle={result.options.throttle}"),
         (
             f"Render profile: {result.options.render_profile} "
             f"every {result.options.render_every} tick(s)"
@@ -915,8 +901,7 @@ def _format_payload_line(payload: PayloadSummary) -> str:
     p95_kib = payload.p95_bytes / 1024.0
     total_mib = payload.total_bytes / (1024.0 * 1024.0)
     return (
-        f"Payload bytes: mean {mean_kib:.2f} KiB, p95 {p95_kib:.2f} KiB, "
-        f"total {total_mib:.2f} MiB"
+        f"Payload bytes: mean {mean_kib:.2f} KiB, p95 {p95_kib:.2f} KiB, total {total_mib:.2f} MiB"
     )
 
 

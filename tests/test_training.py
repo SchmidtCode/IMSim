@@ -574,7 +574,7 @@ def test_cheat_unlock_opens_all_levels_without_completing_lessons():
     assert profile.simulator_unlocked is True
     assert profile.auto_po_reward_unlocked is True
     assert profile.last_result_title == "Academy unlocked"
-    assert cheat_unlock_password_matches("  Spreadsheets   Rule  ") is True
+    assert cheat_unlock_password_matches("  spreadsheets   rule  ") is True
     assert cheat_unlock_password_matches("spreadsheet vibes") is False
 
 
