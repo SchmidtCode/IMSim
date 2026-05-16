@@ -8,7 +8,17 @@ version = "0.2.0"
 description = "Inventory management simulator and operations console built with Dash"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.14,<3.15"
+requires-python = ">=3.14.5,<3.15"
+keywords = ["inventory", "simulator", "training", "dash", "operations"]
+classifiers = [
+    "Framework :: Dash",
+    "Framework :: Flask",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+]
 dependencies = [
     "dash>=4.1.0,<5",
     "dash-ag-grid>=35.2.0,<36",
@@ -25,13 +35,23 @@ dependencies = [
     "sqlalchemy>=2.0.43,<3",
 ]
 
+[project.urls]
+Homepage = "https://github.com/SchmidtCode/IMSim"
+Repository = "https://github.com/SchmidtCode/IMSim"
+Documentation = "https://github.com/SchmidtCode/IMSim/tree/main/docs"
+Issues = "https://github.com/SchmidtCode/IMSim/issues"
+
 [project.scripts]
 imsim = "imsim.__main__:main"
+imsim-browser-perf = "imsim.browser_perf:main"
+imsim-perf = "imsim.performance:main"
 
 [dependency-groups]
 dev = [
+    "playwright>=1.56.0,<2",
     "pytest>=9.0.3,<10",
     "ruff>=0.12.0,<1",
+    "isort>=8.0.1",
 ]
 
 [tool.hatch.build.targets.wheel]

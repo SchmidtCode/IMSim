@@ -9,6 +9,7 @@ from ..models import default_state
 from ..services.training import academy_levels
 from .components import (
     academy_level_card_children,
+    custom_order_grid_options,
     github_footer_card,
     po_overview_grid_options,
     simulator_unlock_children,
@@ -22,6 +23,8 @@ def _action_button(
     *,
     disabled: bool = False,
     class_name: str = "",
+    title: str | None = None,
+    aria_label: str | None = None,
 ) -> html.Button:
     classes = " ".join(
         part
@@ -38,6 +41,8 @@ def _action_button(
         n_clicks=0,
         className=classes,
         disabled=disabled,
+        title=title,
+        **({"aria-label": aria_label} if aria_label else {}),
     )
 
 
@@ -103,6 +108,7 @@ def build_layout(config: IMSimConfig):
                 dcc.Store(id="theme-store", storage_type="local", data="light"),
                 dcc.Store(id="session-revision", data=0),
                 dcc.Store(id="dashboard-tick", data=0),
+                dcc.Store(id="page-lifecycle-store", data={"active": True, "reason": "initial"}),
                 dcc.Interval(id="interval-component", interval=1000, disabled=True),
                 dcc.Interval(
                     id="shutdown-poll",
@@ -205,6 +211,19 @@ def build_layout(config: IMSimConfig):
                                                                 "dark",
                                                                 disabled=True,
                                                                 class_name="button-block mt-3",
+                                                            ),
+                                                            html.Div(
+                                                                _action_button(
+                                                                    ".",
+                                                                    "academy-cheat-code-button",
+                                                                    "link",
+                                                                    class_name="cheat-code-button",
+                                                                    title="Secret",
+                                                                    aria_label=(
+                                                                        "Open academy cheat code"
+                                                                    ),
+                                                                ),
+                                                                className="cheat-code-row",
                                                             ),
                                                         ]
                                                     ),
@@ -317,6 +336,49 @@ def build_layout(config: IMSimConfig):
                     ],
                     id="lesson-shell",
                     style={"display": "none"},
+                ),
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader("Academy Override"),
+                        dbc.ModalBody(
+                            [
+                                html.Label(
+                                    "Magic words",
+                                    htmlFor="academy-cheat-code-input",
+                                    className="control-label",
+                                ),
+                                dbc.Input(
+                                    id="academy-cheat-code-input",
+                                    type="password",
+                                    placeholder="Password",
+                                    className="control-input",
+                                ),
+                                html.Div(
+                                    id="academy-cheat-code-feedback",
+                                    className="mt-3",
+                                ),
+                            ]
+                        ),
+                        dbc.ModalFooter(
+                            [
+                                _action_button(
+                                    "Cancel",
+                                    "academy-cheat-code-cancel",
+                                    "secondary",
+                                ),
+                                _action_button(
+                                    "Unlock",
+                                    "academy-cheat-code-submit",
+                                    "primary",
+                                ),
+                            ],
+                            className="modal-actions",
+                        ),
+                    ],
+                    id="academy-cheat-code-modal",
+                    is_open=False,
+                    centered=True,
+                    content_class_name="imsim-modal-content",
                 ),
                 html.Div(
                     [
@@ -779,11 +841,6 @@ def build_layout(config: IMSimConfig):
                                                             id="inventory-graph",
                                                             figure={},
                                                             className="inventory-graph",
-                                                            style={
-                                                                "height": "38rem",
-                                                                "minHeight": "38rem",
-                                                                "width": "100%",
-                                                            },
                                                             config={
                                                                 "responsive": True,
                                                                 "displaylogo": False,
@@ -1066,10 +1123,7 @@ def build_layout(config: IMSimConfig):
                                 rowData=[],
                                 columnDefs=[],
                                 className="ag-theme-quartz imsim-ag-grid",
-                                dashGridOptions={
-                                    "animateRows": False,
-                                    "stopEditingWhenCellsLoseFocus": True,
-                                },
+                                dashGridOptions=custom_order_grid_options(),
                                 style={"height": "420px", "width": "100%"},
                             )
                         ),

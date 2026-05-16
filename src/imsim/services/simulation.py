@@ -214,12 +214,21 @@ def place_purchase_orders(state: SimulationState) -> dict[str, float]:
     return {"lines": lines, "total_qty": total_qty, "receipts": receipts}
 
 
-def place_custom_orders(state: SimulationState, quantities: list[float | None]) -> bool:
+def _custom_order_qty(raw_qty: float | str | None) -> float:
+    if raw_qty in (None, ""):
+        return 0.0
+    try:
+        return max(0.0, float(raw_qty))
+    except TypeError, ValueError:
+        return 0.0
+
+
+def place_custom_orders(state: SimulationState, quantities: list[float | str | None]) -> bool:
     changed = False
     for index, raw_qty in enumerate(quantities):
-        if raw_qty is None or index >= len(state.items):
+        if index >= len(state.items):
             continue
-        qty = max(0.0, float(raw_qty))
+        qty = _custom_order_qty(raw_qty)
         if qty <= 0:
             continue
         item = state.items[index]

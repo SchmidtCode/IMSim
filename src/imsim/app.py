@@ -10,7 +10,7 @@ from flask import Flask, abort, jsonify, request
 
 from .callbacks import register_callbacks
 from .config import IMSimConfig
-from .repository import create_session_repository
+from .repository import SessionConflictError, create_session_repository
 from .services.simulation import MaintenanceController
 from .ui.layout import build_layout
 
@@ -37,18 +37,18 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
     server.extensions["imsim_maintenance"] = maintenance
 
     def _authorized(req) -> bool:
-        if not config.admin_token:
-            return True
-        bearer = req.headers.get("Authorization") or ""
-        if bearer.startswith("Bearer "):
-            bearer = bearer.split(" ", 1)[1]
-        header_token = req.headers.get("X-IMSIM-ADMIN-TOKEN") or bearer
-        return header_token == config.admin_token
+        if config.admin_token:
+            bearer = req.headers.get("Authorization") or ""
+            if bearer.startswith("Bearer "):
+                bearer = bearer.split(" ", 1)[1]
+            header_token = req.headers.get("X-IMSIM-ADMIN-TOKEN") or bearer
+            return header_token == config.admin_token
+        return bool(config.allow_dev_shutdown)
 
     @server.post("/api/admin/schedule_shutdown")
     def api_schedule_shutdown():
         if not _authorized(request):
-            return abort(401)
+            return abort(401 if config.admin_token else 403)
         data = request.get_json(silent=True) or {}
         minutes = float(data.get("minutes", 0))
         message = str(data.get("message", "Maintenance"))
@@ -58,7 +58,7 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
     @server.post("/api/admin/cancel_shutdown")
     def api_cancel_shutdown():
         if not _authorized(request):
-            return abort(401)
+            return abort(401 if config.admin_token else 403)
         maintenance.cancel_shutdown()
         return jsonify({"ok": True, "active": False})
 
@@ -74,6 +74,29 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
                 "closing": state.closing,
             }
         )
+
+    @server.post("/api/session/pause")
+    def api_pause_session():
+        data = request.get_json(silent=True) or {}
+        session_id = str(data.get("uuid") or data.get("session_id") or "").strip()
+        if not session_id:
+            return jsonify({"ok": False, "reason": "missing_session"}), 400
+
+        for _ in range(3):
+            state = repository.get_or_create(session_id)
+            if not state.is_initialized:
+                response = jsonify({"ok": True, "paused": False})
+                response.headers["Cache-Control"] = "no-store"
+                return response
+            state.is_initialized = False
+            try:
+                repository.save(session_id, state)
+            except SessionConflictError:
+                continue
+            response = jsonify({"ok": True, "paused": True})
+            response.headers["Cache-Control"] = "no-store"
+            return response
+        return jsonify({"ok": False, "reason": "session_conflict"}), 409
 
     @server.get("/health")
     def health():

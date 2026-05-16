@@ -1,4 +1,6 @@
-FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+FROM python:3.14.5-slim-bookworm
+
+COPY --from=ghcr.io/astral-sh/uv:0.11.14 /uv /uvx /bin/
 
 WORKDIR /app
 
@@ -6,7 +8,6 @@ COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY src ./src
 COPY assets ./assets
 COPY examples ./examples
-COPY app.py Procfile ./
 
 RUN uv sync --frozen --no-dev
 

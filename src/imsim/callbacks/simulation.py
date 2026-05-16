@@ -61,6 +61,7 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("dashboard-tick", "data", allow_duplicate=True),
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
+            Output("interval-component", "disabled", allow_duplicate=True),
         ],
         Input("interval-component", "n_intervals"),
         State("user-data-store", "data"),
@@ -86,9 +87,10 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
                 duration=4000,
             )
         next_tick = ctx.next_session_revision(dashboard_tick)
+        interval_disabled = not state.is_initialized
         if state.training.current_view == "simulator":
-            return next_tick, dash.no_update, feedback
-        return next_tick, ctx.next_session_revision(session_revision), feedback
+            return next_tick, dash.no_update, feedback, interval_disabled
+        return next_tick, ctx.next_session_revision(session_revision), feedback, interval_disabled
 
     @app.callback(
         Output("session-revision", "data", allow_duplicate=True),

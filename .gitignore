@@ -4,21 +4,23 @@
 .vscode/
 .noncommits/
 
-# Python
+# Python and environments
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 .Python
 .python-version.local
-
-# Virtual environments
-.env
-.env.*
 .venv/
 venv/
 env/
 ENV/
+__pypackages__/
+
+# Local env files
+.env
+.env.local
+.env.*.local
 
 # Tooling caches
 .pytest_cache/
@@ -35,10 +37,13 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+site/
+docs/_build/
 
 # Runtime state
 var/
 data/
+tmp/
 *.log
 
 # OS noise

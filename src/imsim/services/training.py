@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass
 
 from ..models import GlobalSettings, SimulationState, TrainingProfile
@@ -34,6 +35,10 @@ class LevelDefinition:
     allowed_actions: frozenset[str]
     win_conditions: dict[str, float | int | bool]
     global_settings: GlobalSettings
+    layout_variant: str
+    teaching_goal: str = ""
+    concept_tags: tuple[str, ...] = ()
+    success_hint: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +107,38 @@ def _settings(
     return settings
 
 
+def _item(
+    usage_rate: float,
+    lead_time: float,
+    item_cost: float,
+    initial_pna: float,
+    *,
+    safety_allowance_pct: float = 0,
+    standard_pack: float = 1,
+    hits_per_month: float = 12,
+) -> ScenarioItem:
+    return ScenarioItem(
+        usage_rate=usage_rate,
+        lead_time=lead_time,
+        item_cost=item_cost,
+        initial_pna=initial_pna,
+        safety_allowance_pct=safety_allowance_pct,
+        standard_pack=standard_pack,
+        hits_per_month=hits_per_month,
+    )
+
+
+def _advanced_scenario() -> tuple[ScenarioItem, ...]:
+    return (
+        _item(48, 21, 95, 40, safety_allowance_pct=35, standard_pack=5, hits_per_month=10),
+        _item(90, 45, 22, 120, safety_allowance_pct=20, standard_pack=10, hits_per_month=18),
+        _item(16, 14, 145, 25, safety_allowance_pct=50, standard_pack=1, hits_per_month=4),
+        _item(60, 18, 60, 55, safety_allowance_pct=20, standard_pack=5, hits_per_month=12),
+        _item(72, 24, 42, 76, safety_allowance_pct=25, standard_pack=4, hits_per_month=14),
+        _item(36, 16, 75, 32, safety_allowance_pct=30, standard_pack=2, hits_per_month=8),
+    )
+
+
 LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
     LevelDefinition(
         index=1,
@@ -115,36 +152,23 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         tutorial_steps=(
             "On hand is the physical stock available to ship right now.",
             "Usage consumes that stock each day, even before you learn reordering controls.",
-            (
-                "Once on hand reaches zero, the next demand becomes backorder "
-                "because nothing is left to ship."
-            ),
+            "Once on hand reaches zero, the next demand becomes backorder.",
         ),
         locked_features=(
-            (
-                "Reordering stays locked in this lesson "
-                "so the focus stays on the inventory drain curve."
-            ),
+            "Reordering stays locked so the focus stays on the inventory drain curve.",
             "Fill rate, order points, costs, and advanced controls unlock later.",
         ),
         demand_mode="deterministic",
-        day_window=20,
-        scenario=(
-            ScenarioItem(
-                usage_rate=60,
-                lead_time=15,
-                item_cost=35,
-                initial_pna=34,
-                safety_allowance_pct=0,
-                standard_pack=1,
-                hits_per_month=30,
-            ),
-        ),
+        day_window=19,
+        scenario=(_item(60, 15, 35, 34, hits_per_month=30),),
         visible_panels=frozenset({"graph", "service", "inventory", "session"}),
         visible_columns=("item", "on_hand", "daily_usage", "backorder"),
         allowed_actions=frozenset(),
         win_conditions={"on_hand_zero_close": True, "backorder_min": 2.0},
         global_settings=_settings(),
+        layout_variant="intro_trend",
+        teaching_goal="See inventory leave the shelf before any planning math appears.",
+        concept_tags=("on hand", "usage"),
     ),
     LevelDefinition(
         index=2,
@@ -157,189 +181,248 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         formula="PNA = On Hand - Reserved - Committed - Backordered + On Order + Received",
         tutorial_steps=(
             "PNA shows your full inventory position, not just what is sitting on the shelf.",
-            (
-                "When you place an order, on order goes up immediately "
-                "even before the receipt arrives."
-            ),
-            "Use the guided reorder when the item drifts near its order point.",
+            "When you place an order, on order goes up before the receipt arrives.",
+            "Wait for PNA to fall below OP, then use the guided reorder.",
         ),
         locked_features=(
-            "Custom quantities stay locked until the ordering-controls lesson.",
+            "Custom quantities stay locked until later ordering lessons.",
             "Safety stock, costs, and ASQ stay hidden so the focus stays on basic replenishment.",
         ),
         demand_mode="deterministic",
-        day_window=18,
-        scenario=(
-            ScenarioItem(
-                usage_rate=60,
-                lead_time=10,
-                item_cost=28,
-                initial_pna=24,
-                safety_allowance_pct=0,
-                standard_pack=5,
-                hits_per_month=30,
-            ),
-        ),
+        day_window=24,
+        scenario=(_item(60, 10, 28, 24, standard_pack=5, hits_per_month=30),),
         visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
-        visible_columns=(
-            "item",
-            "daily_usage",
-            "on_hand",
-            "on_order",
-            "backorder",
-            "pna",
-            "op",
-            "soq",
-        ),
+        visible_columns=("item", "on_hand", "on_order", "backorder", "pna", "op"),
         allowed_actions=frozenset({"guided_po"}),
-        win_conditions={"guided_order_min": 1, "close_at_or_above_op": True},
+        win_conditions={
+            "guided_order_below_op_min": 1,
+            "close_pna_at_or_above_op": True,
+        },
         global_settings=_settings(),
+        layout_variant="intro_pna",
+        teaching_goal="Connect the buying action to inventory position.",
+        concept_tags=("PNA", "on order"),
     ),
     LevelDefinition(
         index=3,
         level_id="level-3",
-        title="Simple Order Point",
-        summary=(
-            "Manage a small group of items with a guided reorder "
-            "button and a clean order-point signal."
-        ),
-        formula="Order when on hand is near OP",
+        title="Customer Promise: Fill Rate",
+        summary="Use a guided reorder and watch how complete lines protect fill rate.",
+        formula="Fill rate = complete stock lines / total stock lines",
         tutorial_steps=(
-            "Usage and lead time combine into a reorder point for each item.",
-            "In this perfect-world lesson, reordering early enough is usually enough.",
-            "Fill rate now matters because missed demand becomes lost service.",
+            "Fill rate is a customer-service measurement, not an inventory quantity.",
+            "A partially filled stock line counts as missed service in this model.",
+            "Use a guided reorder to protect upcoming customer lines before stock runs out.",
         ),
         locked_features=(
-            "Custom quantities stay locked until the ordering-controls lesson.",
-            "Safety stock and PNA stay hidden until real-world OP.",
+            "Custom quantities remain locked until later ordering lessons.",
+            "Order point math waits until usage and lead time are introduced.",
         ),
         demand_mode="deterministic",
-        day_window=20,
-        scenario=(
-            ScenarioItem(
-                usage_rate=60,
-                lead_time=10,
-                item_cost=28,
-                initial_pna=24,
-                safety_allowance_pct=0,
-                standard_pack=1,
-                hits_per_month=30,
-            ),
-            ScenarioItem(
-                usage_rate=90,
-                lead_time=12,
-                item_cost=42,
-                initial_pna=42,
-                safety_allowance_pct=0,
-                standard_pack=1,
-                hits_per_month=30,
-            ),
-            ScenarioItem(
-                usage_rate=30,
-                lead_time=15,
-                item_cost=20,
-                initial_pna=20,
-                safety_allowance_pct=0,
-                standard_pack=1,
-                hits_per_month=30,
-            ),
-        ),
-        visible_panels=frozenset({"service", "inventory", "session", "actions"}),
-        visible_columns=("item", "on_hand", "usage_rate", "lead_time", "op", "days_to_op"),
+        day_window=12,
+        scenario=(_item(60, 4, 24, 8, standard_pack=5, hits_per_month=30),),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
+        visible_columns=("item", "on_hand", "on_order", "daily_usage", "pna", "backorder"),
         allowed_actions=frozenset({"guided_po"}),
-        win_conditions={"fill_rate_min": 0.97, "close_at_or_above_op": True},
-        global_settings=_settings(),
+        win_conditions={"fill_rate_min": 0.80, "guided_order_min": 1},
+        global_settings=_settings(stockout_penalty=6.0),
+        layout_variant="workspace_basic",
+        teaching_goal="Make service failure concrete before introducing more formulas.",
+        concept_tags=("fill rate", "backorder"),
     ),
     LevelDefinition(
         index=4,
         level_id="level-4",
-        title="Ordering Controls",
-        summary=(
-            "Introduce custom quantities, on-order inventory, and "
-            "backorders so the player learns the controls."
-        ),
-        formula="On order arrives after lead time and protects future demand",
+        title="Hits vs Usage",
+        summary="Compare items that sell the same total units but show up on orders differently.",
+        formula="Hits count how often an item is requested; usage counts how many units sell.",
         tutorial_steps=(
-            "On-order units are committed but not received yet.",
-            "Backorders mean demand arrived faster than stock and receipts.",
-            "This lesson requires at least one manual custom order, not just the guided button.",
+            "Two items can have the same usage but very different customer popularity.",
+            "High-hit items are the ones customers most expect to be available.",
+            "Hits help humans decide where attention matters most.",
         ),
         locked_features=(
-            "Safety stock, PNA, and ASQ are still locked.",
-            "The full signal map and cost stack arrive later.",
+            "Ordering stays guided in the background.",
+            "Lead time and order point unlock after the data basics are clear.",
         ),
         demand_mode="deterministic",
-        day_window=20,
+        day_window=5,
         scenario=(
-            ScenarioItem(
-                usage_rate=60,
-                lead_time=9,
-                item_cost=30,
-                initial_pna=18,
-                safety_allowance_pct=0,
-                standard_pack=1,
-                hits_per_month=30,
-            ),
-            ScenarioItem(
-                usage_rate=45,
-                lead_time=12,
-                item_cost=18,
-                initial_pna=18,
-                safety_allowance_pct=0,
-                standard_pack=1,
-                hits_per_month=30,
-            ),
-            ScenarioItem(
-                usage_rate=75,
-                lead_time=15,
-                item_cost=55,
-                initial_pna=28,
-                safety_allowance_pct=0,
-                standard_pack=1,
-                hits_per_month=30,
-            ),
-            ScenarioItem(
-                usage_rate=30,
-                lead_time=8,
-                item_cost=25,
-                initial_pna=14,
-                safety_allowance_pct=0,
-                standard_pack=1,
-                hits_per_month=30,
-            ),
+            _item(60, 10, 18, 20, hits_per_month=2),
+            _item(60, 10, 18, 20, hits_per_month=30),
+            _item(15, 10, 80, 8, hits_per_month=1),
         ),
-        visible_panels=frozenset({"service", "inventory", "session", "actions"}),
-        visible_columns=(
-            "item",
-            "on_hand",
-            "on_order",
-            "backorder",
-            "usage_rate",
-            "lead_time",
-            "op",
-            "soq",
-        ),
-        allowed_actions=frozenset({"guided_po", "custom_order"}),
-        win_conditions={
-            "fill_rate_min": 0.96,
-            "manual_custom_order_min": 1,
-            "zero_backorder_close": True,
-        },
+        visible_panels=frozenset({"service", "inventory", "session"}),
+        visible_columns=("item", "usage_rate", "hits_per_month", "on_hand", "daily_usage"),
+        allowed_actions=frozenset(),
+        win_conditions={"fill_rate_min": 1.0},
         global_settings=_settings(),
+        layout_variant="workspace_basic",
+        teaching_goal="Separate popularity from quantity before item ranking appears.",
+        concept_tags=("hits", "usage"),
     ),
     LevelDefinition(
         index=5,
         level_id="level-5",
-        title="Real-World OP",
-        summary=(
-            "Bring in variability, safety stock, and PNA so the "
-            "learner sees why simple OP breaks down."
+        title="Usage Rate",
+        summary="Turn monthly usage into a daily planning pace.",
+        formula="Daily usage = monthly usage rate / 30",
+        tutorial_steps=(
+            "Usage rate is the best near-term demand estimate available in the lesson.",
+            "The simulator converts monthly usage into a daily drain.",
+            "Planning later lessons will multiply usage rate by time windows.",
         ),
+        locked_features=(
+            "Lead time and replenishment triggers remain hidden.",
+            "The lesson keeps demand deterministic so the slope is easy to read.",
+        ),
+        demand_mode="deterministic",
+        day_window=6,
+        scenario=(
+            _item(30, 10, 16, 12, hits_per_month=8),
+            _item(60, 10, 20, 20, hits_per_month=16),
+            _item(90, 10, 28, 28, hits_per_month=24),
+        ),
+        visible_panels=frozenset({"service", "inventory", "session"}),
+        visible_columns=("item", "usage_rate", "daily_usage", "on_hand", "backorder"),
+        allowed_actions=frozenset(),
+        win_conditions={"no_final_stockout": True},
+        global_settings=_settings(),
+        layout_variant="workspace_basic",
+        teaching_goal="Build the daily-rate intuition needed for OP, LP, and EOQ.",
+        concept_tags=("usage rate", "daily usage"),
+    ),
+    LevelDefinition(
+        index=6,
+        level_id="level-6",
+        title="Lead Time",
+        summary=(
+            "Place a guided order and watch why replenishment has to start "
+            "before shelves are empty."
+        ),
+        formula="Lead time is PO creation day to receipt day",
+        tutorial_steps=(
+            "A purchase order creates on-order inventory, not shelf inventory.",
+            "Lead time is the delay between buying and receiving.",
+            "The earlier lessons showed usage; this lesson shows the supplier clock.",
+        ),
+        locked_features=(
+            "Custom quantities and PO actions remain locked.",
+            "Order point calculations unlock after lead time is visible.",
+        ),
+        demand_mode="deterministic",
+        day_window=6,
+        scenario=(_item(45, 8, 30, 10, standard_pack=5, hits_per_month=18),),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
+        visible_columns=("item", "on_hand", "on_order", "lead_time", "pna", "soq"),
+        allowed_actions=frozenset({"guided_po"}),
+        win_conditions={"guided_order_min": 1, "on_order_min": 1.0},
+        global_settings=_settings(),
+        layout_variant="intro_pna",
+        teaching_goal="Show that buying is a timed decision, not an instant refill.",
+        concept_tags=("lead time", "on order"),
+    ),
+    LevelDefinition(
+        index=7,
+        level_id="level-7",
+        title="PNA as the Replenishment Signal",
+        summary="Use PNA, not only on hand, to decide whether an item is still protected.",
         formula="PNA = on hand + on order - backorder",
         tutorial_steps=(
-            "Safety stock protects service when demand is not perfectly smooth.",
-            "Projected net available combines stock on hand with inbound supply and backorders.",
-            "This is the point where inventory position matters more than physical stock alone.",
+            "PNA combines current stock, inbound supply, and unresolved demand.",
+            "An item can look low on the shelf but still be covered by an inbound PO.",
+            "The replenishment model watches PNA because it sees more of the story.",
+        ),
+        locked_features=(
+            "Safety stock and line point remain hidden.",
+            "Custom quantities stay locked until SOQ is introduced.",
+        ),
+        demand_mode="deterministic",
+        day_window=8,
+        scenario=(
+            _item(60, 10, 28, 18, standard_pack=5, hits_per_month=24),
+            _item(30, 8, 18, 10, standard_pack=2, hits_per_month=8),
+        ),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
+        visible_columns=("item", "on_hand", "on_order", "backorder", "pna", "op"),
+        allowed_actions=frozenset({"guided_po"}),
+        win_conditions={"guided_order_min": 1, "on_order_min": 1.0},
+        global_settings=_settings(),
+        layout_variant="intro_pna",
+        teaching_goal="Make PNA the learner's default replenishment signal.",
+        concept_tags=("PNA", "replenishment"),
+    ),
+    LevelDefinition(
+        index=8,
+        level_id="level-8",
+        title="Order Point in a Perfect World",
+        summary="Manage a small group of items with deterministic demand and no safety stock.",
+        formula="OP = usage rate x lead time",
+        tutorial_steps=(
+            "Usage rate and lead time combine into a reorder point for each item.",
+            "In this perfect-world lesson, ordering early enough is usually enough.",
+            "Use guided reorders before PNA falls too far below OP.",
+        ),
+        locked_features=(
+            "Custom quantities stay locked until later ordering controls.",
+            "Safety stock remains hidden until the real-world OP lesson.",
+        ),
+        demand_mode="deterministic",
+        day_window=20,
+        scenario=(
+            _item(60, 10, 28, 24, hits_per_month=30),
+            _item(90, 12, 42, 42, hits_per_month=30),
+            _item(30, 15, 20, 20, hits_per_month=30),
+        ),
+        visible_panels=frozenset({"service", "inventory", "session", "actions"}),
+        visible_columns=("item", "on_hand", "usage_rate", "lead_time", "op", "days_to_op"),
+        allowed_actions=frozenset({"guided_po"}),
+        win_conditions={"fill_rate_min": 0.97, "close_at_or_above_op": True, "guided_order_min": 2},
+        global_settings=_settings(),
+        layout_variant="workspace_basic",
+        teaching_goal="Answer the first inventory question: when should we buy?",
+        concept_tags=("OP", "lead time"),
+    ),
+    LevelDefinition(
+        index=9,
+        level_id="level-9",
+        title="Safety Stock",
+        summary="Compare items with different safety allowances and see how the OP rises.",
+        formula="Safety stock = usage rate x lead time x safety allowance",
+        tutorial_steps=(
+            "Safety stock is a buffer for normal variation in usage or lead time.",
+            "A higher safety allowance raises the OP, which triggers earlier buying.",
+            "The buffer protects service, but it also increases inventory investment.",
+        ),
+        locked_features=(
+            "Review cycle and line point remain locked.",
+            "Cost controls stay hidden until the tradeoff lessons.",
+        ),
+        demand_mode="deterministic",
+        day_window=10,
+        scenario=(
+            _item(60, 15, 28, 42, safety_allowance_pct=0, hits_per_month=20),
+            _item(60, 15, 28, 42, safety_allowance_pct=50, hits_per_month=20),
+        ),
+        visible_panels=frozenset({"graph", "service", "inventory", "session"}),
+        visible_columns=("item", "usage_rate", "lead_time", "safety_allowance", "op", "on_hand"),
+        allowed_actions=frozenset(),
+        win_conditions={"fill_rate_min": 1.0},
+        global_settings=_settings(),
+        layout_variant="workspace_signal",
+        teaching_goal="Show why real-world OP is higher than perfect-world OP.",
+        concept_tags=("safety stock", "safety allowance"),
+    ),
+    LevelDefinition(
+        index=10,
+        level_id="level-10",
+        title="Real-World Order Point",
+        summary="Bring in variability, safety stock, and PNA so simple OP gets more realistic.",
+        formula="OP = usage rate x lead time + safety stock",
+        tutorial_steps=(
+            "Demand is no longer perfectly smooth.",
+            "Projected net available combines shelf stock, inbound supply, and backorders.",
+            "Order before PNA falls through the real-world OP.",
         ),
         locked_features=(
             "Review-cycle controls and ASQ stay locked one more lesson.",
@@ -348,44 +431,12 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         demand_mode="stochastic",
         day_window=25,
         scenario=(
-            ScenarioItem(
-                usage_rate=48,
-                lead_time=21,
-                item_cost=95,
-                initial_pna=52,
-                safety_allowance_pct=25,
-                standard_pack=5,
-                hits_per_month=10,
-            ),
-            ScenarioItem(
-                usage_rate=72,
-                lead_time=18,
-                item_cost=34,
-                initial_pna=58,
-                safety_allowance_pct=20,
-                standard_pack=2,
-                hits_per_month=12,
-            ),
-            ScenarioItem(
-                usage_rate=30,
-                lead_time=14,
-                item_cost=64,
-                initial_pna=28,
-                safety_allowance_pct=30,
-                standard_pack=1,
-                hits_per_month=8,
-            ),
-            ScenarioItem(
-                usage_rate=54,
-                lead_time=28,
-                item_cost=22,
-                initial_pna=60,
-                safety_allowance_pct=15,
-                standard_pack=4,
-                hits_per_month=16,
-            ),
+            _item(48, 21, 95, 52, safety_allowance_pct=25, standard_pack=5, hits_per_month=10),
+            _item(72, 18, 34, 58, safety_allowance_pct=20, standard_pack=2, hits_per_month=12),
+            _item(30, 14, 64, 28, safety_allowance_pct=30, standard_pack=1, hits_per_month=8),
+            _item(54, 28, 22, 60, safety_allowance_pct=15, standard_pack=4, hits_per_month=16),
         ),
-        visible_panels=frozenset({"service", "inventory", "session", "actions"}),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
         visible_columns=(
             "item",
             "on_hand",
@@ -400,115 +451,243 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         allowed_actions=frozenset({"guided_po", "custom_order"}),
         win_conditions={"fill_rate_min": 0.95, "avg_inventory_value_max": 10500.0},
         global_settings=_settings(stockout_penalty=6.5, gm=0.18),
+        layout_variant="workspace_signal",
+        teaching_goal="Use OP as a service-protection signal under uncertain demand.",
+        concept_tags=("real-world OP", "PNA"),
     ),
     LevelDefinition(
-        index=6,
-        level_id="level-6",
-        title="Review Cycle and PO Management",
-        summary=(
-            "Open the signal map, SOQ logic, and PO actions so the "
-            "learner manages an actual replenishment flow."
-        ),
-        formula="LP = OP + review-cycle demand",
+        index=11,
+        level_id="level-11",
+        title="Long Tail and Item Ranking",
+        summary="Use hits to see why popular items and long-tail items need different attention.",
+        formula="Rank by hits so human attention follows customer demand",
         tutorial_steps=(
-            "LP and OQ shape when to order and how much to buy.",
-            "Use the PO overview to inspect, expedite, or cancel inbound receipts.",
-            "Margin still matters, so service cannot be bought at any inventory cost.",
+            "A few items usually create most customer requests.",
+            "Long-tail items still matter, but rules can manage more of their routine work.",
+            "Good inventory management uses the same model with different attention levels.",
         ),
         locked_features=(
-            "ASQ and the final certification dashboard are still ahead.",
-            "Auto purchase orders remain locked until simulator unlock.",
+            "Ranking is shown conceptually; automatic rank assignment is not part of this lesson.",
+            "Review-cycle and cost tuning unlock in the next section.",
+        ),
+        demand_mode="deterministic",
+        day_window=8,
+        scenario=(
+            _item(90, 15, 22, 80, safety_allowance_pct=20, hits_per_month=45),
+            _item(48, 20, 95, 50, safety_allowance_pct=30, hits_per_month=10),
+            _item(12, 12, 180, 20, safety_allowance_pct=40, hits_per_month=2),
+            _item(6, 30, 45, 12, safety_allowance_pct=50, hits_per_month=0.5),
+        ),
+        visible_panels=frozenset({"service", "inventory", "session"}),
+        visible_columns=("item", "hits_per_month", "usage_rate", "item_cost", "pna", "op"),
+        allowed_actions=frozenset(),
+        win_conditions={"no_final_stockout": True},
+        global_settings=_settings(),
+        layout_variant="workspace_signal",
+        teaching_goal="Connect customer popularity to management-by-exception thinking.",
+        concept_tags=("hits", "long tail"),
+    ),
+    LevelDefinition(
+        index=12,
+        level_id="level-12",
+        title="P-Lines and Review Cycle",
+        summary="Learn why a supplier line is reviewed as a group once one item triggers action.",
+        formula="Review cycle = planned days between P-line purchases",
+        tutorial_steps=(
+            "A P-line is the group of items that can ride the same supplier PO.",
+            "The review cycle describes how long we intend to wait before buying again.",
+            "A buyer uses the P-line view to decide what else should go on today's PO.",
+        ),
+        locked_features=(
+            "Line point math unlocks next.",
+            "PO expedite/cancel controls remain locked until PO management.",
         ),
         demand_mode="stochastic",
-        day_window=30,
+        day_window=18,
         scenario=(
-            ScenarioItem(
-                usage_rate=48,
-                lead_time=21,
-                item_cost=95,
-                initial_pna=40,
-                safety_allowance_pct=35,
-                standard_pack=5,
-                hits_per_month=10,
-            ),
-            ScenarioItem(
-                usage_rate=90,
-                lead_time=45,
-                item_cost=22,
-                initial_pna=120,
-                safety_allowance_pct=20,
-                standard_pack=10,
-                hits_per_month=18,
-            ),
-            ScenarioItem(
-                usage_rate=16,
-                lead_time=14,
-                item_cost=145,
-                initial_pna=25,
-                safety_allowance_pct=50,
-                standard_pack=1,
-                hits_per_month=4,
-            ),
-            ScenarioItem(
-                usage_rate=60,
-                lead_time=18,
-                item_cost=60,
-                initial_pna=55,
-                safety_allowance_pct=20,
-                standard_pack=5,
-                hits_per_month=12,
-            ),
-            ScenarioItem(
-                usage_rate=72,
-                lead_time=24,
-                item_cost=42,
-                initial_pna=76,
-                safety_allowance_pct=25,
-                standard_pack=4,
-                hits_per_month=14,
-            ),
-            ScenarioItem(
-                usage_rate=36,
-                lead_time=16,
-                item_cost=75,
-                initial_pna=32,
-                safety_allowance_pct=30,
-                standard_pack=2,
-                hits_per_month=8,
-            ),
+            _item(48, 21, 95, 40, safety_allowance_pct=25, standard_pack=5, hits_per_month=10),
+            _item(72, 18, 34, 52, safety_allowance_pct=20, standard_pack=2, hits_per_month=12),
+            _item(30, 14, 64, 28, safety_allowance_pct=30, standard_pack=1, hits_per_month=8),
+            _item(54, 28, 22, 56, safety_allowance_pct=15, standard_pack=4, hits_per_month=16),
         ),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
+        visible_columns=("item", "usage_rate", "lead_time", "pna", "op", "lp", "soq"),
+        allowed_actions=frozenset({"guided_po"}),
+        win_conditions={"guided_order_min": 1, "fill_rate_min": 0.92},
+        global_settings=_settings(r_cycle=14, stockout_penalty=6.0, gm=0.18),
+        layout_variant="workspace_signal",
+        teaching_goal="Shift from isolated-item thinking to line-level replenishment.",
+        concept_tags=("P-line", "review cycle"),
+    ),
+    LevelDefinition(
+        index=13,
+        level_id="level-13",
+        title="Line Point",
+        summary="Use LP to decide which near-trigger items should ride along on today's PO.",
+        formula="LP = OP + review-cycle demand",
+        tutorial_steps=(
+            "LP is an early warning above OP.",
+            "If PNA is below LP during a P-line buy, the item should usually be included.",
+            "The guided order now follows SOQ recommendations across the line.",
+        ),
+        locked_features=(
+            "EOQ and cost tuning are still simplified.",
+            "PO overview controls unlock after the line-point lesson.",
+        ),
+        demand_mode="deterministic",
+        day_window=14,
+        scenario=(
+            _item(60, 18, 40, 60, safety_allowance_pct=20, standard_pack=5, hits_per_month=18),
+            _item(45, 15, 22, 42, safety_allowance_pct=20, standard_pack=5, hits_per_month=12),
+            _item(30, 20, 75, 38, safety_allowance_pct=25, standard_pack=1, hits_per_month=7),
+        ),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
+        visible_columns=("item", "pna", "op", "lp", "usage_rate", "soq"),
+        allowed_actions=frozenset({"guided_po"}),
+        win_conditions={"guided_order_min": 1, "below_lp_min": 2},
+        global_settings=_settings(r_cycle=14),
+        layout_variant="workspace_signal",
+        teaching_goal="Show that the trigger item is not the only item to buy.",
+        concept_tags=("LP", "SOQ"),
+    ),
+    LevelDefinition(
+        index=14,
+        level_id="level-14",
+        title="Carrying Cost vs Replenishment Cost",
+        summary="Balance the cost of holding inventory with the cost of replenishing too often.",
+        formula="Too much raises K-cost; too little raises R-cost",
+        tutorial_steps=(
+            "Carrying cost grows with inventory value and time.",
+            "Replenishment cost is paid each time a PO line is created.",
+            "The best quantity balances those two pressures instead of maximizing service alone.",
+        ),
+        locked_features=(
+            "EOQ calculation appears in the next lesson.",
+            "ASQ and imports remain locked until certification.",
+        ),
+        demand_mode="stochastic",
+        day_window=24,
+        scenario=_advanced_scenario(),
         visible_panels=frozenset(
             {"kpi", "graph", "service", "costs", "sales", "inventory", "session", "actions"}
         ),
-        visible_columns=(
-            "item",
-            "usage_rate",
-            "lead_time",
-            "op",
-            "lp",
-            "oq",
-            "pna",
-            "on_hand",
-            "on_order",
-            "backorder",
-            "soq",
+        visible_columns=("item", "item_cost", "usage_rate", "pna", "op", "lp", "soq"),
+        allowed_actions=frozenset({"guided_po", "custom_order"}),
+        win_conditions={"fill_rate_min": 0.94, "after_overhead_min": -0.05},
+        global_settings=_settings(
+            r_cycle=14, r_cost=8.0, k_cost=0.18, stockout_penalty=5.5, gm=0.18
         ),
+        layout_variant="workspace_advanced",
+        teaching_goal="Introduce the profitability side of inventory decisions.",
+        concept_tags=("K-cost", "R-cost"),
+    ),
+    LevelDefinition(
+        index=15,
+        level_id="level-15",
+        title="EOQ and Order Quantity",
+        summary="Use EOQ as the starting point for how much to buy.",
+        formula="EOQ balances annual replenishment cost and carrying cost",
+        tutorial_steps=(
+            "EOQ is calculated per item because usage, item cost, K-cost, and R-cost differ.",
+            "Order quantity starts from EOQ but is bounded by practical minimums and maximums.",
+            (
+                "Place at least one custom order to feel the difference between "
+                "deciding and accepting."
+            ),
+        ),
+        locked_features=(
+            "Standard pack rounding and PO overview unlock next.",
+            "Parameter tuning remains locked until the tradeoff bridge.",
+        ),
+        demand_mode="stochastic",
+        day_window=24,
+        scenario=_advanced_scenario(),
+        visible_panels=frozenset(
+            {"kpi", "graph", "service", "costs", "sales", "inventory", "session", "actions"}
+        ),
+        visible_columns=("item", "usage_rate", "item_cost", "eoq", "oq", "pna", "op", "lp"),
+        allowed_actions=frozenset({"guided_po", "custom_order"}),
+        win_conditions={"manual_custom_order_min": 1, "fill_rate_min": 0.92},
+        global_settings=_settings(
+            r_cycle=14, r_cost=8.0, k_cost=0.18, stockout_penalty=5.5, gm=0.18
+        ),
+        layout_variant="workspace_advanced",
+        teaching_goal="Answer the second inventory question: how much should we buy?",
+        concept_tags=("EOQ", "OQ"),
+    ),
+    LevelDefinition(
+        index=16,
+        level_id="level-16",
+        title="Suggested Order Quantity and Standard Pack",
+        summary="See how SOQ recovers below OP, adds OQ, and rounds to supplier packs.",
+        formula="SOQ = OQ + max(0, OP - PNA), rounded to pack",
+        tutorial_steps=(
+            "If PNA is below OP, SOQ first recovers the shortfall.",
+            "Then it adds the order quantity needed for the next cycle.",
+            "The final recommendation is rounded to the supplier standard pack.",
+        ),
+        locked_features=(
+            "Policy tuning and ASQ are still ahead.",
+            "Auto purchase orders remain locked until the simulator reward.",
+        ),
+        demand_mode="stochastic",
+        day_window=28,
+        scenario=_advanced_scenario(),
+        visible_panels=frozenset(
+            {"kpi", "graph", "service", "costs", "sales", "inventory", "session", "actions"}
+        ),
+        visible_columns=("item", "pna", "op", "lp", "oq", "standard_pack", "soq", "on_order"),
         allowed_actions=frozenset(
             {"guided_po", "custom_order", "po_overview", "expedite_receipt", "cancel_receipt"}
         ),
-        win_conditions={"fill_rate_min": 0.96, "after_overhead_min": 0.0},
+        win_conditions={
+            "manual_custom_order_min": 1,
+            "fill_rate_min": 0.94,
+            "after_overhead_min": -0.05,
+        },
         global_settings=_settings(
             r_cycle=14, r_cost=8.0, k_cost=0.18, stockout_penalty=5.5, expedite_rate=0.03, gm=0.18
         ),
+        layout_variant="workspace_advanced",
+        teaching_goal="Turn the model's buy/no-buy signal into a practical PO quantity.",
+        concept_tags=("SOQ", "standard pack"),
     ),
     LevelDefinition(
-        index=7,
-        level_id="level-7",
-        title="Certification",
-        summary=(
-            "Run the full dashboard and prove you can balance service, "
-            "cost, and replenishment decisions."
+        index=17,
+        level_id="level-17",
+        title="Exceptions: Critical Point and Surplus",
+        summary="Identify urgent stockout risk and overstock before entering certification.",
+        formula="Critical point = usage rate x lead time; surplus line = LP + OQ",
+        tutorial_steps=(
+            "Critical point means safety stock has already been consumed.",
+            "Surplus means available inventory is above the model's recommended high-water mark.",
+            "Good inventory work is managing the exceptions without losing the whole system view.",
         ),
+        locked_features=(
+            "Certification opens ASQ and the exception center.",
+            "Imports and auto purchase orders stay locked until the simulator is earned.",
+        ),
+        demand_mode="deterministic",
+        day_window=1,
+        scenario=(
+            _item(90, 30, 18, 60, safety_allowance_pct=50, standard_pack=10, hits_per_month=24),
+            _item(24, 15, 150, 180, safety_allowance_pct=25, standard_pack=1, hits_per_month=3),
+            _item(54, 18, 42, 65, safety_allowance_pct=20, standard_pack=6, hits_per_month=12),
+        ),
+        visible_panels=frozenset({"graph", "service", "inventory", "session"}),
+        visible_columns=("item", "pna", "cp", "op", "lp", "oq", "surplus_line"),
+        allowed_actions=frozenset(),
+        win_conditions={"critical_item_min": 1, "surplus_item_min": 1},
+        global_settings=_settings(r_cycle=14),
+        layout_variant="workspace_advanced",
+        teaching_goal="Teach the two exception boundaries that frame urgent action and overbuying.",
+        concept_tags=("critical point", "surplus"),
+    ),
+    LevelDefinition(
+        index=18,
+        level_id="level-18",
+        title="Certification: Balanced Inventory Management",
+        summary="Run the full dashboard and balance service, cost, and replenishment decisions.",
         formula="Use the full IM dashboard to hit service and margin together",
         tutorial_steps=(
             "This is the full training dashboard, including ASQ and the exception center.",
@@ -521,62 +700,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         ),
         demand_mode="stochastic",
         day_window=30,
-        scenario=(
-            ScenarioItem(
-                usage_rate=48,
-                lead_time=21,
-                item_cost=95,
-                initial_pna=40,
-                safety_allowance_pct=35,
-                standard_pack=5,
-                hits_per_month=10,
-            ),
-            ScenarioItem(
-                usage_rate=90,
-                lead_time=45,
-                item_cost=22,
-                initial_pna=120,
-                safety_allowance_pct=20,
-                standard_pack=10,
-                hits_per_month=18,
-            ),
-            ScenarioItem(
-                usage_rate=16,
-                lead_time=14,
-                item_cost=145,
-                initial_pna=25,
-                safety_allowance_pct=50,
-                standard_pack=1,
-                hits_per_month=4,
-            ),
-            ScenarioItem(
-                usage_rate=60,
-                lead_time=18,
-                item_cost=60,
-                initial_pna=55,
-                safety_allowance_pct=20,
-                standard_pack=5,
-                hits_per_month=12,
-            ),
-            ScenarioItem(
-                usage_rate=72,
-                lead_time=24,
-                item_cost=42,
-                initial_pna=76,
-                safety_allowance_pct=25,
-                standard_pack=4,
-                hits_per_month=14,
-            ),
-            ScenarioItem(
-                usage_rate=36,
-                lead_time=16,
-                item_cost=75,
-                initial_pna=32,
-                safety_allowance_pct=30,
-                standard_pack=2,
-                hits_per_month=8,
-            ),
-        ),
+        scenario=_advanced_scenario(),
         visible_panels=FULL_SIMULATOR_PANELS - {"imports", "advanced_sandbox"},
         visible_columns=FULL_SIMULATOR_COLUMNS,
         allowed_actions=frozenset(
@@ -604,6 +728,9 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             gm=0.18,
             asq_enabled=True,
         ),
+        layout_variant="workspace_certification",
+        teaching_goal="Prove the learner can balance customer experience with profitability.",
+        concept_tags=("certification", "balanced objectives"),
     ),
 )
 
@@ -618,6 +745,31 @@ def academy_levels() -> tuple[LevelDefinition, ...]:
     return LESSON_DEFINITIONS
 
 
+def cheat_unlock_password() -> str:
+    return os.environ.get("IMSIM_CHEAT_UNLOCK_PASSWORD", "spreadsheets rule")
+
+
+def cheat_unlock_password_matches(password: str | None) -> bool:
+    normalized = " ".join(str(password or "").strip().casefold().split())
+    return normalized == " ".join(cheat_unlock_password().strip().casefold().split())
+
+
+def unlock_all_academy_levels(profile: TrainingProfile) -> TrainingProfile:
+    profile.highest_unlocked_level = len(LESSON_DEFINITIONS)
+    profile.simulator_unlocked = True
+    profile.auto_po_reward_unlocked = True
+    profile.lesson_status = "idle"
+    profile.last_result_title = "Academy unlocked"
+    profile.last_result_message = (
+        "All lessons, simulator mode, and the sandbox reward controls are now available."
+    )
+    return profile
+
+
+def final_academy_level() -> LevelDefinition:
+    return LESSON_DEFINITIONS[-1]
+
+
 def academy_level(level_id: str | None) -> LevelDefinition | None:
     if not level_id:
         return None
@@ -628,6 +780,13 @@ def active_level(state: SimulationState) -> LevelDefinition | None:
     if state.training.current_view != "lesson":
         return None
     return academy_level(state.training.active_level_id)
+
+
+def active_layout_variant(state: SimulationState) -> str:
+    if state.training.current_view == "simulator":
+        return "simulator"
+    level = active_level(state)
+    return level.layout_variant if level is not None else "simulator"
 
 
 def academy_level_status(profile: TrainingProfile, level: LevelDefinition) -> str:
@@ -741,12 +900,28 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
     if level.win_conditions.get("close_at_or_above_op"):
         safe_count = sum(1 for item in state.items if item.on_hand >= item.op)
         rows.append(f"Items closing at/above OP: {safe_count}/{len(state.items)}")
+    if level.win_conditions.get("close_pna_at_or_above_op"):
+        safe_count = sum(1 for item in state.items if item.pna >= item.op)
+        rows.append(f"Close with PNA at/above OP: {safe_count}/{len(state.items)}")
+    if "guided_order_below_op_min" in level.win_conditions:
+        needed = int(level.win_conditions["guided_order_below_op_min"])
+        rows.append(
+            "Reorder triggered after PNA fell below OP: "
+            f"{state.training.guided_orders_below_op}/{needed}"
+        )
     if "guided_order_min" in level.win_conditions:
         needed = int(level.win_conditions["guided_order_min"])
         rows.append(f"Guided reorders used: {state.training.guided_orders_placed}/{needed}")
+    if "on_order_min" in level.win_conditions:
+        target = float(level.win_conditions["on_order_min"])
+        on_order_total = sum(sum(receipt.qty for receipt in item.pipeline) for item in state.items)
+        rows.append(f"On-order inventory: {on_order_total:.0f} / target {target:.0f}")
     if "manual_custom_order_min" in level.win_conditions:
         needed = int(level.win_conditions["manual_custom_order_min"])
         rows.append(f"Manual custom orders used: {state.training.custom_orders_placed}/{needed}")
+    if "parameter_update_min" in level.win_conditions:
+        needed = int(level.win_conditions["parameter_update_min"])
+        rows.append(f"Parameter updates used: {state.training.parameter_updates_applied}/{needed}")
     if level.win_conditions.get("zero_backorder_close"):
         backorder_total = sum(item.backorder for item in state.items)
         rows.append(f"Backorder at close: {backorder_total:.0f}")
@@ -760,6 +935,18 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
         current_after = after_overhead_pct(state)
         current = "n/a" if current_after is None else f"{current_after * 100:.1f}%"
         rows.append(f"After-overhead GM: {current} / target 0.0%")
+    if "below_lp_min" in level.win_conditions:
+        needed = int(level.win_conditions["below_lp_min"])
+        current = sum(1 for item in state.items if item.pna <= item.lp)
+        rows.append(f"Items at/below LP: {current}/{needed}")
+    if "critical_item_min" in level.win_conditions:
+        needed = int(level.win_conditions["critical_item_min"])
+        current = sum(1 for item in state.items if item.pna <= item.cp)
+        rows.append(f"Items at/below critical point: {current}/{needed}")
+    if "surplus_item_min" in level.win_conditions:
+        needed = int(level.win_conditions["surplus_item_min"])
+        current = sum(1 for item in state.items if item.on_hand >= item.surplus_line)
+        rows.append(f"Items above surplus line: {current}/{needed}")
     return tuple(rows)
 
 
@@ -789,14 +976,29 @@ def evaluate_active_lesson(state: SimulationState) -> LessonEvaluation | None:
         checks.append(not any(item.stockout_today for item in state.items))
     if level.win_conditions.get("close_at_or_above_op"):
         checks.append(all(item.on_hand >= item.op for item in state.items))
+    if level.win_conditions.get("close_pna_at_or_above_op"):
+        checks.append(all(item.pna >= item.op for item in state.items))
+    if "guided_order_below_op_min" in level.win_conditions:
+        checks.append(
+            state.training.guided_orders_below_op
+            >= int(level.win_conditions["guided_order_below_op_min"])
+        )
     if "guided_order_min" in level.win_conditions:
         checks.append(
             state.training.guided_orders_placed >= int(level.win_conditions["guided_order_min"])
         )
+    if "on_order_min" in level.win_conditions:
+        on_order_total = sum(sum(receipt.qty for receipt in item.pipeline) for item in state.items)
+        checks.append(on_order_total >= float(level.win_conditions["on_order_min"]))
     if "manual_custom_order_min" in level.win_conditions:
         checks.append(
             state.training.custom_orders_placed
             >= int(level.win_conditions["manual_custom_order_min"])
+        )
+    if "parameter_update_min" in level.win_conditions:
+        checks.append(
+            state.training.parameter_updates_applied
+            >= int(level.win_conditions["parameter_update_min"])
         )
     if level.win_conditions.get("zero_backorder_close"):
         checks.append(sum(item.backorder for item in state.items) <= 0)
@@ -807,6 +1009,21 @@ def evaluate_active_lesson(state: SimulationState) -> LessonEvaluation | None:
     if "after_overhead_min" in level.win_conditions:
         checks.append(
             (after_overhead_pct(state) or -1.0) >= float(level.win_conditions["after_overhead_min"])
+        )
+    if "below_lp_min" in level.win_conditions:
+        checks.append(
+            sum(1 for item in state.items if item.pna <= item.lp)
+            >= int(level.win_conditions["below_lp_min"])
+        )
+    if "critical_item_min" in level.win_conditions:
+        checks.append(
+            sum(1 for item in state.items if item.pna <= item.cp)
+            >= int(level.win_conditions["critical_item_min"])
+        )
+    if "surplus_item_min" in level.win_conditions:
+        checks.append(
+            sum(1 for item in state.items if item.on_hand >= item.surplus_line)
+            >= int(level.win_conditions["surplus_item_min"])
         )
 
     passed = all(checks)
@@ -861,12 +1078,18 @@ def apply_lesson_evaluation(
     return evaluation
 
 
-def record_guided_order(state: SimulationState) -> None:
+def record_guided_order(state: SimulationState, *, below_op: bool = False) -> None:
     state.training.guided_orders_placed += 1
+    if below_op:
+        state.training.guided_orders_below_op += 1
 
 
 def record_custom_order(state: SimulationState) -> None:
     state.training.custom_orders_placed += 1
+
+
+def record_parameter_update(state: SimulationState) -> None:
+    state.training.parameter_updates_applied += 1
 
 
 def _state_for_scenario(
@@ -909,7 +1132,9 @@ def build_level_state(level_id: str, profile: TrainingProfile | None = None) -> 
     progress.last_result_title = ""
     progress.last_result_message = ""
     progress.guided_orders_placed = 0
+    progress.guided_orders_below_op = 0
     progress.custom_orders_placed = 0
+    progress.parameter_updates_applied = 0
     return _state_for_scenario(
         profile=progress, scenario=level.scenario, settings=level.global_settings
     )
@@ -924,8 +1149,10 @@ def build_simulator_state(profile: TrainingProfile | None = None) -> SimulationS
     progress.last_result_title = ""
     progress.last_result_message = ""
     progress.guided_orders_placed = 0
+    progress.guided_orders_below_op = 0
     progress.custom_orders_placed = 0
-    certification = LEVELS_BY_ID["level-7"]
+    progress.parameter_updates_applied = 0
+    certification = final_academy_level()
     return _state_for_scenario(
         profile=progress,
         scenario=certification.scenario,

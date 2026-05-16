@@ -1,17 +1,21 @@
 from __future__ import annotations
 
-from dash import Input, Output, State, html
+import dash_bootstrap_components as dbc
+from dash import Input, Output, State, html, no_update
 from dash import ctx as dash_ctx
 from dash.exceptions import PreventUpdate
 
 from ..services.training import (
     academy_levels,
+    active_layout_variant,
     active_level,
     build_level_state,
     build_simulator_state,
+    cheat_unlock_password_matches,
     is_action_allowed,
     reset_progress_state,
     simulator_view_allowed,
+    unlock_all_academy_levels,
     visible_panels,
 )
 from ..ui.components import (
@@ -27,8 +31,27 @@ from ..ui.components import (
 from .common import CallbackRegistrarContext, _triggered_click_count
 
 
+def dashboard_shell_class_name(state) -> str:
+    dashboard_class = "dashboard-shell"
+    if state.training.current_view == "lesson":
+        level = active_level(state)
+        variant = active_layout_variant(state).replace("_", "-")
+        level_class = f" lesson-level-{level.index}" if level is not None else ""
+        return f"{dashboard_class} lesson-dashboard{level_class} lesson-layout-{variant}"
+    if state.training.current_view == "simulator":
+        return f"{dashboard_class} simulator-dashboard"
+    return dashboard_class
+
+
 def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
     app = ctx.app
+    levels = academy_levels()
+    level_button_inputs = [
+        Input(f"academy-level-{level.index}-button", "n_clicks") for level in levels
+    ]
+    level_card_outputs = [
+        Output(f"academy-level-{level.index}-card", "children") for level in levels
+    ]
 
     @app.callback(
         [
@@ -82,18 +105,32 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         return data
 
     @app.callback(
+        Output("session-revision", "data", allow_duplicate=True),
+        Input("page-lifecycle-store", "data"),
+        State("user-data-store", "data"),
+        State("session-revision", "data"),
+        prevent_initial_call=True,
+    )
+    def pause_session_when_page_inactive(lifecycle, client_data, session_revision):
+        if not isinstance(lifecycle, dict):
+            raise PreventUpdate
+        session_id, state = ctx.require_session(client_data)
+        is_active = lifecycle.get("active") is not False
+        if is_active:
+            return ctx.next_session_revision(session_revision)
+        if not state.is_initialized:
+            raise PreventUpdate
+        state.is_initialized = False
+        ctx.persist_state(session_id, state)
+        return ctx.next_session_revision(session_revision)
+
+    @app.callback(
         [
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
         ],
         [
-            Input("academy-level-1-button", "n_clicks"),
-            Input("academy-level-2-button", "n_clicks"),
-            Input("academy-level-3-button", "n_clicks"),
-            Input("academy-level-4-button", "n_clicks"),
-            Input("academy-level-5-button", "n_clicks"),
-            Input("academy-level-6-button", "n_clicks"),
-            Input("academy-level-7-button", "n_clicks"),
+            *level_button_inputs,
             Input("academy-simulator-button", "n_clicks"),
             Input("return-to-menu-button", "n_clicks"),
             Input("simulator-return-button", "n_clicks"),
@@ -103,38 +140,29 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         State("session-revision", "data"),
         prevent_initial_call=True,
     )
-    def academy_navigation(
-        _level_1,
-        _level_2,
-        _level_3,
-        _level_4,
-        _level_5,
-        _level_6,
-        _level_7,
-        _open_simulator,
-        _lesson_return,
-        _simulator_return,
-        _reset_progress,
-        client_data,
-        session_revision,
-    ):
+    def academy_navigation(*callback_args):
+        *input_values, client_data, session_revision = callback_args
+        level_clicks = input_values[: len(levels)]
+        (
+            open_simulator_clicks,
+            lesson_return_clicks,
+            simulator_return_clicks,
+            reset_progress_clicks,
+        ) = input_values[len(levels) :]
         trig = dash_ctx.triggered_id
         if trig is None:
             raise PreventUpdate
         click_count = _triggered_click_count(
             trig,
             {
-                "academy-level-1-button": _level_1,
-                "academy-level-2-button": _level_2,
-                "academy-level-3-button": _level_3,
-                "academy-level-4-button": _level_4,
-                "academy-level-5-button": _level_5,
-                "academy-level-6-button": _level_6,
-                "academy-level-7-button": _level_7,
-                "academy-simulator-button": _open_simulator,
-                "return-to-menu-button": _lesson_return,
-                "simulator-return-button": _simulator_return,
-                "academy-reset-progress-button": _reset_progress,
+                **{
+                    f"academy-level-{level.index}-button": click_count
+                    for level, click_count in zip(levels, level_clicks, strict=True)
+                },
+                "academy-simulator-button": open_simulator_clicks,
+                "return-to-menu-button": lesson_return_clicks,
+                "simulator-return-button": simulator_return_clicks,
+                "academy-reset-progress-button": reset_progress_clicks,
             },
         )
         if click_count <= 0:
@@ -166,6 +194,69 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         ctx.carry_revision(next_state, state)
         ctx.persist_state(session_id, next_state)
         return ctx.next_session_revision(session_revision), html.Div()
+
+    @app.callback(
+        [
+            Output("academy-cheat-code-modal", "is_open"),
+            Output("academy-cheat-code-feedback", "children"),
+            Output("academy-cheat-code-input", "value"),
+            Output("session-revision", "data", allow_duplicate=True),
+        ],
+        [
+            Input("academy-cheat-code-button", "n_clicks"),
+            Input("academy-cheat-code-cancel", "n_clicks"),
+            Input("academy-cheat-code-submit", "n_clicks"),
+        ],
+        [
+            State("academy-cheat-code-input", "value"),
+            State("user-data-store", "data"),
+            State("session-revision", "data"),
+        ],
+        prevent_initial_call=True,
+    )
+    def handle_academy_cheat_code(
+        open_clicks,
+        cancel_clicks,
+        submit_clicks,
+        password,
+        client_data,
+        session_revision,
+    ):
+        trig = dash_ctx.triggered_id
+        click_count = _triggered_click_count(
+            trig,
+            {
+                "academy-cheat-code-button": open_clicks,
+                "academy-cheat-code-cancel": cancel_clicks,
+                "academy-cheat-code-submit": submit_clicks,
+            },
+        )
+        if click_count <= 0:
+            raise PreventUpdate
+        if trig == "academy-cheat-code-button":
+            return True, html.Div(), "", no_update
+        if trig == "academy-cheat-code-cancel":
+            return False, html.Div(), "", no_update
+        if trig != "academy-cheat-code-submit":
+            raise PreventUpdate
+        if not cheat_unlock_password_matches(password):
+            return (
+                True,
+                dbc.Alert("Nope. The magic words are not magic enough.", color="warning"),
+                no_update,
+                no_update,
+            )
+
+        session_id, state = ctx.require_session(client_data)
+        unlock_all_academy_levels(state.training)
+        state.is_initialized = False
+        ctx.persist_state(session_id, state)
+        return (
+            False,
+            html.Div(),
+            "",
+            ctx.next_session_revision(session_revision),
+        )
 
     @app.callback(
         [
@@ -214,13 +305,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("auto-po-shell", "style"),
             Output("asq-controls-shell", "style"),
             Output("auto-po-enabled", "disabled"),
-            Output("academy-level-1-card", "children"),
-            Output("academy-level-2-card", "children"),
-            Output("academy-level-3-card", "children"),
-            Output("academy-level-4-card", "children"),
-            Output("academy-level-5-card", "children"),
-            Output("academy-level-6-card", "children"),
-            Output("academy-level-7-card", "children"),
+            *level_card_outputs,
             Output("academy-simulator-card", "children"),
             Output("academy-simulator-button", "disabled"),
             Output("advanced-sandbox-copy", "children"),
@@ -255,7 +340,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         lesson_terminal = ctx.lesson_terminal(state)
         po_label = (
             "Place SOQ Order"
-            if (is_simulator or (level is not None and level.index >= 6))
+            if (is_simulator or (level is not None and level.index >= 13))
             else "Place Guided Reorder"
         )
         graph_title = (
@@ -264,7 +349,11 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             else (
                 "Basic reorder signal"
                 if level is not None and level.index == 2
-                else "Inventory signal map"
+                else (
+                    "Fill-rate service view"
+                    if level is not None and level.index == 3
+                    else "Inventory signal map"
+                )
             )
         )
         service_panel_title = "Lesson snapshot" if level is not None else "Service"
@@ -292,14 +381,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             if state.training.auto_po_reward_unlocked
             else "Auto purchase orders are locked until certification is complete."
         )
-        dashboard_class = "dashboard-shell"
-        if state.training.current_view == "lesson":
-            level_class = (
-                f" lesson-dashboard lesson-level-{level.index}" if level is not None else ""
-            )
-            dashboard_class = f"{dashboard_class}{level_class}"
-        elif is_simulator:
-            dashboard_class = f"{dashboard_class} simulator-dashboard"
+        dashboard_class = dashboard_shell_class_name(state)
         status = (
             "Status: Running"
             if state.is_initialized
@@ -362,13 +444,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             ctx.panel_style(is_simulator and state.training.auto_po_reward_unlocked),
             ctx.panel_style(is_action_allowed(state, "apply_asq")),
             not (is_simulator and state.training.auto_po_reward_unlocked),
-            academy_level_card_children(1, state),
-            academy_level_card_children(2, state),
-            academy_level_card_children(3, state),
-            academy_level_card_children(4, state),
-            academy_level_card_children(5, state),
-            academy_level_card_children(6, state),
-            academy_level_card_children(7, state),
+            *[academy_level_card_children(level.index, state) for level in levels],
             simulator_unlock_children(state),
             not state.training.simulator_unlocked,
             sandbox_copy,

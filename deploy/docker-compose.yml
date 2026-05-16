@@ -3,9 +3,9 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: imsim
-      POSTGRES_USER: imsim
-      POSTGRES_PASSWORD: imsim
+      POSTGRES_DB: ${IMSIM_POSTGRES_DB:-imsim}
+      POSTGRES_USER: ${IMSIM_POSTGRES_USER:-imsim}
+      POSTGRES_PASSWORD: ${IMSIM_POSTGRES_PASSWORD:-imsim}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -16,15 +16,16 @@ services:
 
   app:
     image: ${IMSIM_IMAGE:-ghcr.io/schmidtcode/imsim:latest}
-    build: .
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
     environment:
       IMSIM_HOST: 0.0.0.0
       IMSIM_PORT: 8050
-      IMSIM_DATABASE_URL: postgresql+psycopg://imsim:imsim@db:5432/imsim
+      IMSIM_DATABASE_URL: postgresql+psycopg://${IMSIM_POSTGRES_USER:-imsim}:${IMSIM_POSTGRES_PASSWORD:-imsim}@db:5432/${IMSIM_POSTGRES_DB:-imsim}
       IMSIM_GUNICORN_WORKERS: 4
       IMSIM_GUNICORN_THREADS: 2
     healthcheck:
