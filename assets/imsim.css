@@ -1488,6 +1488,19 @@ body {
   min-height: 22rem;
 }
 
+.dashboard-shell.simulator-dashboard #graph-panel {
+  min-height: 40rem;
+}
+
+.dashboard-shell.simulator-dashboard #graph-panel > .card,
+.dashboard-shell.simulator-dashboard #graph-panel > .card > .card-body {
+  min-height: 40rem;
+}
+
+.dashboard-shell.simulator-dashboard #inventory-graph {
+  min-height: 34rem;
+}
+
 .dashboard-shell.lesson-dashboard.lesson-level-2 .experience-banner-card .card-body {
   padding: 0.65rem 1rem 0.7rem;
 }

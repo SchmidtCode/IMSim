@@ -8,6 +8,8 @@ step, then unlocks a full simulator for practicing inventory decisions with live
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://imsim.pythonanywhere.com/)
 
+![IMSim simulator preview](assets/readme/IMSim.gif)
+
 ## Highlights
 
 - 18-lesson academy path that unlocks the full simulator
