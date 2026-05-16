@@ -60,10 +60,12 @@ The container image is:
 ghcr.io/schmidtcode/imsim:latest
 ```
 
-If you want the Compose stack to build from a checked-out source tree instead of pulling GHCR:
+If you want to work from a checked-out source tree as a contributor, use the source-specific
+Compose files under `deploy/source/`:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+cp deploy/source/.env.example .env
+docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-compose.build.yml --project-directory . up -d --build
 ```
 
 For a shared homelab deployment, set `IMSIM_ADMIN_TOKEN` in `.env` before you expose the app.

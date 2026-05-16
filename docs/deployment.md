@@ -65,8 +65,7 @@ docker compose up -d
 The Compose stack still provides the bundled PostgreSQL service and injects
 `IMSIM_DATABASE_URL` for the containerized app.
 
-The repo-root [docker-compose.yml](../docker-compose.yml) is kept for source checkouts and local
-development workflows.
+For checked-out source work, use the contributor stack under [`deploy/source/`](../deploy/source).
 
 ## Homelab Checklist
 
@@ -77,38 +76,6 @@ Before exposing IMSim outside your LAN or sharing it with conference attendees:
 - Prefer a pinned `IMSIM_IMAGE` tag over `latest` for demo stability.
 - Put the app behind a reverse proxy that terminates TLS.
 - Back up the `postgres_data` volume if you care about persistent session state.
-
-## Render Free Demo Setup
-
-For a lightweight public demo, the lowest-friction free setup in this repo is:
-
-- Render Free Web Service for the Dash app
-- Aiven Free PostgreSQL for session persistence
-
-This split matters because Render's free Postgres offering expires 30 days after creation, which
-makes it a poor fit for a stable demo database.
-
-Why this works well:
-
-- The repo already includes a production `Dockerfile`
-- [render.yaml](../render.yaml) is ready for a one-service Render deploy
-- The app honors platform-provided `PORT`
-- IMSim accepts either `IMSIM_DATABASE_URL` or `DATABASE_URL`
-
-Deploy steps:
-
-1. Create a free PostgreSQL instance on Aiven.
-2. Copy the connection string and append SSL mode if required, for example `postgresql+psycopg://USER:PASSWORD@HOST:PORT/DBNAME?sslmode=require`.
-3. In Render, create a new Blueprint service from this GitHub repo.
-4. Set `DATABASE_URL` in Render to the Aiven connection string.
-5. Deploy and share the generated `onrender.com` URL.
-
-Free-tier tradeoffs:
-
-- Render free web services spin down after 15 minutes of idle time
-- Wake-up time is usually around a minute
-- The filesystem is ephemeral, so database-backed sessions are the right setup
-- `render.yaml` uses one Gunicorn worker to stay conservative on free-instance memory
 
 ## Container Publishing
 

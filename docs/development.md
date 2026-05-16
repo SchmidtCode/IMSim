@@ -5,16 +5,16 @@
 For the fastest non-container workflow:
 
 ```bash
-cp .env.example .env
+cp deploy/source/.env.example .env
 uv python install 3.14.5
 uv sync --group dev
-uv run python app.py
+uv run imsim
 ```
 
 If you want development changes to run inside the full Compose stack instead, use:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-compose.build.yml --project-directory . up -d --build
 ```
 
 ## Common Commands
@@ -46,7 +46,6 @@ var/sessions/     runtime session storage (gitignored)
 - Module entrypoint: `uv run python -m imsim`
 - WSGI target: `imsim.wsgi:server`
 - Gunicorn config module: `python:imsim.gunicorn_config`
-- Procfile target: `gunicorn --config python:imsim.gunicorn_config imsim.wsgi:server`
 
 ## Performance Tools
 

@@ -7,7 +7,7 @@
 | `IMSIM_DATABASE_URL` / `DATABASE_URL` | Optional SQLAlchemy database URL for session persistence. If set, the app uses the database instead of filesystem JSON. |
 | `IMSIM_DATA_DIR` | Directory for persisted session JSON files. Defaults to `var/sessions/`. |
 | `IMSIM_POSTGRES_DB` / `IMSIM_POSTGRES_USER` / `IMSIM_POSTGRES_PASSWORD` | Compose-only variables used by the bundled PostgreSQL service and the default containerized app connection string. |
-| `IMSIM_GUNICORN_WORKERS` | Optional Gunicorn worker count for container and Procfile deploys. Defaults to `4` with a database URL, otherwise `1`. |
+| `IMSIM_GUNICORN_WORKERS` | Optional Gunicorn worker count for container deploys. Defaults to `4` with a database URL, otherwise `1`. |
 | `IMSIM_GUNICORN_THREADS` | Optional Gunicorn thread count. Defaults to `2` with a database URL, otherwise `1`. |
 | `IMSIM_GUNICORN_TIMEOUT` | Optional Gunicorn request timeout in seconds. Defaults to `120`. |
 | `IMSIM_ADMIN_TOKEN` | Optional bearer or `X-IMSIM-ADMIN-TOKEN` value for maintenance endpoints. |
@@ -19,7 +19,9 @@
 
 Notes:
 
-- The app reads the repo `.env` for local `uv run imsim` and `python app.py` workflows.
+- The app reads the repo `.env` for local `uv run imsim` and `uv run python -m imsim` workflows.
+- In a checked-out repo, use `deploy/source/.env.example` as the template and copy it to the repo
+  root as `.env`.
 - For local `uv run` development, leave `IMSIM_DATABASE_URL` unset unless you intentionally want
   to connect to an external PostgreSQL instance.
 - The maintenance schedule and cancel endpoints are disabled unless `IMSIM_ADMIN_TOKEN` is set or

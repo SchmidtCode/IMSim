@@ -8,7 +8,6 @@ COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY src ./src
 COPY assets ./assets
 COPY examples ./examples
-COPY app.py Procfile ./
 
 RUN uv sync --frozen --no-dev
 

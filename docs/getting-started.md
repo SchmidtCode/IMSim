@@ -66,8 +66,8 @@ Clone the repo only if you want to modify the app, docs, or container setup.
 ```bash
 git clone https://github.com/SchmidtCode/IMSim
 cd IMSim
-cp .env.example .env
-docker compose up -d
+cp deploy/source/.env.example .env
+docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-compose.build.yml --project-directory . up -d --build
 ```
 
 ## Build from Local Source Instead of GHCR
@@ -76,7 +76,7 @@ Use this when you are changing Python code, assets, or container config and want
 to run your checkout rather than the published image.
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-compose.build.yml --project-directory . up -d --build
 ```
 
 That override adds the `build:` directive back without changing the default quick-start behavior.
@@ -91,15 +91,14 @@ Prerequisites:
 - `uv`
 
 ```bash
-cp .env.example .env
+cp deploy/source/.env.example .env
 uv python install 3.14.5
 uv sync --group dev
-uv run python app.py
+uv run imsim
 ```
 
 Alternative entrypoints:
 
-- `uv run imsim`
 - `uv run python -m imsim`
 
 If `IMSIM_DATABASE_URL` is unset, local `uv run` uses file-backed sessions under `var/sessions/`.
