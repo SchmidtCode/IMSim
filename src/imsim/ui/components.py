@@ -188,11 +188,18 @@ def _compact_lesson_pill_text(row: str) -> str:
     replacements = (
         ("Current fill rate: ", "Fill rate: "),
         ("Current after-overhead GM: ", "After-OH GM: "),
+        ("After-overhead GM: ", "After-OH GM: "),
         ("Items closing at/above OP: ", "At/above OP: "),
+        ("Close with PNA at/above OP: ", "PNA at/above OP: "),
+        ("Reorder triggered after PNA fell below OP: ", "Below-OP reorder: "),
         ("Guided reorders used: ", "Guided reorders: "),
         ("Manual custom orders used: ", "Custom orders: "),
         ("Parameter updates used: ", "Policy updates: "),
+        ("On-order inventory: ", "On order: "),
         ("Avg inventory value: ", "Avg inv value: "),
+        ("Items at/below critical point: ", "At/below CP: "),
+        ("Items above surplus line: ", "Above surplus: "),
+        ("Backorder at close: ", "Close backorder: "),
     )
     for old, new in replacements:
         if row.startswith(old):
@@ -350,6 +357,10 @@ def _signal_map_layout_signature(state: SimulationState, rows: pd.DataFrame) -> 
     return (
         f"{active_layout_variant(state)}:items:{len(rows)}:r_cycle:{state.global_settings.r_cycle}"
     )
+
+
+def _exception_map_layout_signature(rows: pd.DataFrame) -> str:
+    return f"exceptions:items:{len(rows)}"
 
 
 def _lesson_position_snapshot_block(state: SimulationState) -> html.Div:
@@ -868,6 +879,89 @@ def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str
     )
 
 
+def _exception_signal_figure(
+    state: SimulationState,
+    theme: str,
+    colors: dict[str, str],
+) -> go.Figure:
+    rows = _items_frame(state.items)
+    if rows.empty:
+        rows = pd.DataFrame(columns=["idx", "pna", "cp", "surplus_line", "on_hand"])
+    item_numbers = (rows["idx"] + 1).tolist() if "idx" in rows else []
+    hover = "Item %{x}<br>%{y:.1f} units<extra>%{fullData.name}</extra>"
+    fig = go.Figure(
+        data=[
+            _empty_marker_trace(
+                name="PNA",
+                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["signal"]),
+                hovertemplate=hover,
+            ),
+            _empty_marker_trace(
+                name="Critical Point",
+                marker=_plot_marker(
+                    colors["zero"],
+                    _PLOT_MARKER_SIZE_REM["signal_zero"],
+                    symbol="diamond-open",
+                    line=_plot_marker_outline(colors["zero"]),
+                ),
+                hovertemplate=hover,
+            ),
+            _empty_marker_trace(
+                name="Surplus Line",
+                marker=_plot_marker(
+                    colors["proposed"],
+                    _PLOT_MARKER_SIZE_REM["signal_proposed"],
+                    symbol="circle-open",
+                    line=_plot_marker_outline(colors["proposed"]),
+                ),
+                hovertemplate=hover,
+            ),
+            _empty_marker_trace(
+                name="On Hand",
+                marker=_plot_marker(
+                    colors["ats"],
+                    _PLOT_MARKER_SIZE_REM["signal_ats"],
+                    symbol="x",
+                ),
+                hovertemplate=hover,
+            ),
+        ]
+    )
+    fig.update_layout(
+        **_plot_base_layout(
+            None,
+            colors,
+            include_margin=not rows.empty,
+            height=_workspace_graph_height(state),
+        ),
+        xaxis_title="Item",
+        yaxis_title="Units",
+        hovermode="closest",
+        uirevision=f"exception-map:{theme}",
+        meta=_figure_meta(
+            "exception-map",
+            theme,
+            layout_signature=_exception_map_layout_signature(rows),
+        ),
+    )
+    fig.update_traces(x=item_numbers, selector={"name": "PNA"})
+    fig.update_traces(y=rows["pna"].tolist(), selector={"name": "PNA"})
+    fig.update_traces(x=item_numbers, selector={"name": "Critical Point"})
+    fig.update_traces(y=rows["cp"].tolist(), selector={"name": "Critical Point"})
+    fig.update_traces(x=item_numbers, selector={"name": "Surplus Line"})
+    fig.update_traces(y=rows["surplus_line"].tolist(), selector={"name": "Surplus Line"})
+    fig.update_traces(x=item_numbers, selector={"name": "On Hand"})
+    fig.update_traces(y=rows["on_hand"].tolist(), selector={"name": "On Hand"})
+    _apply_single_guide(fig, colors, y=0, label="Zero")
+    return _finalize_axes(
+        fig,
+        colors,
+        x_linear=True,
+        x_range=[0.5, max(1, len(rows)) + 0.5],
+        y_tozero=True,
+    )
+
+
 def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.Figure:
     colors = _figure_theme(theme)
     level = active_level(state)
@@ -877,6 +971,8 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         return _lesson_two_figure(state, theme, colors)
     if level is not None and level.index == 3:
         return _fill_rate_figure(state, theme, colors)
+    if level is not None and level.index == 17:
+        return _exception_signal_figure(state, theme, colors)
     return _signal_map_figure(state, theme, colors)
 
 
@@ -1613,8 +1709,6 @@ def lesson_objective_children(state: SimulationState) -> list:
     if level is None:
         return [dbc.Alert("No active lesson.", color="secondary")]
     evaluation = evaluate_active_lesson(state)
-    after_overhead = after_overhead_pct(state)
-    after_value = "n/a" if after_overhead is None else f"{after_overhead * 100:.1f}%"
     headline = f"{lesson_days_remaining(state)} day(s) remaining"
     if evaluation is not None and evaluation.completed:
         headline = "Lesson window closed"
@@ -1623,8 +1717,6 @@ def lesson_objective_children(state: SimulationState) -> list:
         fill = fill_rate(state)
         fill_value = "n/a" if fill is None else f"{fill * 100:.1f}%"
         rows.insert(0, f"Current fill rate: {fill_value}")
-    if after_overhead is not None and "after_overhead_min" in level.win_conditions:
-        rows.append(f"Current after-overhead GM: {after_value}")
     children: list = []
     if state.training.lesson_status in {"passed", "failed"} and (
         state.training.last_result_title or state.training.last_result_message
@@ -1672,7 +1764,7 @@ def lesson_compact_summary_children(state: SimulationState) -> list:
     )
     objective_rows = [
         _compact_lesson_pill_text(row)
-        for row in list(evaluation.metric_rows if evaluation is not None else ())[:2]
+        for row in list(evaluation.metric_rows if evaluation is not None else ())
     ]
     return [
         html.Div(level.formula, className="lesson-compact-chip"),

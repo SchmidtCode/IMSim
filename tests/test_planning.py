@@ -3,6 +3,7 @@ from __future__ import annotations
 from imsim.models import GlobalSettings, SimulationState
 from imsim.services.asq import apply_asq_month_end
 from imsim.services.planning import (
+    calculate_surplus_line,
     create_inventory_item,
     round_to_pack,
     round_up_to_pack,
@@ -31,6 +32,10 @@ def test_soq_and_pna_are_computed_for_new_item():
     assert item.op > 0
     assert item.lp > item.op
     assert item.soq >= item.standard_pack
+
+
+def test_surplus_line_uses_oq_not_eoq():
+    assert calculate_surplus_line(40, 12) == 52
 
 
 def test_asq_month_end_can_raise_op():

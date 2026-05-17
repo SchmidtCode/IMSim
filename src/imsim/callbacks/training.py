@@ -423,7 +423,11 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
                 else (
                     "Fill-rate service view"
                     if level is not None and level.index == 3
-                    else "Inventory signal map"
+                    else (
+                        "Critical-point and surplus map"
+                        if level is not None and level.index == 17
+                        else "Inventory signal map"
+                    )
                 )
             )
         )

@@ -37,6 +37,8 @@ from imsim.ui.components import (
     build_po_overview_grid,
     custom_order_grid_options,
     inventory_graph_style,
+    lesson_compact_summary_children,
+    lesson_objective_children,
     refresh_inventory_figure,
     service_card_children,
 )
@@ -189,6 +191,23 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     )
 
 
+def test_level_seventeen_uses_exception_boundary_figure():
+    state = build_level_state("level-17")
+
+    figure = build_inventory_figure(state)
+
+    assert figure.layout.height == 340
+    assert figure.layout.yaxis.title.text == "Units"
+    assert figure.layout.uirevision == "exception-map:light"
+    assert figure.layout.meta["figure_kind"] == "exception-map"
+    assert [trace.name for trace in figure.data] == [
+        "PNA",
+        "Critical Point",
+        "Surplus Line",
+        "On Hand",
+    ]
+
+
 def test_inventory_graph_style_tracks_figure_height():
     lesson_state = build_level_state("level-2")
     simulator_state = build_simulator_state()
@@ -306,6 +325,44 @@ def test_early_ordering_snapshots_are_collapsed_by_default():
         assert snapshot_json["type"] == "Details"
         assert snapshot_json["props"]["className"] == "lesson-snapshot-disclosure"
         assert "open" not in snapshot_json["props"]
+
+
+def test_level_seven_uses_full_pna_formula_wording():
+    level = academy_level("level-7")
+
+    assert level is not None
+    assert (
+        level.formula
+        == "PNA = On Hand - Reserved - Committed - Backordered + On Order + Received"
+    )
+
+
+def test_after_overhead_rows_use_level_target_without_duplicate_objective_copy():
+    state = build_level_state("level-14")
+    state.sales.revenue = 1000.0
+    state.sales.cogs = 600.0
+    state.costs.total = 100.0
+
+    evaluation = evaluate_active_lesson(state)
+    objective_children = lesson_objective_children(state)
+
+    assert evaluation is not None
+    assert "After-overhead GM: 30.0% / target -5.0%" in evaluation.metric_rows
+    objective_rows = [item.children for item in objective_children[-1].children]
+    assert objective_rows.count("After-overhead GM: 30.0% / target -5.0%") == 1
+    assert not any("Current after-overhead GM:" in row for row in objective_rows)
+
+
+def test_compact_summary_keeps_all_goal_rows_for_three_check_lessons():
+    state = build_level_state("level-18")
+
+    compact_children = lesson_compact_summary_children(state)
+    pill_text = [child.children for child in compact_children[1].children]
+
+    assert len(pill_text) == 4
+    assert "Fill rate: n/a / target 97.0%" in pill_text
+    assert "After-OH GM: n/a / target 0.0%" in pill_text
+    assert "Close backorder: 0" in pill_text
 
 
 def test_custom_order_and_po_overview_use_ag_grid():

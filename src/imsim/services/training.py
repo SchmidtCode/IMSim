@@ -327,7 +327,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         level_id="level-7",
         title="PNA as the Replenishment Signal",
         summary="Use PNA, not only on hand, to decide whether an item is still protected.",
-        formula="PNA = on hand + on order - backorder",
+        formula="PNA = On Hand - Reserved - Committed - Backordered + On Order + Received",
         tutorial_steps=(
             "PNA combines current stock, inbound supply, and unresolved demand.",
             "An item can look low on the shelf but still be covered by an inbound PO.",
@@ -933,8 +933,9 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
         )
     if "after_overhead_min" in level.win_conditions:
         current_after = after_overhead_pct(state)
+        target = float(level.win_conditions["after_overhead_min"])
         current = "n/a" if current_after is None else f"{current_after * 100:.1f}%"
-        rows.append(f"After-overhead GM: {current} / target 0.0%")
+        rows.append(f"After-overhead GM: {current} / target {target * 100:.1f}%")
     if "below_lp_min" in level.win_conditions:
         needed = int(level.win_conditions["below_lp_min"])
         current = sum(1 for item in state.items if item.pna <= item.lp)

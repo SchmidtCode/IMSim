@@ -61,8 +61,8 @@ def calculate_soq(item: InventoryItem) -> float:
     return round_up_to_pack(item.oq + max(0.0, item.op - item.pna), item.standard_pack)
 
 
-def calculate_surplus_line(lp: float, eoq: float) -> float:
-    return lp + eoq
+def calculate_surplus_line(lp: float, oq: float) -> float:
+    return lp + oq
 
 
 def calculate_critical_point(usage_rate: float, lead_time_days: float) -> float:
@@ -80,7 +80,7 @@ def compute_item_pna(item: InventoryItem) -> float:
 def update_planning_fields(item: InventoryItem, global_settings: GlobalSettings) -> InventoryItem:
     item.pna = compute_item_pna(item)
     item.daily_ur = safe_div(item.usage_rate, 30.0, 0.0)
-    item.surplus_line = calculate_surplus_line(item.lp, item.eoq)
+    item.surplus_line = calculate_surplus_line(item.lp, item.oq)
     item.cp = calculate_critical_point(item.usage_rate, item.lead_time)
     item.soq = calculate_soq(item)
     item.proposed_pna = item.pna + item.soq
