@@ -1,3 +1,5 @@
+.tmp*
+
 # Editors and local workspace
 *.code-workspace
 .idea/

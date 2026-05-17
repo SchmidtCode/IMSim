@@ -12,6 +12,7 @@ from .components import (
     custom_order_grid_options,
     github_footer_card,
     po_overview_grid_options,
+    reference_modal_children,
     simulator_unlock_children,
 )
 
@@ -108,6 +109,8 @@ def build_layout(config: IMSimConfig):
                 dcc.Store(id="theme-store", storage_type="local", data="light"),
                 dcc.Store(id="session-revision", data=0),
                 dcc.Store(id="dashboard-tick", data=0),
+                dcc.Store(id="view-scroll-store"),
+                dcc.Store(id="view-scroll-sink"),
                 dcc.Store(id="page-lifecycle-store", data={"active": True, "reason": "initial"}),
                 dcc.Interval(id="interval-component", interval=1000, disabled=True),
                 dcc.Interval(
@@ -157,6 +160,12 @@ def build_layout(config: IMSimConfig):
                                                             class_name=(
                                                                 "theme-toggle-button button-sm"
                                                             ),
+                                                        ),
+                                                        _action_button(
+                                                            "Reference",
+                                                            "academy-reference-button",
+                                                            "ghost",
+                                                            class_name="button-pill",
                                                         ),
                                                         _action_button(
                                                             "Reset Progress",
@@ -380,6 +389,26 @@ def build_layout(config: IMSimConfig):
                     centered=True,
                     content_class_name="imsim-modal-content",
                 ),
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader("Reference"),
+                        dbc.ModalBody(reference_modal_children()),
+                        dbc.ModalFooter(
+                            _action_button(
+                                "Close",
+                                "reference-modal-close",
+                                "secondary",
+                            ),
+                            className="modal-actions",
+                        ),
+                    ],
+                    id="reference-modal",
+                    is_open=False,
+                    centered=True,
+                    scrollable=True,
+                    size="xl",
+                    content_class_name="imsim-modal-content",
+                ),
                 html.Div(
                     [
                         dbc.Card(
@@ -414,6 +443,12 @@ def build_layout(config: IMSimConfig):
                                                         "Return to Academy",
                                                         "simulator-return-button",
                                                         "secondary",
+                                                        class_name="button-pill",
+                                                    ),
+                                                    _action_button(
+                                                        "Reference",
+                                                        "simulator-reference-button",
+                                                        "ghost",
                                                         class_name="button-pill",
                                                     ),
                                                 ],
@@ -478,6 +513,12 @@ def build_layout(config: IMSimConfig):
                                                         "Restart Lesson",
                                                         "reset-button",
                                                         "secondary",
+                                                        class_name="button-pill",
+                                                    ),
+                                                    _action_button(
+                                                        "Reference",
+                                                        "experience-reference-button",
+                                                        "ghost",
                                                         class_name="button-pill",
                                                     ),
                                                     html.Div(

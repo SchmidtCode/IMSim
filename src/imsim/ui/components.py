@@ -13,7 +13,6 @@ from ..services.training import (
     academy_levels,
     active_layout_variant,
     active_level,
-    after_overhead_pct,
     evaluate_active_lesson,
     fill_rate,
     lesson_days_remaining,
@@ -58,7 +57,7 @@ def _figure_theme(theme: str) -> dict[str, str]:
 _ROOT_FONT_SIZE_PX = 16
 _PLOT_TITLE_SIZE_REM = 1.5
 _PLOT_MARGIN_REM = {"l": 1.5, "r": 1.5, "t": 3.5, "b": 1.5}
-_PLOT_MARGIN_COMPACT_REM = {"l": 1.5, "r": 1.5, "t": 1.2, "b": 1.5}
+_PLOT_MARGIN_COMPACT_REM = {"l": 1.5, "r": 1.5, "t": 1.5, "b": 2.4}
 _PLOT_LINE_WIDTH_REM = 0.1875
 _PLOT_MARKER_OUTLINE_WIDTH_REM = 0.125
 _PLOT_MARKER_SIZE_REM = {
@@ -70,6 +69,9 @@ _PLOT_MARKER_SIZE_REM = {
     "signal_zero": 0.5,
     "signal_stockout": 1.125,
 }
+_LESSON_ONE_GRAPH_HEIGHT = 340
+_LESSON_TWO_GRAPH_HEIGHT = 392
+_FILL_RATE_GRAPH_HEIGHT = 400
 
 
 def _rem_to_px(rem: float) -> float:
@@ -157,7 +159,11 @@ def _lesson_snapshot_disclosure(
     *,
     label: str = "Show snapshot details",
     hint: str = "Status and goal details",
+    open_by_default: bool = False,
 ) -> html.Details:
+    props: dict[str, object] = {"className": "lesson-snapshot-disclosure"}
+    if open_by_default:
+        props["open"] = True
     return html.Details(
         [
             html.Summary(
@@ -169,8 +175,67 @@ def _lesson_snapshot_disclosure(
             ),
             html.Div(body, className="lesson-disclosure-body"),
         ],
-        className="lesson-snapshot-disclosure",
+        **props,
     )
+
+
+_GLOSSARY_ENTRIES = (
+    (
+        "PNA",
+        "Projected net available. The inventory position used for replenishment decisions. "
+        "Full training formula: on hand - reserved - committed - backordered + on "
+        "order + received.",
+    ),
+    (
+        "On hand",
+        "Physical stock currently available in the warehouse before considering future "
+        "receipts or unresolved demand.",
+    ),
+    ("On order", "Quantity already ordered but not yet received."),
+    ("Backorder", "Demand that could not be filled from available stock."),
+    ("Usage rate", "The monthly demand pace used by the simulator."),
+    ("Daily usage", "Usage rate divided by day basis."),
+    ("Lead time", "The time between placing an order and receiving it."),
+    ("OP", "Order point. The level where replenishment should begin."),
+    (
+        "Safety stock",
+        "Extra stock added to protect against normal demand or lead-time variation.",
+    ),
+    (
+        "LP",
+        "Line point. The higher review threshold used to decide what else should ride "
+        "along during a line review.",
+    ),
+    ("OQ", "Order quantity. The practical quantity to buy when replenishment is needed."),
+    (
+        "EOQ",
+        "Economic order quantity. A calculated quantity that balances replenishment cost "
+        "and carrying cost.",
+    ),
+    (
+        "SOQ",
+        "Suggested order quantity. The simulator's recommendation after considering PNA, "
+        "OP/LP, OQ, and standard pack rounding.",
+    ),
+    ("Standard pack", "Supplier pack increment used to round suggested buys."),
+    ("Critical point", "Urgent replenishment threshold below normal protection."),
+    (
+        "Surplus threshold",
+        "LP + OQ in the simulator's short-term overstock model.",
+    ),
+    (
+        "Fill rate",
+        "Percent of stock lines completed without a stockout miss.",
+    ),
+    (
+        "Hits",
+        "How often an item appears on demand lines. Used to show customer frequency/popularity.",
+    ),
+    (
+        "ASQ",
+        "Average sales quantity. Keep locked until advanced and certification content.",
+    ),
+)
 
 
 def _format_pct(value: float | None) -> str:
@@ -181,11 +246,18 @@ def _compact_lesson_pill_text(row: str) -> str:
     replacements = (
         ("Current fill rate: ", "Fill rate: "),
         ("Current after-overhead GM: ", "After-OH GM: "),
+        ("After-overhead GM: ", "After-OH GM: "),
         ("Items closing at/above OP: ", "At/above OP: "),
+        ("Close with PNA at/above OP: ", "PNA at/above OP: "),
+        ("Reorder triggered after PNA fell below OP: ", "Below-OP reorder: "),
         ("Guided reorders used: ", "Guided reorders: "),
         ("Manual custom orders used: ", "Custom orders: "),
         ("Parameter updates used: ", "Policy updates: "),
+        ("On-order inventory: ", "On order: "),
         ("Avg inventory value: ", "Avg inv value: "),
+        ("Items at/below critical point: ", "At/below CP: "),
+        ("Items above surplus threshold: ", "Above surplus: "),
+        ("Backorder at close: ", "Close backorder: "),
     )
     for old, new in replacements:
         if row.startswith(old):
@@ -280,7 +352,7 @@ def _lesson_item_snapshot_block(level_index: int, items: list[InventoryItem]) ->
         "standard_pack": "Pack",
         "safety_allowance": "Safety %",
         "cp": "CP",
-        "surplus_line": "Surplus",
+        "surplus_line": "Surplus threshold",
         "days_to_op": "Days to OP",
     }
     columns = _lesson_item_snapshot_columns(level_index)
@@ -296,11 +368,32 @@ def _lesson_item_snapshot_block(level_index: int, items: list[InventoryItem]) ->
 
 def _workspace_graph_height(state: SimulationState) -> int:
     return {
-        "workspace_signal": 320,
-        "workspace_advanced": 360,
-        "workspace_certification": 380,
-        "simulator": 520,
-    }.get(active_layout_variant(state), 420)
+        "intro_pna": 340,
+        "workspace_signal": 300,
+        "workspace_advanced": 340,
+        "workspace_certification": 360,
+        "simulator": 460,
+    }.get(active_layout_variant(state), 400)
+
+
+def inventory_graph_height(state: SimulationState) -> int:
+    level = active_level(state)
+    if level is not None and level.index == 1:
+        return _LESSON_ONE_GRAPH_HEIGHT
+    if level is not None and level.index == 2:
+        return _LESSON_TWO_GRAPH_HEIGHT
+    if level is not None and level.index == 3:
+        return _FILL_RATE_GRAPH_HEIGHT
+    if level is not None and level.index in {12, 13}:
+        return 340
+    if level is not None and level.index == 17:
+        return 360
+    return _workspace_graph_height(state)
+
+
+def inventory_graph_style(state: SimulationState) -> dict[str, str]:
+    height = inventory_graph_height(state)
+    return {"height": f"{height}px", "minHeight": f"{height}px", "width": "100%"}
 
 
 def _workspace_grid_height(state: SimulationState, *, surface: str) -> str:
@@ -322,10 +415,61 @@ def _workspace_grid_height(state: SimulationState, *, surface: str) -> str:
     }.get(variant, "26rem")
 
 
+def _lesson_uses_day_basis(level) -> bool:
+    day_basis_phrase = "day basis"
+    return day_basis_phrase in level.formula.casefold() or any(
+        day_basis_phrase in step.casefold() for step in level.tutorial_steps
+    )
+
+
+def _lesson_day_basis_helper(state: SimulationState) -> html.Div:
+    return html.Div(
+        f"Simulator simplified month: {state.global_settings.day_basis} days",
+        className="helper-copy mb-2",
+    )
+
+
+def _lesson_secondary_note(
+    title: str,
+    hint: str,
+    copy: str,
+) -> html.Details:
+    return _lesson_snapshot_disclosure(
+        html.Div(copy, className="helper-copy mb-0"),
+        label=title,
+        hint=hint,
+    )
+
+
+def _lesson_secondary_notes(level) -> list[html.Details]:
+    notes: list[html.Details] = []
+    if level.advanced_note:
+        notes.append(
+            _lesson_secondary_note(
+                "Advanced note",
+                "Optional deeper context",
+                level.advanced_note,
+            )
+        )
+    if level.csd_mapping_note:
+        notes.append(
+            _lesson_secondary_note(
+                "CSD mapping",
+                "Optional system mapping",
+                level.csd_mapping_note,
+            )
+        )
+    return notes
+
+
 def _signal_map_layout_signature(state: SimulationState, rows: pd.DataFrame) -> str:
     return (
         f"{active_layout_variant(state)}:items:{len(rows)}:r_cycle:{state.global_settings.r_cycle}"
     )
+
+
+def _exception_map_layout_signature(rows: pd.DataFrame) -> str:
+    return f"exceptions:items:{len(rows)}"
 
 
 def _lesson_position_snapshot_block(state: SimulationState) -> html.Div:
@@ -558,7 +702,7 @@ def _lesson_one_figure(state: SimulationState, theme: str, colors: dict[str, str
         ]
     )
     fig.update_layout(
-        **_plot_base_layout(None, colors, height=380),
+        **_plot_base_layout(None, colors, height=_LESSON_ONE_GRAPH_HEIGHT),
         xaxis_title="Day",
         yaxis_title="Units",
         hovermode="x unified",
@@ -612,7 +756,7 @@ def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str
         ]
     )
     fig.update_layout(
-        **_plot_base_layout(None, colors, height=460),
+        **_plot_base_layout(None, colors, height=_LESSON_TWO_GRAPH_HEIGHT),
         xaxis_title="Day",
         yaxis_title="Units",
         hovermode="x unified",
@@ -684,18 +828,25 @@ def _fill_rate_figure(state: SimulationState, theme: str, colors: dict[str, str]
             ),
         ]
     )
+    base_layout = _plot_base_layout(None, colors, height=_FILL_RATE_GRAPH_HEIGHT)
+    base_layout["margin"] = {
+        "l": _rem_to_px(1.5),
+        "r": _rem_to_px(1.5),
+        "t": _rem_to_px(2.6),
+        "b": _rem_to_px(2.0),
+    }
     fig.update_layout(
-        **_plot_base_layout(None, colors, height=420),
+        **base_layout,
         uirevision=f"lesson-3:{theme}",
         meta=_figure_meta("lesson-3-fill-rate", theme),
         xaxis2={
-            "domain": [0.68, 1.0],
+            "domain": [0.7, 1.0],
             "anchor": "y2",
             "color": colors["text"],
             "gridcolor": colors["line"],
         },
         yaxis2={
-            "domain": [0.18, 0.88],
+            "domain": [0.24, 0.84],
             "anchor": "x2",
             "color": colors["text"],
             "gridcolor": colors["line"],
@@ -703,6 +854,7 @@ def _fill_rate_figure(state: SimulationState, theme: str, colors: dict[str, str]
             "title": "Lines",
         },
     )
+    fig.update_traces(domain={"x": [0.0, 0.6], "y": [0.08, 0.94]}, selector={"type": "indicator"})
     return fig
 
 
@@ -783,7 +935,7 @@ def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str
             None,
             colors,
             include_margin=not rows.empty,
-            height=_workspace_graph_height(state),
+            height=inventory_graph_height(state),
         ),
         xaxis_title="Item",
         yaxis_title="Days from OP",
@@ -836,6 +988,89 @@ def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str
     )
 
 
+def _exception_signal_figure(
+    state: SimulationState,
+    theme: str,
+    colors: dict[str, str],
+) -> go.Figure:
+    rows = _items_frame(state.items)
+    if rows.empty:
+        rows = pd.DataFrame(columns=["idx", "pna", "cp", "surplus_line", "on_hand"])
+    item_numbers = (rows["idx"] + 1).tolist() if "idx" in rows else []
+    hover = "Item %{x}<br>%{y:.1f} units<extra>%{fullData.name}</extra>"
+    fig = go.Figure(
+        data=[
+            _empty_marker_trace(
+                name="PNA",
+                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["signal"]),
+                hovertemplate=hover,
+            ),
+            _empty_marker_trace(
+                name="Critical Point",
+                marker=_plot_marker(
+                    colors["zero"],
+                    _PLOT_MARKER_SIZE_REM["signal_zero"],
+                    symbol="diamond-open",
+                    line=_plot_marker_outline(colors["zero"]),
+                ),
+                hovertemplate=hover,
+            ),
+            _empty_marker_trace(
+                name="Surplus Threshold",
+                marker=_plot_marker(
+                    colors["proposed"],
+                    _PLOT_MARKER_SIZE_REM["signal_proposed"],
+                    symbol="circle-open",
+                    line=_plot_marker_outline(colors["proposed"]),
+                ),
+                hovertemplate=hover,
+            ),
+            _empty_marker_trace(
+                name="On Hand",
+                marker=_plot_marker(
+                    colors["ats"],
+                    _PLOT_MARKER_SIZE_REM["signal_ats"],
+                    symbol="x",
+                ),
+                hovertemplate=hover,
+            ),
+        ]
+    )
+    fig.update_layout(
+        **_plot_base_layout(
+            None,
+            colors,
+            include_margin=not rows.empty,
+            height=inventory_graph_height(state),
+        ),
+        xaxis_title="Item",
+        yaxis_title="Units",
+        hovermode="closest",
+        uirevision=f"exception-map:{theme}",
+        meta=_figure_meta(
+            "exception-map",
+            theme,
+            layout_signature=_exception_map_layout_signature(rows),
+        ),
+    )
+    fig.update_traces(x=item_numbers, selector={"name": "PNA"})
+    fig.update_traces(y=rows["pna"].tolist(), selector={"name": "PNA"})
+    fig.update_traces(x=item_numbers, selector={"name": "Critical Point"})
+    fig.update_traces(y=rows["cp"].tolist(), selector={"name": "Critical Point"})
+    fig.update_traces(x=item_numbers, selector={"name": "Surplus Threshold"})
+    fig.update_traces(y=rows["surplus_line"].tolist(), selector={"name": "Surplus Threshold"})
+    fig.update_traces(x=item_numbers, selector={"name": "On Hand"})
+    fig.update_traces(y=rows["on_hand"].tolist(), selector={"name": "On Hand"})
+    _apply_single_guide(fig, colors, y=0, label="Zero")
+    return _finalize_axes(
+        fig,
+        colors,
+        x_linear=True,
+        x_range=[0.5, max(1, len(rows)) + 0.5],
+        y_tozero=True,
+    )
+
+
 def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.Figure:
     colors = _figure_theme(theme)
     level = active_level(state)
@@ -845,6 +1080,8 @@ def build_inventory_figure(state: SimulationState, theme: str = "light") -> go.F
         return _lesson_two_figure(state, theme, colors)
     if level is not None and level.index == 3:
         return _fill_rate_figure(state, theme, colors)
+    if level is not None and level.index == 17:
+        return _exception_signal_figure(state, theme, colors)
     return _signal_map_figure(state, theme, colors)
 
 
@@ -1022,12 +1259,15 @@ def service_card_children(state: SimulationState) -> list:
             _lesson_position_snapshot_block(state),
         ]
         return [
-            html.Div(
-                [
-                    html.Div(top_blocks, className="lesson-snapshot-grid"),
-                    _lesson_item_snapshot_block(level.index, state.items),
-                ],
-                className="lesson-snapshot-stack",
+            _lesson_snapshot_disclosure(
+                html.Div(
+                    [
+                        html.Div(top_blocks, className="lesson-snapshot-grid"),
+                        _lesson_item_snapshot_block(level.index, state.items),
+                    ],
+                    className="lesson-snapshot-stack",
+                ),
+                hint="Service, position, and item status",
             )
         ]
 
@@ -1286,7 +1526,10 @@ def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag
                     "step": 1,
                     "showStepperButtons": True,
                 },
-                "headerTooltip": "Current SOQ; adjust before placing the custom order.",
+                "headerTooltip": (
+                    "Current suggested order quantity (SOQ); adjust before placing "
+                    "the custom order."
+                ),
             },
         ],
         defaultColDef={"sortable": True, "filter": True, "resizable": True},
@@ -1317,7 +1560,7 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
         "standard_pack": ("standard_pack", "Pack"),
         "safety_allowance": ("safety_allowance", "Safety %"),
         "cp": ("cp", "CP"),
-        "surplus_line": ("surplus_line", "Surplus"),
+        "surplus_line": ("surplus_line", "Surplus threshold"),
         "days_to_op": ("days_to_op", "Days to OP"),
         "daily_usage": ("daily_usage", "Daily Usage"),
     }
@@ -1352,10 +1595,11 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             "No items loaded yet. Add an item or import a sample workbook.", color="secondary"
         )
     selected_columns = visible_columns(state) or tuple(column_config.keys())
-    compact_lesson_items = level is not None and level.layout_variant in {
-        "intro_pna",
-        "workspace_basic",
-    }
+    compact_lesson_items = (
+        level is not None
+        and level.layout_variant in {"intro_pna", "workspace_basic"}
+        and level.index not in {11}
+    )
     compact_lesson_widths = {
         "item": {"maxWidth": 76},
         "on_hand": {"minWidth": 120},
@@ -1374,6 +1618,8 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
     for key in selected_columns:
         field, header = column_config[key]
         column_def: dict[str, object] = {"field": field, "headerName": header}
+        if key == "soq":
+            column_def["headerTooltip"] = "Suggested order quantity."
         if key == "item":
             column_def["pinned"] = "left"
             column_def["maxWidth"] = 90
@@ -1437,6 +1683,77 @@ def build_exception_center(state: SimulationState):
     return html.Div(cards, className="exception-stack")
 
 
+def _reference_definition_block(term: str, definition: str) -> html.Div:
+    return html.Div(
+        [
+            html.Div(term, className="lesson-snapshot-label"),
+            html.Div(definition, className="helper-copy mb-0"),
+        ],
+        className="reference-entry",
+    )
+
+
+def reference_modal_children() -> list:
+    glossary = html.Div(
+        [
+            html.Div("Glossary", className="panel-label"),
+            html.H3("Simulator terms", className="panel-title-small"),
+            html.Div(
+                [
+                    _reference_definition_block(term, definition)
+                    for term, definition in _GLOSSARY_ENTRIES
+                ],
+                className="reference-entry-list",
+            ),
+        ],
+        className="reference-panel",
+    )
+    csd_mapping = html.Div(
+        [
+            html.Div("CSD mapping", className="panel-label"),
+            html.H3("General context", className="panel-title-small"),
+            html.Div(
+                (
+                    "IMSim is an independent inventory management training project. It is "
+                    "not a CSD screen, an Infor tool, or official ERP training."
+                ),
+                className="helper-copy mb-3",
+            ),
+            html.Ul(
+                [
+                    html.Li(
+                        "CSD users may recognize concepts from Product Warehouse Product "
+                        "Setup ordering controls, Demand Center/RRAR workflows, Product "
+                        "Inquiry - Replenishment, and surplus reporting."
+                    ),
+                    html.Li(
+                        "Exact behavior depends on company setup, product line setup, "
+                        "order method, warehouse and product controls, security, and "
+                        "customizations."
+                    ),
+                    html.Li(
+                        "The simulator keeps its SOQ and exception logic intentionally "
+                        "simple so the lessons stay teachable and comparable."
+                    ),
+                ],
+                className="lesson-copy-list",
+            ),
+        ],
+        className="reference-panel",
+    )
+    return [
+        dbc.Tabs(
+            [
+                dbc.Tab(glossary, label="Glossary", tab_id="glossary"),
+                dbc.Tab(csd_mapping, label="CSD Mapping", tab_id="csd-mapping"),
+            ],
+            id="reference-tabs",
+            active_tab="glossary",
+            class_name="reference-tabs",
+        )
+    ]
+
+
 def github_footer_card(github_url: str) -> html.Div:
     return html.Div(
         dbc.Card(
@@ -1453,6 +1770,14 @@ def github_footer_card(github_url: str) -> html.Div:
                                 rel="noopener noreferrer",
                             ),
                         ]
+                    ),
+                    html.Small(
+                        "Independent open-source inventory management training project.",
+                        className="d-block mt-2",
+                    ),
+                    html.Small(
+                        ("Not affiliated with, endorsed by, sponsored by, or supported by Infor."),
+                        className="d-block",
                     ),
                     " ",
                     html.Button(
@@ -1528,6 +1853,8 @@ def lesson_tutorial_children(state: SimulationState) -> list:
     if level is None:
         return [dbc.Alert("Select a lesson from the academy menu.", color="secondary")]
     framing = []
+    day_basis_helper = [_lesson_day_basis_helper(state)] if _lesson_uses_day_basis(level) else []
+    secondary_notes = _lesson_secondary_notes(level)
     if level.teaching_goal:
         framing.append(html.Div(level.teaching_goal, className="helper-copy mb-2"))
     if level.concept_tags:
@@ -1565,11 +1892,14 @@ def lesson_tutorial_children(state: SimulationState) -> list:
                 className="lesson-formula-chip",
             ),
             html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
+            *secondary_notes,
         ]
     return [
         *framing,
         html.Div(level.formula, className="lesson-formula-chip"),
+        *day_basis_helper,
         html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
+        *secondary_notes,
     ]
 
 
@@ -1578,8 +1908,6 @@ def lesson_objective_children(state: SimulationState) -> list:
     if level is None:
         return [dbc.Alert("No active lesson.", color="secondary")]
     evaluation = evaluate_active_lesson(state)
-    after_overhead = after_overhead_pct(state)
-    after_value = "n/a" if after_overhead is None else f"{after_overhead * 100:.1f}%"
     headline = f"{lesson_days_remaining(state)} day(s) remaining"
     if evaluation is not None and evaluation.completed:
         headline = "Lesson window closed"
@@ -1588,8 +1916,6 @@ def lesson_objective_children(state: SimulationState) -> list:
         fill = fill_rate(state)
         fill_value = "n/a" if fill is None else f"{fill * 100:.1f}%"
         rows.insert(0, f"Current fill rate: {fill_value}")
-    if after_overhead is not None and "after_overhead_min" in level.win_conditions:
-        rows.append(f"Current after-overhead GM: {after_value}")
     children: list = []
     if state.training.lesson_status in {"passed", "failed"} and (
         state.training.last_result_title or state.training.last_result_message
@@ -1637,7 +1963,7 @@ def lesson_compact_summary_children(state: SimulationState) -> list:
     )
     objective_rows = [
         _compact_lesson_pill_text(row)
-        for row in list(evaluation.metric_rows if evaluation is not None else ())[:2]
+        for row in list(evaluation.metric_rows if evaluation is not None else ())
     ]
     return [
         html.Div(level.formula, className="lesson-compact-chip"),

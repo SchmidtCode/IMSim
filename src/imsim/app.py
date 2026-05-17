@@ -10,7 +10,7 @@ from flask import Flask, abort, jsonify, request
 
 from .callbacks import register_callbacks
 from .config import IMSimConfig
-from .repository import SessionConflictError, create_session_repository
+from .repository import InvalidSessionIdError, SessionConflictError, create_session_repository
 from .services.simulation import MaintenanceController
 from .ui.layout import build_layout
 
@@ -18,6 +18,8 @@ from .ui.layout import build_layout
 def create_app(config: IMSimConfig | None = None) -> dash.Dash:
     config = config or IMSimConfig.from_env()
     server = Flask(__name__)
+    server.config["MAX_CONTENT_LENGTH"] = max(config.max_upload_bytes * 2, 1024 * 1024)
+    server.config["IMSIM_MAX_UPLOAD_BYTES"] = config.max_upload_bytes
     repository = create_session_repository(config)
     maintenance = MaintenanceController(repository, config.allow_dev_shutdown)
     maintenance.start_watchdog_once()
@@ -26,6 +28,12 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
         __name__,
         server=server,
         external_stylesheets=[dbc.themes.BOOTSTRAP],
+        meta_tags=[
+            {
+                "name": "viewport",
+                "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+            }
+        ],
         assets_folder=str(config.assets_dir),
         suppress_callback_exceptions=False,
     )
@@ -35,6 +43,21 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
     server.extensions["imsim_config"] = config
     server.extensions["imsim_repository"] = repository
     server.extensions["imsim_maintenance"] = maintenance
+
+    @server.after_request
+    def apply_security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault(
+            "Permissions-Policy",
+            "camera=(), geolocation=(), microphone=()",
+        )
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "base-uri 'self'; frame-ancestors 'none'; object-src 'none'; form-action 'self'",
+        )
+        return response
 
     def _authorized(req) -> bool:
         if config.admin_token:
@@ -64,9 +87,11 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
 
     @server.get("/api/admin/shutdown_status")
     def api_shutdown_status():
+        if not _authorized(request):
+            return abort(401 if config.admin_token else 403)
         state = maintenance.snapshot()
         remaining = max(0.0, state.at - time.time()) if state.active else None
-        return jsonify(
+        response = jsonify(
             {
                 "active": state.active,
                 "message": state.message,
@@ -74,6 +99,8 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
                 "closing": state.closing,
             }
         )
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @server.post("/api/session/pause")
     def api_pause_session():
@@ -83,7 +110,10 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
             return jsonify({"ok": False, "reason": "missing_session"}), 400
 
         for _ in range(3):
-            state = repository.get_or_create(session_id)
+            try:
+                state = repository.get_or_create(session_id)
+            except InvalidSessionIdError:
+                return jsonify({"ok": False, "reason": "invalid_session"}), 400
             if not state.is_initialized:
                 response = jsonify({"ok": True, "paused": False})
                 response.headers["Cache-Control"] = "no-store"
@@ -91,7 +121,7 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
             state.is_initialized = False
             try:
                 repository.save(session_id, state)
-            except SessionConflictError:
+            except InvalidSessionIdError, SessionConflictError:
                 continue
             response = jsonify({"ok": True, "paused": True})
             response.headers["Cache-Control"] = "no-store"

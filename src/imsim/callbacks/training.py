@@ -128,6 +128,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         [
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
+            Output("view-scroll-store", "data", allow_duplicate=True),
         ],
         [
             *level_button_inputs,
@@ -193,7 +194,77 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             raise PreventUpdate
         ctx.carry_revision(next_state, state)
         ctx.persist_state(session_id, next_state)
-        return ctx.next_session_revision(session_revision), html.Div()
+        next_revision = ctx.next_session_revision(session_revision)
+        scroll_payload = {
+            "view": next_state.training.current_view,
+            "level_id": next_state.training.active_level_id,
+            "revision": next_revision,
+        }
+        return next_revision, html.Div(), scroll_payload
+
+    app.clientside_callback(
+        """
+        function(scrollTrigger) {
+          if (!scrollTrigger) {
+            return window.dash_clientside.no_update;
+          }
+          window.requestAnimationFrame(function () {
+            window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+          });
+          return window.dash_clientside.no_update;
+        }
+        """,
+        Output("view-scroll-sink", "data"),
+        Input("view-scroll-store", "data"),
+        prevent_initial_call=True,
+    )
+
+    app.clientside_callback(
+        """
+        function(dashboardClassName, dashboardStyle, lessonStyle, simulatorStyle) {
+          var lessonVisible = !lessonStyle || lessonStyle.display !== "none";
+          var simulatorVisible = !simulatorStyle || simulatorStyle.display !== "none";
+          var dashboardVisible = !dashboardStyle || dashboardStyle.display !== "none";
+          var activeClass = dashboardClassName || "";
+          var shouldReset =
+            dashboardVisible &&
+            (lessonVisible || simulatorVisible) &&
+            (activeClass.indexOf("lesson-dashboard") !== -1 ||
+              activeClass.indexOf("simulator-dashboard") !== -1);
+
+          if (!shouldReset) {
+            return window.dash_clientside.no_update;
+          }
+
+          function resetScroll() {
+            if (document.activeElement && typeof document.activeElement.blur === "function") {
+              document.activeElement.blur();
+            }
+            window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+            if (document.documentElement) {
+              document.documentElement.scrollTop = 0;
+            }
+            if (document.body) {
+              document.body.scrollTop = 0;
+            }
+          }
+
+          window.requestAnimationFrame(resetScroll);
+          window.setTimeout(resetScroll, 60);
+          window.setTimeout(resetScroll, 180);
+          window.setTimeout(resetScroll, 360);
+          window.setTimeout(resetScroll, 720);
+          window.setTimeout(resetScroll, 1200);
+          return window.dash_clientside.no_update;
+        }
+        """,
+        Output("view-scroll-sink", "clear_data"),
+        Input("dashboard-shell", "className"),
+        Input("dashboard-shell", "style"),
+        Input("lesson-shell", "style"),
+        Input("simulator-shell", "style"),
+        prevent_initial_call=True,
+    )
 
     @app.callback(
         [
@@ -339,7 +410,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         reset_label = "Reset Sandbox" if is_simulator else "Restart Lesson"
         lesson_terminal = ctx.lesson_terminal(state)
         po_label = (
-            "Place SOQ Order"
+            "Place Suggested Order"
             if (is_simulator or (level is not None and level.index >= 13))
             else "Place Guided Reorder"
         )
@@ -352,7 +423,11 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
                 else (
                     "Fill-rate service view"
                     if level is not None and level.index == 3
-                    else "Inventory signal map"
+                    else (
+                        "Critical-point and surplus map"
+                        if level is not None and level.index == 17
+                        else "Inventory signal map"
+                    )
                 )
             )
         )

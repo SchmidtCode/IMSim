@@ -16,14 +16,55 @@ def safe_div(numerator: float, denominator: float, default: float = 0.0) -> floa
         return default
 
 
-def calculate_op(usage_rate: float, lead_time_days: float, safety_allowance: float) -> float:
-    monthly_lt = lead_time_days / 30.0
-    safety_stock = usage_rate * monthly_lt * safety_allowance
-    return usage_rate * monthly_lt + safety_stock
+def _normalized_day_basis(day_basis: float | int | None) -> float:
+    return max(1.0, float(day_basis or 30.0))
+
+
+def daily_usage_from_monthly(usage_rate: float, day_basis: float | int) -> float:
+    return safe_div(usage_rate, _normalized_day_basis(day_basis), 0.0)
+
+
+def lead_time_demand(usage_rate: float, lead_time_days: float, day_basis: float | int) -> float:
+    return usage_rate * (lead_time_days / _normalized_day_basis(day_basis))
+
+
+def review_cycle_demand(
+    usage_rate: float,
+    review_cycle_days: float,
+    day_basis: float | int,
+) -> float:
+    return usage_rate * (review_cycle_days / _normalized_day_basis(day_basis))
+
+
+def safety_stock_qty(
+    usage_rate: float,
+    lead_time_days: float,
+    safety_allowance: float,
+    day_basis: float | int,
+) -> float:
+    return lead_time_demand(usage_rate, lead_time_days, day_basis) * safety_allowance
+
+
+def critical_point_qty(usage_rate: float, lead_time_days: float, day_basis: float | int) -> float:
+    return lead_time_demand(usage_rate, lead_time_days, day_basis)
+
+
+def calculate_op(
+    usage_rate: float,
+    lead_time_days: float,
+    safety_allowance: float,
+    day_basis: float | int = 30,
+) -> float:
+    return lead_time_demand(usage_rate, lead_time_days, day_basis) + safety_stock_qty(
+        usage_rate,
+        lead_time_days,
+        safety_allowance,
+        day_basis,
+    )
 
 
 def calculate_lp(usage_rate: float, global_settings: GlobalSettings, op: float) -> float:
-    return op + (usage_rate * (global_settings.r_cycle / 30.0))
+    return op + review_cycle_demand(usage_rate, global_settings.r_cycle, global_settings.day_basis)
 
 
 def calculate_eoq(usage_rate: float, item_cost: float, global_settings: GlobalSettings) -> float:
@@ -33,7 +74,11 @@ def calculate_eoq(usage_rate: float, item_cost: float, global_settings: GlobalSe
 
 
 def calculate_oq(eoq: float, usage_rate: float, global_settings: GlobalSettings) -> float:
-    review_cycle_qty = usage_rate * (global_settings.r_cycle / 30.0)
+    review_cycle_qty = review_cycle_demand(
+        usage_rate,
+        global_settings.r_cycle,
+        global_settings.day_basis,
+    )
     annual_cap = usage_rate * 12.0
     return max(review_cycle_qty, min(eoq, annual_cap))
 
@@ -61,12 +106,16 @@ def calculate_soq(item: InventoryItem) -> float:
     return round_up_to_pack(item.oq + max(0.0, item.op - item.pna), item.standard_pack)
 
 
-def calculate_surplus_line(lp: float, eoq: float) -> float:
-    return lp + eoq
+def calculate_surplus_line(lp: float, oq: float) -> float:
+    return lp + oq
 
 
-def calculate_critical_point(usage_rate: float, lead_time_days: float) -> float:
-    return usage_rate * (lead_time_days / 30.0)
+def calculate_critical_point(
+    usage_rate: float,
+    lead_time_days: float,
+    day_basis: float | int = 30,
+) -> float:
+    return critical_point_qty(usage_rate, lead_time_days, day_basis)
 
 
 def item_on_order(item: InventoryItem) -> float:
@@ -79,9 +128,9 @@ def compute_item_pna(item: InventoryItem) -> float:
 
 def update_planning_fields(item: InventoryItem, global_settings: GlobalSettings) -> InventoryItem:
     item.pna = compute_item_pna(item)
-    item.daily_ur = safe_div(item.usage_rate, 30.0, 0.0)
-    item.surplus_line = calculate_surplus_line(item.lp, item.eoq)
-    item.cp = calculate_critical_point(item.usage_rate, item.lead_time)
+    item.daily_ur = daily_usage_from_monthly(item.usage_rate, global_settings.day_basis)
+    item.surplus_line = calculate_surplus_line(item.lp, item.oq)
+    item.cp = critical_point_qty(item.usage_rate, item.lead_time, global_settings.day_basis)
     item.soq = calculate_soq(item)
     item.proposed_pna = item.pna + item.soq
     item.pna_days = safe_div(item.pna, item.daily_ur, 0.0)
@@ -99,7 +148,12 @@ def ensure_item_physical_defaults(
     if item.on_hand <= 0 and item.pna > 0:
         item.on_hand = round_to_pack(item.pna, item.standard_pack)
     if item.op <= 0:
-        item.op = calculate_op(item.usage_rate, item.lead_time, item.safety_allowance)
+        item.op = calculate_op(
+            item.usage_rate,
+            item.lead_time,
+            item.safety_allowance,
+            global_settings.day_basis,
+        )
     if item.lp <= 0:
         item.lp = calculate_lp(item.usage_rate, global_settings, item.op)
     if item.eoq <= 0:
@@ -130,8 +184,13 @@ def create_inventory_item(
         hits_per_month=max(0.01, float(hits_per_month)),
         on_hand=round_to_pack(max(0.0, float(pna)), max(1.0, float(standard_pack))),
     )
-    item.daily_ur = safe_div(item.usage_rate, 30.0, 0.0)
-    item.op = calculate_op(item.usage_rate, item.lead_time, item.safety_allowance)
+    item.daily_ur = daily_usage_from_monthly(item.usage_rate, global_settings.day_basis)
+    item.op = calculate_op(
+        item.usage_rate,
+        item.lead_time,
+        item.safety_allowance,
+        global_settings.day_basis,
+    )
     item.lp = calculate_lp(item.usage_rate, global_settings, item.op)
     item.eoq = calculate_eoq(item.usage_rate, item.item_cost, global_settings)
     item.oq = calculate_oq(item.eoq, item.usage_rate, global_settings)

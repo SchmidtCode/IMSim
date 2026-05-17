@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dash import Patch
+from dash import Patch, html
 from dash_ag_grid import AgGrid
 
 from imsim.models import Receipt, TrainingProfile
@@ -36,6 +36,10 @@ from imsim.ui.components import (
     build_inventory_table,
     build_po_overview_grid,
     custom_order_grid_options,
+    inventory_graph_style,
+    lesson_compact_summary_children,
+    lesson_objective_children,
+    lesson_tutorial_children,
     refresh_inventory_figure,
     service_card_children,
 )
@@ -72,17 +76,18 @@ def test_tick_state_uses_deterministic_training_demand():
     state = build_level_state("level-1")
     item = state.items[0]
     opening_on_hand = item.on_hand
+    daily_usage = item.usage_rate / state.global_settings.day_basis
     state.is_initialized = True
 
     summary = tick_state(state)
 
     assert summary["day"] == 2
     assert state.service_today.orders == 1
-    assert state.service_today.units_ordered == item.usage_rate / 30.0
-    assert state.items[0].on_hand == opening_on_hand - (item.usage_rate / 30.0)
+    assert state.service_today.units_ordered == daily_usage
+    assert state.items[0].on_hand == opening_on_hand - daily_usage
     assert [(point.day, point.total_on_hand, point.total_backorder) for point in state.history] == [
         (1, opening_on_hand, 0.0),
-        (2, opening_on_hand - (item.usage_rate / 30.0), 0.0),
+        (2, opening_on_hand - daily_usage, 0.0),
     ]
 
 
@@ -92,7 +97,8 @@ def test_level_one_uses_on_hand_lesson_graph():
     figure = build_inventory_figure(state)
 
     assert figure.layout.title.text is None
-    assert figure.layout.margin.to_plotly_json() == {"l": 24.0, "r": 24.0, "t": 19.2, "b": 24.0}
+    assert figure.layout.height == 340
+    assert figure.layout.margin.to_plotly_json() == {"l": 24.0, "r": 24.0, "t": 24.0, "b": 38.4}
     assert [trace.name for trace in figure.data] == ["On Hand", "Backorder"]
     assert figure.data[0].line.width == 3.0
     assert figure.data[0].marker.size == 8.0
@@ -105,6 +111,7 @@ def test_level_two_uses_simple_quantity_graph():
     figure = build_inventory_figure(state)
 
     assert figure.layout.title.text is None
+    assert figure.layout.height == 392
     assert [trace.name for trace in figure.data] == [
         "On Hand",
         "On Order",
@@ -126,6 +133,7 @@ def test_level_three_uses_fill_rate_visual():
 
     figure = build_inventory_figure(state)
 
+    assert figure.layout.height == 400
     assert figure.layout.meta["figure_kind"] == "lesson-3-fill-rate"
     assert [trace.type for trace in figure.data] == ["indicator", "bar"]
     assert "guided_po" in academy_level("level-3").allowed_actions
@@ -155,22 +163,95 @@ def test_signal_map_uses_stable_schema_and_uirevision():
 
 def test_workspace_variants_drive_figure_and_grid_sizes():
     basic_state = build_level_state("level-3")
+    intro_pna_state = build_level_state("level-6")
+    ranking_state = build_level_state("level-11")
+    review_cycle_state = build_level_state("level-12")
+    line_point_state = build_level_state("level-13")
     signal_state = build_level_state("level-10")
+    exception_state = build_level_state("level-17")
     certification_state = build_level_state("level-18")
+    simulator_state = build_simulator_state()
 
     basic_grid = build_inventory_table(basic_state)
+    intro_pna_grid = build_inventory_table(intro_pna_state)
+    intro_pna_figure = build_inventory_figure(intro_pna_state)
+    ranking_grid = build_inventory_table(ranking_state)
+    review_cycle_figure = build_inventory_figure(review_cycle_state)
+    line_point_figure = build_inventory_figure(line_point_state)
     signal_grid = build_inventory_table(signal_state)
+    signal_figure = build_inventory_figure(signal_state)
+    exception_figure = build_inventory_figure(exception_state)
     certification_figure = build_inventory_figure(certification_state)
+    simulator_figure = build_inventory_figure(simulator_state)
 
     assert isinstance(basic_grid, AgGrid)
     assert basic_grid.style["height"] == "auto"
     assert basic_grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert isinstance(intro_pna_grid, AgGrid)
+    assert intro_pna_grid.style["height"] == "auto"
+    assert intro_pna_grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert intro_pna_figure.layout.height == 340
+    assert isinstance(ranking_grid, AgGrid)
+    assert ranking_grid.style["height"] == "36rem"
+    assert review_cycle_figure.layout.height == 340
+    assert line_point_figure.layout.height == 340
     assert isinstance(signal_grid, AgGrid)
     assert signal_grid.style["height"] == "32rem"
-    assert certification_figure.layout.height == 380
+    assert signal_figure.layout.height == 300
+    assert exception_figure.layout.height == 360
+    assert certification_figure.layout.height == 360
+    assert simulator_figure.layout.height == 460
     assert certification_figure.layout.meta["layout_signature"].startswith(
         "workspace_certification:items:"
     )
+
+
+def test_level_seventeen_uses_exception_boundary_figure():
+    state = build_level_state("level-17")
+
+    figure = build_inventory_figure(state)
+
+    assert figure.layout.height == 360
+    assert figure.layout.yaxis.title.text == "Units"
+    assert figure.layout.uirevision == "exception-map:light"
+    assert figure.layout.meta["figure_kind"] == "exception-map"
+    assert [trace.name for trace in figure.data] == [
+        "PNA",
+        "Critical Point",
+        "Surplus Threshold",
+        "On Hand",
+    ]
+
+
+def test_inventory_graph_style_tracks_figure_height():
+    lesson_state = build_level_state("level-2")
+    simulator_state = build_simulator_state()
+
+    assert inventory_graph_style(lesson_state) == {
+        "height": "392px",
+        "minHeight": "392px",
+        "width": "100%",
+    }
+    assert inventory_graph_style(simulator_state) == {
+        "height": "460px",
+        "minHeight": "460px",
+        "width": "100%",
+    }
+
+
+def test_lesson_snapshot_is_collapsed_for_supporting_lessons():
+    level_two_children = service_card_children(build_level_state("level-2"))
+    level_three_children = service_card_children(build_level_state("level-3"))
+    level_six_children = service_card_children(build_level_state("level-6"))
+    level_one_children = service_card_children(build_level_state("level-1"))
+
+    assert isinstance(level_two_children[0], html.Details)
+    assert getattr(level_two_children[0], "open", None) is None
+    assert isinstance(level_three_children[0], html.Details)
+    assert getattr(level_three_children[0], "open", None) is None
+    assert isinstance(level_six_children[0], html.Details)
+    assert getattr(level_six_children[0], "open", None) is None
+    assert not isinstance(level_one_children[0], html.Details)
 
 
 def test_refresh_inventory_figure_returns_patch_when_schema_is_stable():
@@ -259,6 +340,129 @@ def test_early_ordering_snapshots_are_collapsed_by_default():
         assert snapshot_json["type"] == "Details"
         assert snapshot_json["props"]["className"] == "lesson-snapshot-disclosure"
         assert "open" not in snapshot_json["props"]
+
+
+def test_level_seven_uses_full_pna_formula_wording():
+    level = academy_level("level-7")
+
+    assert level is not None
+    assert (
+        level.formula == "PNA = On Hand - Reserved - Committed - Backordered + On Order + Received"
+    )
+
+
+def test_formula_fidelity_lessons_use_day_basis_and_updated_wording():
+    lesson_five = academy_level("level-5")
+    lesson_eight = academy_level("level-8")
+    lesson_nine = academy_level("level-9")
+    lesson_ten = academy_level("level-10")
+    lesson_sixteen = academy_level("level-16")
+    lesson_twelve = academy_level("level-12")
+    lesson_seventeen = academy_level("level-17")
+
+    assert lesson_five is not None
+    assert lesson_eight is not None
+    assert lesson_nine is not None
+    assert lesson_ten is not None
+    assert lesson_sixteen is not None
+    assert lesson_twelve is not None
+    assert lesson_seventeen is not None
+    assert lesson_five.formula == "Daily usage = monthly usage rate / day basis"
+    assert lesson_eight.formula == "OP = monthly usage x lead-time days / day basis"
+    assert (
+        lesson_nine.formula
+        == "Safety stock = monthly usage x lead-time days / day basis x safety allowance"
+    )
+    assert lesson_ten.formula == "OP = lead-time demand + safety stock"
+    assert lesson_sixteen.formula == "SOQ = OQ + shortage below OP, rounded to standard pack"
+    assert lesson_twelve.title == "Product Lines and Review Cycle"
+    assert lesson_seventeen.formula == (
+        "Critical point = monthly usage x lead-time days / day basis; surplus threshold = LP + OQ"
+    )
+
+
+def test_lesson_secondary_notes_render_as_collapsed_help():
+    level_sixteen_definition = academy_level("level-16")
+    level_eighteen_definition = academy_level("level-18")
+    level_sixteen = lesson_tutorial_children(build_level_state("level-16"))
+    level_seventeen = lesson_tutorial_children(build_level_state("level-17"))
+    level_eighteen = lesson_tutorial_children(build_level_state("level-18"))
+
+    assert level_sixteen_definition is not None
+    assert level_eighteen_definition is not None
+    assert "SOQ is simplified for training" in level_sixteen_definition.advanced_note
+    assert "training workspace" in level_eighteen_definition.csd_mapping_note
+    advanced_details = [child for child in level_sixteen if isinstance(child, html.Details)]
+    assert [detail.children[0].children[0].children for detail in advanced_details] == [
+        "Advanced note",
+        "CSD mapping",
+    ]
+    assert all(getattr(detail, "open", None) is None for detail in advanced_details)
+    assert any(
+        getattr(child, "children", None) == "Simulator simplified month: 30 days"
+        for child in level_seventeen
+    )
+    assert any(
+        isinstance(child, html.Details) and child.children[0].children[0].children == "CSD mapping"
+        for child in level_seventeen
+    )
+    assert any(
+        isinstance(child, html.Details) and child.children[0].children[0].children == "CSD mapping"
+        for child in level_eighteen
+    )
+
+
+def test_after_overhead_rows_use_level_target_without_duplicate_objective_copy():
+    state = build_level_state("level-14")
+    state.sales.revenue = 1000.0
+    state.sales.cogs = 600.0
+    state.costs.total = 100.0
+
+    evaluation = evaluate_active_lesson(state)
+    objective_children = lesson_objective_children(state)
+
+    assert evaluation is not None
+    assert "After-overhead GM: 30.0% / target -5.0%" in evaluation.metric_rows
+    objective_rows = [item.children for item in objective_children[-1].children]
+    assert objective_rows.count("After-overhead GM: 30.0% / target -5.0%") == 1
+    assert not any("Current after-overhead GM:" in row for row in objective_rows)
+
+
+def test_compact_summary_keeps_all_goal_rows_for_three_check_lessons():
+    state = build_level_state("level-18")
+
+    compact_children = lesson_compact_summary_children(state)
+    pill_text = [child.children for child in compact_children[1].children]
+
+    assert len(pill_text) == 4
+    assert "Fill rate: n/a / target 97.0%" in pill_text
+    assert "After-OH GM: n/a / target 0.0%" in pill_text
+    assert "Close backorder: 0" in pill_text
+
+
+def test_lesson_copy_avoids_official_infor_training_language():
+    banned_phrases = (
+        "csd-certified",
+        "infor-certified",
+        "official csd training",
+        "cloudsuite distribution course",
+        "infor simulator",
+    )
+
+    for level in academy_levels():
+        content = " ".join(
+            [
+                level.title,
+                level.summary,
+                level.formula,
+                *level.tutorial_steps,
+                *level.locked_features,
+                level.advanced_note,
+                level.csd_mapping_note,
+            ]
+        ).casefold()
+        for phrase in banned_phrases:
+            assert phrase not in content
 
 
 def test_custom_order_and_po_overview_use_ag_grid():
@@ -505,7 +709,7 @@ def test_line_point_and_exception_lessons_track_new_objectives():
     assert evaluation is not None
     assert evaluation.passed is True
     assert any("critical point" in row for row in evaluation.metric_rows)
-    assert any("surplus line" in row for row in evaluation.metric_rows)
+    assert any("surplus threshold" in row for row in evaluation.metric_rows)
 
 
 def test_final_lesson_pass_unlocks_simulator_reward():
@@ -581,5 +785,7 @@ def test_cheat_unlock_opens_all_levels_without_completing_lessons():
 def test_active_layout_variant_tracks_bridge_and_certification():
     assert active_layout_variant(build_level_state("level-3")) == "workspace_basic"
     assert active_layout_variant(build_level_state("level-10")) == "workspace_signal"
+    assert active_layout_variant(build_level_state("level-11")) == "workspace_basic"
+    assert active_layout_variant(build_level_state("level-17")) == "workspace_signal"
     assert active_layout_variant(build_level_state("level-15")) == "workspace_advanced"
     assert active_layout_variant(build_level_state("level-18")) == "workspace_certification"

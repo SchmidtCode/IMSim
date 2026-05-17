@@ -7,7 +7,12 @@ import pandas as pd
 import pytest
 from dash_ag_grid import AgGrid
 
-from imsim.services.uploads import coerce_uploaded, parse_contents, read_uploaded_table
+from imsim.services.uploads import (
+    DEFAULT_MAX_UPLOAD_BYTES,
+    coerce_uploaded,
+    parse_contents,
+    read_uploaded_table,
+)
 
 
 def _encode_bytes(payload: bytes, mime: str = "text/csv") -> str:
@@ -82,6 +87,13 @@ def test_read_uploaded_table_supports_csv_and_xlsx(tmp_path: Path):
 def test_read_uploaded_table_rejects_xls():
     with pytest.raises(ValueError, match="csv or .xlsx"):
         read_uploaded_table(_encode_bytes(b"bad"), "legacy.xls")
+
+
+def test_read_uploaded_table_rejects_oversized_payload():
+    payload = _encode_bytes(b"x" * (DEFAULT_MAX_UPLOAD_BYTES + 1))
+
+    with pytest.raises(ValueError, match="too large"):
+        read_uploaded_table(payload, "sample.csv")
 
 
 def test_parse_contents_returns_preview_card():

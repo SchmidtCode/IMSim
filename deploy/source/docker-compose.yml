@@ -17,6 +17,7 @@ services:
   app:
     image: ${IMSIM_IMAGE:-ghcr.io/schmidtcode/imsim:latest}
     restart: unless-stopped
+    init: true
     env_file:
       - .env
     depends_on:
@@ -28,6 +29,13 @@ services:
       IMSIM_DATABASE_URL: postgresql+psycopg://${IMSIM_POSTGRES_USER:-imsim}:${IMSIM_POSTGRES_PASSWORD:-imsim}@db:5432/${IMSIM_POSTGRES_DB:-imsim}
       IMSIM_GUNICORN_WORKERS: 4
       IMSIM_GUNICORN_THREADS: 2
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8050/health', timeout=3)\""]
       interval: 30s
@@ -35,7 +43,7 @@ services:
       retries: 3
       start_period: 20s
     ports:
-      - "8050:8050"
+      - "127.0.0.1:8050:8050"
 
 volumes:
   postgres_data:

@@ -28,6 +28,7 @@ def test_dashboard_render_listens_to_session_revision_and_theme(dash_app):
         dash_app,
         [
             ("inventory-graph", "figure"),
+            ("inventory-graph", "style"),
             ("kpi-strip", "children"),
             ("inventory-table-shell", "children"),
             ("exception-center-shell", "children"),
@@ -72,6 +73,34 @@ def test_academy_navigation_wires_final_lesson_button(dash_app):
     )
 
 
+def test_academy_navigation_emits_scroll_reset_trigger(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("session-revision", "data"),
+            ("asq-apply-feedback", "children"),
+            ("view-scroll-store", "data"),
+        ],
+    )
+    assert ("academy-simulator-button", "n_clicks") in _input_pairs(spec)
+    assert ("return-to-menu-button", "n_clicks") in _input_pairs(spec)
+
+
+def test_rendered_lesson_view_emits_scroll_reset(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("view-scroll-sink", "clear_data"),
+        ],
+    )
+    assert _input_pairs(spec) == {
+        ("dashboard-shell", "className"),
+        ("dashboard-shell", "style"),
+        ("lesson-shell", "style"),
+        ("simulator-shell", "style"),
+    }
+
+
 def test_dashboard_shell_class_names_follow_lesson_variants():
     assert "lesson-layout-workspace-basic" in dashboard_shell_class_name(
         build_level_state("level-3")
@@ -93,12 +122,28 @@ def test_theme_callback_updates_control_modal_content_classes(dash_app):
         [
             ("lesson-intro-modal", "content_class_name"),
             ("academy-cheat-code-modal", "content_class_name"),
+            ("reference-modal", "content_class_name"),
             ("add-item-modal", "content_class_name"),
             ("place-custom-order-modal", "content_class_name"),
             ("po-overview-modal", "content_class_name"),
         ],
     )
     assert _input_pairs(spec) == {("theme-store", "data")}
+
+
+def test_reference_modal_toggle_is_wired(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("reference-modal", "is_open"),
+        ],
+    )
+    assert _input_pairs(spec) == {
+        ("academy-reference-button", "n_clicks"),
+        ("experience-reference-button", "n_clicks"),
+        ("simulator-reference-button", "n_clicks"),
+        ("reference-modal-close", "n_clicks"),
+    }
 
 
 def test_academy_cheat_code_modal_updates_progress(dash_app):

@@ -13,6 +13,7 @@ from ..ui.components import (
     build_inventory_table,
     build_kpi_strip,
     costs_card_children,
+    inventory_graph_style,
     refresh_inventory_figure,
     sales_card_children,
     service_card_children,
@@ -27,6 +28,7 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         [
             Output("day-display", "children"),
             Output("inventory-graph", "figure"),
+            Output("inventory-graph", "style"),
             Output("service-card", "children"),
             Output("costs-card", "children"),
             Output("sales-card", "children"),
@@ -48,6 +50,7 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         return (
             f"Day: {state.day}",
             refresh_inventory_figure(state, theme_name, current_figure),
+            inventory_graph_style(state),
             service_card_children(state),
             costs_card_children(state),
             sales_card_children(state),

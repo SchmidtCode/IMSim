@@ -7,9 +7,12 @@ from dash import Input, Output, State, set_props
 from dash import ctx as dash_ctx
 from dash.exceptions import PreventUpdate
 
+from ..models import GlobalSettings
 from ..services.asq import apply_asq_month_end
 from ..services.planning import (
     create_inventory_item,
+    lead_time_demand,
+    safety_stock_qty,
     update_global_settings,
     update_gs_related_values,
 )
@@ -34,6 +37,7 @@ from .common import CallbackRegistrarContext
 
 def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
     app = ctx.app
+    max_upload_bytes = int(app.server.config.get("IMSIM_MAX_UPLOAD_BYTES", 5 * 1024 * 1024))
 
     @app.callback(
         [
@@ -67,8 +71,13 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
                 p=[0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1],
             )
         )
+        day_basis = GlobalSettings().day_basis
         pna = int(
-            round(usage * (lead / 30.0) + ((usage * (lead / 30.0)) * (safety_pct / 100.0)) + pack)
+            round(
+                lead_time_demand(usage, lead, day_basis)
+                + safety_stock_qty(usage, lead, safety_pct / 100.0, day_basis)
+                + pack
+            )
         )
         hits = max(1, int(rng.poisson(5)))
         return usage, lead, cost, pna, safety_pct, pack, hits
@@ -418,13 +427,21 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             list_of_dates or [],
             strict=False,
         ):
-            card = parse_contents(contents, name, modified, ctx.theme_name(theme))
+            card = parse_contents(
+                contents,
+                name,
+                modified,
+                ctx.theme_name(theme),
+                max_bytes=max_upload_bytes,
+            )
             cards.append(card)
             if isinstance(card, dbc.Alert):
                 errors.append(f"{name}: {card.children}")
                 continue
             try:
-                frames.append(coerce_uploaded(read_uploaded_table(contents, name)))
+                frames.append(
+                    coerce_uploaded(read_uploaded_table(contents, name, max_bytes=max_upload_bytes))
+                )
             except Exception as exc:  # pragma: no cover - defensive UI guard
                 errors.append(f"{name}: {exc}")
         if errors and not frames:

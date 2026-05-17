@@ -38,6 +38,8 @@ class LevelDefinition:
     layout_variant: str
     teaching_goal: str = ""
     concept_tags: tuple[str, ...] = ()
+    advanced_note: str = ""
+    csd_mapping_note: str = ""
     success_hint: str = ""
 
 
@@ -85,6 +87,7 @@ FULL_SIMULATOR_COLUMNS = (
 def _settings(
     *,
     r_cycle: int = 14,
+    day_basis: int = 30,
     r_cost: float = 8.0,
     k_cost: float = 0.18,
     stockout_penalty: float = 5.0,
@@ -95,6 +98,7 @@ def _settings(
 ) -> GlobalSettings:
     settings = GlobalSettings(
         r_cycle=r_cycle,
+        day_basis=day_basis,
         r_cost=r_cost,
         k_cost=k_cost,
         stockout_penalty=stockout_penalty,
@@ -266,11 +270,11 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         level_id="level-5",
         title="Usage Rate",
         summary="Turn monthly usage into a daily planning pace.",
-        formula="Daily usage = monthly usage rate / 30",
+        formula="Daily usage = monthly usage rate / day basis",
         tutorial_steps=(
-            "Usage rate is the best near-term demand estimate available in the lesson.",
-            "The simulator converts monthly usage into a daily drain.",
-            "Planning later lessons will multiply usage rate by time windows.",
+            "Usage rate is the monthly demand pace used in the simulator.",
+            "The simulator converts monthly usage into a daily drain using the current day basis.",
+            "Later lessons multiply usage by lead-time and review-cycle windows.",
         ),
         locked_features=(
             "Lead time and replenishment triggers remain hidden.",
@@ -327,7 +331,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         level_id="level-7",
         title="PNA as the Replenishment Signal",
         summary="Use PNA, not only on hand, to decide whether an item is still protected.",
-        formula="PNA = on hand + on order - backorder",
+        formula="PNA = On Hand - Reserved - Committed - Backordered + On Order + Received",
         tutorial_steps=(
             "PNA combines current stock, inbound supply, and unresolved demand.",
             "An item can look low on the shelf but still be covered by an inbound PO.",
@@ -351,16 +355,21 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         layout_variant="intro_pna",
         teaching_goal="Make PNA the learner's default replenishment signal.",
         concept_tags=("PNA", "replenishment"),
+        csd_mapping_note=(
+            "CSD mapping: PNA is the replenishment signal buyers use because it includes "
+            "more than shelf stock. This simulator shows the full business formula, while "
+            "the app math simplifies Reserved, Committed, and Received to zero."
+        ),
     ),
     LevelDefinition(
         index=8,
         level_id="level-8",
         title="Order Point in a Perfect World",
         summary="Manage a small group of items with deterministic demand and no safety stock.",
-        formula="OP = usage rate x lead time",
+        formula="OP = monthly usage x lead-time days / day basis",
         tutorial_steps=(
             "Usage rate and lead time combine into a reorder point for each item.",
-            "In this perfect-world lesson, ordering early enough is usually enough.",
+            "In this simplified lesson, demand is smooth and there is no safety stock.",
             "Use guided reorders before PNA falls too far below OP.",
         ),
         locked_features=(
@@ -388,10 +397,10 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         level_id="level-9",
         title="Safety Stock",
         summary="Compare items with different safety allowances and see how the OP rises.",
-        formula="Safety stock = usage rate x lead time x safety allowance",
+        formula="Safety stock = monthly usage x lead-time days / day basis x safety allowance",
         tutorial_steps=(
             "Safety stock is a buffer for normal variation in usage or lead time.",
-            "A higher safety allowance raises the OP, which triggers earlier buying.",
+            "A higher safety allowance raises OP, which triggers earlier buying.",
             "The buffer protects service, but it also increases inventory investment.",
         ),
         locked_features=(
@@ -418,10 +427,10 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         level_id="level-10",
         title="Real-World Order Point",
         summary="Bring in variability, safety stock, and PNA so simple OP gets more realistic.",
-        formula="OP = usage rate x lead time + safety stock",
+        formula="OP = lead-time demand + safety stock",
         tutorial_steps=(
             "Demand is no longer perfectly smooth.",
-            "Projected net available combines shelf stock, inbound supply, and backorders.",
+            "PNA combines shelf stock, inbound supply, and unresolved demand.",
             "Order before PNA falls through the real-world OP.",
         ),
         locked_features=(
@@ -483,20 +492,23 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         allowed_actions=frozenset(),
         win_conditions={"no_final_stockout": True},
         global_settings=_settings(),
-        layout_variant="workspace_signal",
+        layout_variant="workspace_basic",
         teaching_goal="Connect customer popularity to management-by-exception thinking.",
         concept_tags=("hits", "long tail"),
     ),
     LevelDefinition(
         index=12,
         level_id="level-12",
-        title="P-Lines and Review Cycle",
-        summary="Learn why a supplier line is reviewed as a group once one item triggers action.",
+        title="Product Lines and Review Cycle",
+        summary=(
+            "Learn why a supplier/product line is reviewed as a group once one item "
+            "triggers action."
+        ),
         formula="Review cycle = planned days between P-line purchases",
         tutorial_steps=(
-            "A P-line is the group of items that can ride the same supplier PO.",
+            "A product line is a group of items that can ride the same supplier PO.",
             "The review cycle describes how long we intend to wait before buying again.",
-            "A buyer uses the P-line view to decide what else should go on today's PO.",
+            "A buyer uses the line view to decide what else should go on today's PO.",
         ),
         locked_features=(
             "Line point math unlocks next.",
@@ -518,6 +530,11 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         layout_variant="workspace_signal",
         teaching_goal="Shift from isolated-item thinking to line-level replenishment.",
         concept_tags=("P-line", "review cycle"),
+        csd_mapping_note=(
+            "CSD mapping: Product lines group items that may be reviewed together for a "
+            "supplier buy. Review cycle represents how often the line is expected to be "
+            "reviewed or purchased."
+        ),
     ),
     LevelDefinition(
         index=13,
@@ -526,8 +543,8 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         summary="Use LP to decide which near-trigger items should ride along on today's PO.",
         formula="LP = OP + review-cycle demand",
         tutorial_steps=(
-            "LP is an early warning above OP.",
-            "If PNA is below LP during a P-line buy, the item should usually be included.",
+            "LP is an early warning level above OP.",
+            "If PNA is at or below LP during a product-line buy, the item may need to be included.",
             "The guided order now follows SOQ recommendations across the line.",
         ),
         locked_features=(
@@ -549,6 +566,11 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         layout_variant="workspace_signal",
         teaching_goal="Show that the trigger item is not the only item to buy.",
         concept_tags=("LP", "SOQ"),
+        csd_mapping_note=(
+            "CSD mapping: LP is the level where near-trigger items may be included during a "
+            "product-line review. Some setups order when PNA is less than or equal to LP; "
+            "others wait until PNA falls below LP."
+        ),
     ),
     LevelDefinition(
         index=14,
@@ -620,9 +642,9 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         level_id="level-16",
         title="Suggested Order Quantity and Standard Pack",
         summary="See how SOQ recovers below OP, adds OQ, and rounds to supplier packs.",
-        formula="SOQ = OQ + max(0, OP - PNA), rounded to pack",
+        formula="SOQ = OQ + shortage below OP, rounded to standard pack",
         tutorial_steps=(
-            "If PNA is below OP, SOQ first recovers the shortfall.",
+            "If PNA is below OP, suggested order quantity (SOQ) first recovers the shortfall.",
             "Then it adds the order quantity needed for the next cycle.",
             "The final recommendation is rounded to the supplier standard pack.",
         ),
@@ -651,17 +673,32 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         layout_variant="workspace_advanced",
         teaching_goal="Turn the model's buy/no-buy signal into a practical PO quantity.",
         concept_tags=("SOQ", "standard pack"),
+        advanced_note=(
+            "Simulator note: SOQ is simplified for training. In a real ERP environment, "
+            "recommended order quantity can also depend on order method, product-line "
+            "settings, standard pack or buying unit rounding, min/max logic, "
+            "ROQ/use-order-quantity settings, and buyer overrides."
+        ),
+        csd_mapping_note=(
+            "CSD mapping: PO RRAR quantity recommendations may vary by order method, "
+            "Use ROQ/order quantity behavior, standard pack or buying unit rounding, "
+            "and buyer changes."
+        ),
     ),
     LevelDefinition(
         index=17,
         level_id="level-17",
         title="Exceptions: Critical Point and Surplus",
         summary="Identify urgent stockout risk and overstock before entering certification.",
-        formula="Critical point = usage rate x lead time; surplus line = LP + OQ",
+        formula=(
+            "Critical point = monthly usage x lead-time days / day basis; surplus "
+            "threshold = LP + OQ"
+        ),
         tutorial_steps=(
-            "Critical point means safety stock has already been consumed.",
-            "Surplus means available inventory is above the model's recommended high-water mark.",
-            "Good inventory work is managing the exceptions without losing the whole system view.",
+            "Critical point means the item is in urgent replenishment territory.",
+            "Surplus threshold marks the model's high-water point.",
+            "Good inventory work means managing shortages and overstock without losing "
+            "the whole system view.",
         ),
         locked_features=(
             "Certification opens ASQ and the exception center.",
@@ -679,9 +716,14 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         allowed_actions=frozenset(),
         win_conditions={"critical_item_min": 1, "surplus_item_min": 1},
         global_settings=_settings(r_cycle=14),
-        layout_variant="workspace_advanced",
+        layout_variant="workspace_signal",
         teaching_goal="Teach the two exception boundaries that frame urgent action and overbuying.",
         concept_tags=("critical point", "surplus"),
+        csd_mapping_note=(
+            "CSD mapping: Critical point is a priority/exception signal. Short-term surplus "
+            "is generally inventory available above line point plus order quantity, with "
+            "additional details depending on order method and report logic."
+        ),
     ),
     LevelDefinition(
         index=18,
@@ -731,6 +773,11 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         layout_variant="workspace_certification",
         teaching_goal="Prove the learner can balance customer experience with profitability.",
         concept_tags=("certification", "balanced objectives"),
+        csd_mapping_note=(
+            "CSD mapping: This dashboard is a training workspace. It combines "
+            "replenishment, service, cost, exception, and ordering signals into one "
+            "exercise rather than copying any ERP screen."
+        ),
     ),
 )
 
@@ -933,8 +980,9 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
         )
     if "after_overhead_min" in level.win_conditions:
         current_after = after_overhead_pct(state)
+        target = float(level.win_conditions["after_overhead_min"])
         current = "n/a" if current_after is None else f"{current_after * 100:.1f}%"
-        rows.append(f"After-overhead GM: {current} / target 0.0%")
+        rows.append(f"After-overhead GM: {current} / target {target * 100:.1f}%")
     if "below_lp_min" in level.win_conditions:
         needed = int(level.win_conditions["below_lp_min"])
         current = sum(1 for item in state.items if item.pna <= item.lp)
@@ -946,7 +994,7 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
     if "surplus_item_min" in level.win_conditions:
         needed = int(level.win_conditions["surplus_item_min"])
         current = sum(1 for item in state.items if item.on_hand >= item.surplus_line)
-        rows.append(f"Items above surplus line: {current}/{needed}")
+        rows.append(f"Items above surplus threshold: {current}/{needed}")
     return tuple(rows)
 
 
