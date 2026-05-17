@@ -128,6 +128,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         [
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
+            Output("view-scroll-store", "data", allow_duplicate=True),
         ],
         [
             *level_button_inputs,
@@ -193,7 +194,71 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             raise PreventUpdate
         ctx.carry_revision(next_state, state)
         ctx.persist_state(session_id, next_state)
-        return ctx.next_session_revision(session_revision), html.Div()
+        next_revision = ctx.next_session_revision(session_revision)
+        scroll_payload = {
+            "view": next_state.training.current_view,
+            "level_id": next_state.training.active_level_id,
+            "revision": next_revision,
+        }
+        return next_revision, html.Div(), scroll_payload
+
+    app.clientside_callback(
+        """
+        function(scrollTrigger) {
+          if (!scrollTrigger) {
+            return window.dash_clientside.no_update;
+          }
+          window.requestAnimationFrame(function () {
+            window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+          });
+          return window.dash_clientside.no_update;
+        }
+        """,
+        Output("view-scroll-sink", "data"),
+        Input("view-scroll-store", "data"),
+        prevent_initial_call=True,
+    )
+
+    app.clientside_callback(
+        """
+        function(dashboardClassName, dashboardStyle, lessonStyle, simulatorStyle) {
+          var lessonVisible = !lessonStyle || lessonStyle.display !== "none";
+          var simulatorVisible = !simulatorStyle || simulatorStyle.display !== "none";
+          var dashboardVisible = !dashboardStyle || dashboardStyle.display !== "none";
+          var activeClass = dashboardClassName || "";
+          var shouldReset =
+            dashboardVisible &&
+            (lessonVisible || simulatorVisible) &&
+            (activeClass.indexOf("lesson-dashboard") !== -1 ||
+              activeClass.indexOf("simulator-dashboard") !== -1);
+
+          if (!shouldReset) {
+            return window.dash_clientside.no_update;
+          }
+
+          function resetScroll() {
+            window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+            if (document.documentElement) {
+              document.documentElement.scrollTop = 0;
+            }
+            if (document.body) {
+              document.body.scrollTop = 0;
+            }
+          }
+
+          window.requestAnimationFrame(resetScroll);
+          window.setTimeout(resetScroll, 60);
+          window.setTimeout(resetScroll, 180);
+          return window.dash_clientside.no_update;
+        }
+        """,
+        Output("view-scroll-sink", "clear_data"),
+        Input("dashboard-shell", "className"),
+        Input("dashboard-shell", "style"),
+        Input("lesson-shell", "style"),
+        Input("simulator-shell", "style"),
+        prevent_initial_call=True,
+    )
 
     @app.callback(
         [

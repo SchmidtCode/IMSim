@@ -26,6 +26,12 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
         __name__,
         server=server,
         external_stylesheets=[dbc.themes.BOOTSTRAP],
+        meta_tags=[
+            {
+                "name": "viewport",
+                "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+            }
+        ],
         assets_folder=str(config.assets_dir),
         suppress_callback_exceptions=False,
     )

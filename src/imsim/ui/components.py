@@ -58,7 +58,7 @@ def _figure_theme(theme: str) -> dict[str, str]:
 _ROOT_FONT_SIZE_PX = 16
 _PLOT_TITLE_SIZE_REM = 1.5
 _PLOT_MARGIN_REM = {"l": 1.5, "r": 1.5, "t": 3.5, "b": 1.5}
-_PLOT_MARGIN_COMPACT_REM = {"l": 1.5, "r": 1.5, "t": 1.2, "b": 1.5}
+_PLOT_MARGIN_COMPACT_REM = {"l": 1.5, "r": 1.5, "t": 1.5, "b": 2.1}
 _PLOT_LINE_WIDTH_REM = 0.1875
 _PLOT_MARKER_OUTLINE_WIDTH_REM = 0.125
 _PLOT_MARKER_SIZE_REM = {
@@ -296,11 +296,12 @@ def _lesson_item_snapshot_block(level_index: int, items: list[InventoryItem]) ->
 
 def _workspace_graph_height(state: SimulationState) -> int:
     return {
-        "workspace_signal": 320,
-        "workspace_advanced": 360,
-        "workspace_certification": 380,
-        "simulator": 520,
-    }.get(active_layout_variant(state), 420)
+        "intro_pna": 340,
+        "workspace_signal": 300,
+        "workspace_advanced": 340,
+        "workspace_certification": 360,
+        "simulator": 460,
+    }.get(active_layout_variant(state), 400)
 
 
 def _workspace_grid_height(state: SimulationState, *, surface: str) -> str:
@@ -558,7 +559,7 @@ def _lesson_one_figure(state: SimulationState, theme: str, colors: dict[str, str
         ]
     )
     fig.update_layout(
-        **_plot_base_layout(None, colors, height=380),
+        **_plot_base_layout(None, colors, height=340),
         xaxis_title="Day",
         yaxis_title="Units",
         hovermode="x unified",
@@ -612,7 +613,7 @@ def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str
         ]
     )
     fig.update_layout(
-        **_plot_base_layout(None, colors, height=460),
+        **_plot_base_layout(None, colors, height=392),
         xaxis_title="Day",
         yaxis_title="Units",
         hovermode="x unified",
@@ -684,18 +685,25 @@ def _fill_rate_figure(state: SimulationState, theme: str, colors: dict[str, str]
             ),
         ]
     )
+    base_layout = _plot_base_layout(None, colors, height=400)
+    base_layout["margin"] = {
+        "l": _rem_to_px(1.5),
+        "r": _rem_to_px(1.5),
+        "t": _rem_to_px(2.6),
+        "b": _rem_to_px(2.0),
+    }
     fig.update_layout(
-        **_plot_base_layout(None, colors, height=420),
+        **base_layout,
         uirevision=f"lesson-3:{theme}",
         meta=_figure_meta("lesson-3-fill-rate", theme),
         xaxis2={
-            "domain": [0.68, 1.0],
+            "domain": [0.7, 1.0],
             "anchor": "y2",
             "color": colors["text"],
             "gridcolor": colors["line"],
         },
         yaxis2={
-            "domain": [0.18, 0.88],
+            "domain": [0.24, 0.84],
             "anchor": "x2",
             "color": colors["text"],
             "gridcolor": colors["line"],
@@ -703,6 +711,7 @@ def _fill_rate_figure(state: SimulationState, theme: str, colors: dict[str, str]
             "title": "Lines",
         },
     )
+    fig.update_traces(domain={"x": [0.0, 0.6], "y": [0.08, 0.94]}, selector={"type": "indicator"})
     return fig
 
 

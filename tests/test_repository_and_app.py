@@ -186,13 +186,18 @@ def test_repository_factory_prefers_database(tmp_path):
 
 
 def test_dash_layout_and_admin_status(client):
-    assert client.get("/").status_code == 200
+    index = client.get("/")
+    assert index.status_code == 200
+    index_payload = index.get_data(as_text=True)
+    assert 'name="viewport"' in index_payload
+    assert "width=device-width, initial-scale=1, viewport-fit=cover" in index_payload
     response = client.get("/_dash-layout")
     assert response.status_code == 200
     payload = response.get_data(as_text=True)
     assert "IMSim Academy" in payload
     assert "academy-simulator-button" in payload
     assert "academy-level-18-button" in payload
+    assert "view-scroll-store" in payload
     assert '"disabled":true' in payload
     health = client.get("/health")
     assert health.status_code == 200

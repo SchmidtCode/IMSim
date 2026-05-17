@@ -92,7 +92,8 @@ def test_level_one_uses_on_hand_lesson_graph():
     figure = build_inventory_figure(state)
 
     assert figure.layout.title.text is None
-    assert figure.layout.margin.to_plotly_json() == {"l": 24.0, "r": 24.0, "t": 19.2, "b": 24.0}
+    assert figure.layout.height == 340
+    assert figure.layout.margin.to_plotly_json() == {"l": 24.0, "r": 24.0, "t": 24.0, "b": 33.6}
     assert [trace.name for trace in figure.data] == ["On Hand", "Backorder"]
     assert figure.data[0].line.width == 3.0
     assert figure.data[0].marker.size == 8.0
@@ -105,6 +106,7 @@ def test_level_two_uses_simple_quantity_graph():
     figure = build_inventory_figure(state)
 
     assert figure.layout.title.text is None
+    assert figure.layout.height == 392
     assert [trace.name for trace in figure.data] == [
         "On Hand",
         "On Order",
@@ -126,6 +128,7 @@ def test_level_three_uses_fill_rate_visual():
 
     figure = build_inventory_figure(state)
 
+    assert figure.layout.height == 400
     assert figure.layout.meta["figure_kind"] == "lesson-3-fill-rate"
     assert [trace.type for trace in figure.data] == ["indicator", "bar"]
     assert "guided_po" in academy_level("level-3").allowed_actions
@@ -155,19 +158,31 @@ def test_signal_map_uses_stable_schema_and_uirevision():
 
 def test_workspace_variants_drive_figure_and_grid_sizes():
     basic_state = build_level_state("level-3")
+    intro_pna_state = build_level_state("level-6")
     signal_state = build_level_state("level-10")
     certification_state = build_level_state("level-18")
+    simulator_state = build_simulator_state()
 
     basic_grid = build_inventory_table(basic_state)
+    intro_pna_grid = build_inventory_table(intro_pna_state)
+    intro_pna_figure = build_inventory_figure(intro_pna_state)
     signal_grid = build_inventory_table(signal_state)
+    signal_figure = build_inventory_figure(signal_state)
     certification_figure = build_inventory_figure(certification_state)
+    simulator_figure = build_inventory_figure(simulator_state)
 
     assert isinstance(basic_grid, AgGrid)
     assert basic_grid.style["height"] == "auto"
     assert basic_grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert isinstance(intro_pna_grid, AgGrid)
+    assert intro_pna_grid.style["height"] == "auto"
+    assert intro_pna_grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert intro_pna_figure.layout.height == 340
     assert isinstance(signal_grid, AgGrid)
     assert signal_grid.style["height"] == "32rem"
-    assert certification_figure.layout.height == 380
+    assert signal_figure.layout.height == 300
+    assert certification_figure.layout.height == 360
+    assert simulator_figure.layout.height == 460
     assert certification_figure.layout.meta["layout_signature"].startswith(
         "workspace_certification:items:"
     )

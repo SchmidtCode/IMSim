@@ -72,6 +72,34 @@ def test_academy_navigation_wires_final_lesson_button(dash_app):
     )
 
 
+def test_academy_navigation_emits_scroll_reset_trigger(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("session-revision", "data"),
+            ("asq-apply-feedback", "children"),
+            ("view-scroll-store", "data"),
+        ],
+    )
+    assert ("academy-simulator-button", "n_clicks") in _input_pairs(spec)
+    assert ("return-to-menu-button", "n_clicks") in _input_pairs(spec)
+
+
+def test_rendered_lesson_view_emits_scroll_reset(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("view-scroll-sink", "clear_data"),
+        ],
+    )
+    assert _input_pairs(spec) == {
+        ("dashboard-shell", "className"),
+        ("dashboard-shell", "style"),
+        ("lesson-shell", "style"),
+        ("simulator-shell", "style"),
+    }
+
+
 def test_dashboard_shell_class_names_follow_lesson_variants():
     assert "lesson-layout-workspace-basic" in dashboard_shell_class_name(
         build_level_state("level-3")
