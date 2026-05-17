@@ -36,6 +36,7 @@ from imsim.ui.components import (
     build_inventory_table,
     build_po_overview_grid,
     custom_order_grid_options,
+    inventory_graph_style,
     refresh_inventory_figure,
     service_card_children,
 )
@@ -93,7 +94,7 @@ def test_level_one_uses_on_hand_lesson_graph():
 
     assert figure.layout.title.text is None
     assert figure.layout.height == 340
-    assert figure.layout.margin.to_plotly_json() == {"l": 24.0, "r": 24.0, "t": 24.0, "b": 33.6}
+    assert figure.layout.margin.to_plotly_json() == {"l": 24.0, "r": 24.0, "t": 24.0, "b": 38.4}
     assert [trace.name for trace in figure.data] == ["On Hand", "Backorder"]
     assert figure.data[0].line.width == 3.0
     assert figure.data[0].marker.size == 8.0
@@ -186,6 +187,22 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert certification_figure.layout.meta["layout_signature"].startswith(
         "workspace_certification:items:"
     )
+
+
+def test_inventory_graph_style_tracks_figure_height():
+    lesson_state = build_level_state("level-2")
+    simulator_state = build_simulator_state()
+
+    assert inventory_graph_style(lesson_state) == {
+        "height": "392px",
+        "minHeight": "392px",
+        "width": "100%",
+    }
+    assert inventory_graph_style(simulator_state) == {
+        "height": "460px",
+        "minHeight": "460px",
+        "width": "100%",
+    }
 
 
 def test_refresh_inventory_figure_returns_patch_when_schema_is_stable():

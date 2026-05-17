@@ -237,6 +237,9 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
           }
 
           function resetScroll() {
+            if (document.activeElement && typeof document.activeElement.blur === "function") {
+              document.activeElement.blur();
+            }
             window.scrollTo({ top: 0, left: 0, behavior: "auto" });
             if (document.documentElement) {
               document.documentElement.scrollTop = 0;
@@ -249,6 +252,9 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
           window.requestAnimationFrame(resetScroll);
           window.setTimeout(resetScroll, 60);
           window.setTimeout(resetScroll, 180);
+          window.setTimeout(resetScroll, 360);
+          window.setTimeout(resetScroll, 720);
+          window.setTimeout(resetScroll, 1200);
           return window.dash_clientside.no_update;
         }
         """,

@@ -58,7 +58,7 @@ def _figure_theme(theme: str) -> dict[str, str]:
 _ROOT_FONT_SIZE_PX = 16
 _PLOT_TITLE_SIZE_REM = 1.5
 _PLOT_MARGIN_REM = {"l": 1.5, "r": 1.5, "t": 3.5, "b": 1.5}
-_PLOT_MARGIN_COMPACT_REM = {"l": 1.5, "r": 1.5, "t": 1.5, "b": 2.1}
+_PLOT_MARGIN_COMPACT_REM = {"l": 1.5, "r": 1.5, "t": 1.5, "b": 2.4}
 _PLOT_LINE_WIDTH_REM = 0.1875
 _PLOT_MARKER_OUTLINE_WIDTH_REM = 0.125
 _PLOT_MARKER_SIZE_REM = {
@@ -70,6 +70,9 @@ _PLOT_MARKER_SIZE_REM = {
     "signal_zero": 0.5,
     "signal_stockout": 1.125,
 }
+_LESSON_ONE_GRAPH_HEIGHT = 340
+_LESSON_TWO_GRAPH_HEIGHT = 392
+_FILL_RATE_GRAPH_HEIGHT = 400
 
 
 def _rem_to_px(rem: float) -> float:
@@ -302,6 +305,22 @@ def _workspace_graph_height(state: SimulationState) -> int:
         "workspace_certification": 360,
         "simulator": 460,
     }.get(active_layout_variant(state), 400)
+
+
+def inventory_graph_height(state: SimulationState) -> int:
+    level = active_level(state)
+    if level is not None and level.index == 1:
+        return _LESSON_ONE_GRAPH_HEIGHT
+    if level is not None and level.index == 2:
+        return _LESSON_TWO_GRAPH_HEIGHT
+    if level is not None and level.index == 3:
+        return _FILL_RATE_GRAPH_HEIGHT
+    return _workspace_graph_height(state)
+
+
+def inventory_graph_style(state: SimulationState) -> dict[str, str]:
+    height = inventory_graph_height(state)
+    return {"height": f"{height}px", "minHeight": f"{height}px", "width": "100%"}
 
 
 def _workspace_grid_height(state: SimulationState, *, surface: str) -> str:
@@ -559,7 +578,7 @@ def _lesson_one_figure(state: SimulationState, theme: str, colors: dict[str, str
         ]
     )
     fig.update_layout(
-        **_plot_base_layout(None, colors, height=340),
+        **_plot_base_layout(None, colors, height=_LESSON_ONE_GRAPH_HEIGHT),
         xaxis_title="Day",
         yaxis_title="Units",
         hovermode="x unified",
@@ -613,7 +632,7 @@ def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str
         ]
     )
     fig.update_layout(
-        **_plot_base_layout(None, colors, height=392),
+        **_plot_base_layout(None, colors, height=_LESSON_TWO_GRAPH_HEIGHT),
         xaxis_title="Day",
         yaxis_title="Units",
         hovermode="x unified",
@@ -685,7 +704,7 @@ def _fill_rate_figure(state: SimulationState, theme: str, colors: dict[str, str]
             ),
         ]
     )
-    base_layout = _plot_base_layout(None, colors, height=400)
+    base_layout = _plot_base_layout(None, colors, height=_FILL_RATE_GRAPH_HEIGHT)
     base_layout["margin"] = {
         "l": _rem_to_px(1.5),
         "r": _rem_to_px(1.5),

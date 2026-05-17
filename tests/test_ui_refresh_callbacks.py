@@ -28,6 +28,7 @@ def test_dashboard_render_listens_to_session_revision_and_theme(dash_app):
         dash_app,
         [
             ("inventory-graph", "figure"),
+            ("inventory-graph", "style"),
             ("kpi-strip", "children"),
             ("inventory-table-shell", "children"),
             ("exception-center-shell", "children"),
