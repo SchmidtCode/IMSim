@@ -1776,10 +1776,7 @@ def github_footer_card(github_url: str) -> html.Div:
                         className="d-block mt-2",
                     ),
                     html.Small(
-                        (
-                            "Not affiliated with, endorsed by, sponsored by, or supported "
-                            "by Infor."
-                        ),
+                        ("Not affiliated with, endorsed by, sponsored by, or supported by Infor."),
                         className="d-block",
                     ),
                     " ",

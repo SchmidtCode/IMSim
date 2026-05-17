@@ -440,9 +440,7 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
                 continue
             try:
                 frames.append(
-                    coerce_uploaded(
-                        read_uploaded_table(contents, name, max_bytes=max_upload_bytes)
-                    )
+                    coerce_uploaded(read_uploaded_table(contents, name, max_bytes=max_upload_bytes))
                 )
             except Exception as exc:  # pragma: no cover - defensive UI guard
                 errors.append(f"{name}: {exc}")

@@ -347,8 +347,7 @@ def test_level_seven_uses_full_pna_formula_wording():
 
     assert level is not None
     assert (
-        level.formula
-        == "PNA = On Hand - Reserved - Committed - Backordered + On Order + Received"
+        level.formula == "PNA = On Hand - Reserved - Committed - Backordered + On Order + Received"
     )
 
 
@@ -377,12 +376,8 @@ def test_formula_fidelity_lessons_use_day_basis_and_updated_wording():
     assert lesson_ten.formula == "OP = lead-time demand + safety stock"
     assert lesson_sixteen.formula == "SOQ = OQ + shortage below OP, rounded to standard pack"
     assert lesson_twelve.title == "Product Lines and Review Cycle"
-    assert (
-        lesson_seventeen.formula
-        == (
-            "Critical point = monthly usage x lead-time days / day basis; surplus "
-            "threshold = LP + OQ"
-        )
+    assert lesson_seventeen.formula == (
+        "Critical point = monthly usage x lead-time days / day basis; surplus threshold = LP + OQ"
     )
 
 
@@ -408,13 +403,11 @@ def test_lesson_secondary_notes_render_as_collapsed_help():
         for child in level_seventeen
     )
     assert any(
-        isinstance(child, html.Details)
-        and child.children[0].children[0].children == "CSD mapping"
+        isinstance(child, html.Details) and child.children[0].children[0].children == "CSD mapping"
         for child in level_seventeen
     )
     assert any(
-        isinstance(child, html.Details)
-        and child.children[0].children[0].children == "CSD mapping"
+        isinstance(child, html.Details) and child.children[0].children[0].children == "CSD mapping"
         for child in level_eighteen
     )
 
