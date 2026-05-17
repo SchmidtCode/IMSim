@@ -13,6 +13,7 @@ from imsim.models import SimulationState
 from imsim.repository import (
     DatabaseSessionRepository,
     FileSessionRepository,
+    InvalidSessionIdError,
     SessionConflictError,
     create_session_repository,
 )
@@ -29,6 +30,13 @@ def test_repository_persists_state(test_config):
 
     assert loaded.day == 42
     assert repo.path_for("abc").exists()
+
+
+def test_file_repository_rejects_invalid_session_id(test_config):
+    repo = FileSessionRepository(test_config)
+
+    with pytest.raises(InvalidSessionIdError):
+        repo.get_or_create("../escape")
 
 
 def test_file_repository_refreshes_from_disk_between_instances(test_config):
@@ -207,8 +215,7 @@ def test_dash_layout_and_admin_status(client):
     assert health.status_code == 200
     assert health.get_json() == {"status": "ok"}
     status = client.get("/api/admin/shutdown_status")
-    assert status.status_code == 200
-    assert status.get_json()["active"] is False
+    assert status.status_code == 403
 
 
 def test_pause_session_endpoint_stops_active_session(dash_app, client):
@@ -224,6 +231,13 @@ def test_pause_session_endpoint_stops_active_session(dash_app, client):
     loaded = repository.get_or_create("pause-me")
     assert loaded.is_initialized is False
     assert loaded.training.current_view == "lesson"
+
+
+def test_pause_session_endpoint_rejects_invalid_session_id(client):
+    response = client.post("/api/session/pause", json={"uuid": "../escape"})
+
+    assert response.status_code == 400
+    assert response.get_json() == {"ok": False, "reason": "invalid_session"}
 
 
 def test_dash_component_suites_are_warmed(dash_app):
@@ -242,9 +256,11 @@ def test_shutdown_endpoint_disabled_by_default(client):
 def test_admin_endpoints_disabled_without_token_or_dev_shutdown(client):
     schedule = client.post("/api/admin/schedule_shutdown", json={"minutes": 5})
     cancel = client.post("/api/admin/cancel_shutdown")
+    status = client.get("/api/admin/shutdown_status")
 
     assert schedule.status_code == 403
     assert cancel.status_code == 403
+    assert status.status_code == 403
 
 
 def test_triggered_click_count_ignores_recreated_buttons():
@@ -280,6 +296,7 @@ def test_admin_token_is_enforced(tmp_path):
     )
     client = app.server.test_client()
     assert client.post("/api/admin/schedule_shutdown", json={"minutes": 5}).status_code == 401
+    assert client.get("/api/admin/shutdown_status").status_code == 401
     ok = client.post(
         "/api/admin/schedule_shutdown",
         json={"minutes": 5, "message": "Patch window"},
@@ -288,6 +305,12 @@ def test_admin_token_is_enforced(tmp_path):
     assert ok.status_code == 200
     payload = ok.get_json()
     assert payload["active"] is True
+    status = client.get(
+        "/api/admin/shutdown_status",
+        headers={"X-IMSIM-ADMIN-TOKEN": "secret"},
+    )
+    assert status.status_code == 200
+    assert status.headers["Cache-Control"] == "no-store"
 
 
 def test_dev_shutdown_mode_allows_admin_api_without_token(tmp_path):
@@ -396,7 +419,9 @@ def test_config_from_env_loads_repo_dotenv_without_overriding_process_env(monkey
     (repo_root / "assets").mkdir()
     (repo_root / "examples").mkdir()
     (repo_root / ".env").write_text(
-        "IMSIM_ADMIN_TOKEN=from-dotenv\nIMSIM_CHEAT_UNLOCK_PASSWORD='TUG rocks'\n",
+        "IMSIM_ADMIN_TOKEN=from-dotenv\n"
+        "IMSIM_CHEAT_UNLOCK_PASSWORD='TUG rocks'\n"
+        "IMSIM_MAX_UPLOAD_BYTES=12345\n",
         encoding="utf-8",
     )
     fake_file = package_dir / "config.py"
@@ -413,6 +438,7 @@ def test_config_from_env_loads_repo_dotenv_without_overriding_process_env(monkey
 
     assert config.admin_token == "from-dotenv"
     assert config.cheat_unlock_password == "from-env"
+    assert config.max_upload_bytes == 12345
 
 
 def test_config_from_env_reads_platform_host_and_port_fallbacks(monkeypatch, tmp_path):
@@ -435,3 +461,13 @@ def test_config_from_env_reads_platform_host_and_port_fallbacks(monkeypatch, tmp
 
     assert config.host == "0.0.0.0"
     assert config.port == 10000
+
+
+def test_responses_include_security_headers(client):
+    response = client.get("/health")
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["Permissions-Policy"] == "camera=(), geolocation=(), microphone=()"
+    assert "frame-ancestors 'none'" in response.headers["Content-Security-Policy"]

@@ -73,6 +73,15 @@ docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-compo
 For a shared homelab deployment, set `IMSIM_ADMIN_TOKEN` in `.env` before you expose the app.
 If you want the `uv run` workflow or source checkout instructions, jump to the docs below.
 
+## Public Deployment Notes
+
+- Change the default PostgreSQL password and set a long random `IMSIM_ADMIN_TOKEN` before go-live.
+- Keep the IMSim origin private if possible. The bundled Compose file binds the app to
+  `127.0.0.1:8050` so you can place a local reverse proxy or `cloudflared` in front of it.
+- Prefer Cloudflare Tunnel or another private-origin setup over directly port-forwarding the app.
+- If you upload spreadsheets from the public UI, keep the upload limit modest with
+  `IMSIM_MAX_UPLOAD_BYTES`.
+
 ## Docs
 
 - [Getting Started](docs/getting-started.md)

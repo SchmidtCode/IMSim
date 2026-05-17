@@ -2072,6 +2072,51 @@ body {
     overflow-y: visible;
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-11.lesson-layout-workspace-basic .dashboard-main-layout {
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "session inventory"
+      "service inventory";
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-11.lesson-layout-workspace-basic #session-panel .session-card,
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #session-panel .session-card {
+    margin-top: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal #graph-panel {
+    min-height: 21rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #inventory-graph,
+  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal #inventory-graph {
+    min-height: 21rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal .dashboard-main-layout {
+    grid-template-columns: minmax(15rem, 16.5rem) minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "session graph"
+      "inventory inventory"
+      "service service";
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #graph-panel {
+    min-height: 22rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #inventory-graph {
+    min-height: 22rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #service-panel {
+    width: min(100%, 24rem) !important;
+    max-width: 24rem !important;
+    justify-self: start;
+  }
+
   .dashboard-shell.lesson-dashboard.lesson-level-3 .dashboard-main-layout {
     grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
     grid-template-rows: auto auto auto;

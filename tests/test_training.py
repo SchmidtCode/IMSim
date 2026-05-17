@@ -164,15 +164,23 @@ def test_signal_map_uses_stable_schema_and_uirevision():
 def test_workspace_variants_drive_figure_and_grid_sizes():
     basic_state = build_level_state("level-3")
     intro_pna_state = build_level_state("level-6")
+    ranking_state = build_level_state("level-11")
+    review_cycle_state = build_level_state("level-12")
+    line_point_state = build_level_state("level-13")
     signal_state = build_level_state("level-10")
+    exception_state = build_level_state("level-17")
     certification_state = build_level_state("level-18")
     simulator_state = build_simulator_state()
 
     basic_grid = build_inventory_table(basic_state)
     intro_pna_grid = build_inventory_table(intro_pna_state)
     intro_pna_figure = build_inventory_figure(intro_pna_state)
+    ranking_grid = build_inventory_table(ranking_state)
+    review_cycle_figure = build_inventory_figure(review_cycle_state)
+    line_point_figure = build_inventory_figure(line_point_state)
     signal_grid = build_inventory_table(signal_state)
     signal_figure = build_inventory_figure(signal_state)
+    exception_figure = build_inventory_figure(exception_state)
     certification_figure = build_inventory_figure(certification_state)
     simulator_figure = build_inventory_figure(simulator_state)
 
@@ -183,9 +191,14 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert intro_pna_grid.style["height"] == "auto"
     assert intro_pna_grid.dashGridOptions["domLayout"] == "autoHeight"
     assert intro_pna_figure.layout.height == 340
+    assert isinstance(ranking_grid, AgGrid)
+    assert ranking_grid.style["height"] == "36rem"
+    assert review_cycle_figure.layout.height == 340
+    assert line_point_figure.layout.height == 340
     assert isinstance(signal_grid, AgGrid)
     assert signal_grid.style["height"] == "32rem"
     assert signal_figure.layout.height == 300
+    assert exception_figure.layout.height == 360
     assert certification_figure.layout.height == 360
     assert simulator_figure.layout.height == 460
     assert certification_figure.layout.meta["layout_signature"].startswith(
@@ -198,7 +211,7 @@ def test_level_seventeen_uses_exception_boundary_figure():
 
     figure = build_inventory_figure(state)
 
-    assert figure.layout.height == 340
+    assert figure.layout.height == 360
     assert figure.layout.yaxis.title.text == "Units"
     assert figure.layout.uirevision == "exception-map:light"
     assert figure.layout.meta["figure_kind"] == "exception-map"
@@ -776,5 +789,7 @@ def test_cheat_unlock_opens_all_levels_without_completing_lessons():
 def test_active_layout_variant_tracks_bridge_and_certification():
     assert active_layout_variant(build_level_state("level-3")) == "workspace_basic"
     assert active_layout_variant(build_level_state("level-10")) == "workspace_signal"
+    assert active_layout_variant(build_level_state("level-11")) == "workspace_basic"
+    assert active_layout_variant(build_level_state("level-17")) == "workspace_signal"
     assert active_layout_variant(build_level_state("level-15")) == "workspace_advanced"
     assert active_layout_variant(build_level_state("level-18")) == "workspace_certification"

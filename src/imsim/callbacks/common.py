@@ -7,7 +7,7 @@ import dash
 from dash.exceptions import PreventUpdate
 
 from ..models import default_state
-from ..repository import SessionConflictError, SessionRepository
+from ..repository import InvalidSessionIdError, SessionConflictError, SessionRepository
 from ..services.simulation import MaintenanceController
 
 
@@ -29,7 +29,10 @@ class CallbackRegistrarContext:
         session_id = (client_data or {}).get("uuid")
         if not session_id:
             raise PreventUpdate
-        return session_id, self.repository.get_or_create(session_id)
+        try:
+            return session_id, self.repository.get_or_create(session_id)
+        except InvalidSessionIdError as exc:
+            raise PreventUpdate from exc
 
     def persist_state(self, session_id: str, state) -> None:
         try:
@@ -76,7 +79,12 @@ class CallbackRegistrarContext:
 
     def current_state(self, client_data: dict | None):
         session_id = (client_data or {}).get("uuid")
-        return self.repository.get_or_create(session_id) if session_id else default_state()
+        if not session_id:
+            return default_state()
+        try:
+            return self.repository.get_or_create(session_id)
+        except InvalidSessionIdError:
+            return default_state()
 
     def toggle_enabled(self, value: Any) -> bool:
         return bool(value)

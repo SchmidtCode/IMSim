@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,6 +19,20 @@ from .models import SimulationState, default_state
 
 class SessionConflictError(RuntimeError):
     pass
+
+
+class InvalidSessionIdError(ValueError):
+    pass
+
+
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+
+
+def normalize_session_id(session_id: str) -> str:
+    normalized = str(session_id or "").strip()
+    if not _SESSION_ID_RE.fullmatch(normalized):
+        raise InvalidSessionIdError("Session ID must be 1-128 chars of letters, numbers, _ or -.")
+    return normalized
 
 
 class SessionRepository(Protocol):
@@ -53,9 +68,10 @@ class FileSessionRepository:
         self._session_dir.mkdir(parents=True, exist_ok=True)
 
     def path_for(self, session_id: str) -> Path:
-        return self._session_dir / f"{session_id}.json"
+        return self._session_dir / f"{normalize_session_id(session_id)}.json"
 
     def get_or_create(self, session_id: str) -> SimulationState:
+        session_id = normalize_session_id(session_id)
         with self._lock:
             path = self.path_for(session_id)
             state = self._load_path(path)
@@ -66,6 +82,7 @@ class FileSessionRepository:
             return state.clone()
 
     def save(self, session_id: str, state: SimulationState) -> None:
+        session_id = normalize_session_id(session_id)
         with self._lock:
             path = self.path_for(session_id)
             current = self._load_path(path)
@@ -88,6 +105,7 @@ class FileSessionRepository:
             state.revision = snapshot.revision
 
     def reset(self, session_id: str) -> SimulationState:
+        session_id = normalize_session_id(session_id)
         state = default_state()
         self.save(session_id, state)
         return state.clone()
@@ -151,6 +169,7 @@ class DatabaseSessionRepository:
         self._lock = RLock()
 
     def get_or_create(self, session_id: str) -> SimulationState:
+        session_id = normalize_session_id(session_id)
         with self._lock, self._session_factory() as session:
             record = session.get(SessionStateRecord, session_id)
             if record is None:
@@ -175,6 +194,7 @@ class DatabaseSessionRepository:
             return self._state_from_record(record)
 
     def save(self, session_id: str, state: SimulationState) -> None:
+        session_id = normalize_session_id(session_id)
         with self._lock, self._session_factory() as session:
             if state.revision <= 0:
                 snapshot = state.clone()
@@ -219,6 +239,7 @@ class DatabaseSessionRepository:
             state.revision = snapshot.revision
 
     def reset(self, session_id: str) -> SimulationState:
+        session_id = normalize_session_id(session_id)
         state = default_state()
         self.save(session_id, state)
         return state.clone()

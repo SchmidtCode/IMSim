@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from dash import html
 
+DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
 CANONICAL_COLS = [
     "usage_rate",
     "lead_time_days",
@@ -43,15 +45,20 @@ HEADER_ALIASES = {
 }
 
 
-def extract_base64(contents: str) -> bytes:
+def extract_base64(contents: str, *, max_bytes: int = DEFAULT_MAX_UPLOAD_BYTES) -> bytes:
     if not isinstance(contents, str):
         raise ValueError("Invalid upload payload type.")
     _, sep, encoded = contents.partition(",")
     encoded = encoded if sep else contents
     try:
-        return base64.b64decode(encoded, validate=False)
+        decoded = base64.b64decode(encoded, validate=False)
     except Exception as exc:
         raise ValueError(f"Could not decode uploaded file: {exc}") from exc
+    if len(decoded) > max_bytes:
+        raise ValueError(
+            f"Uploaded file is too large. Maximum allowed size is {max_bytes // (1024 * 1024)} MB."
+        )
+    return decoded
 
 
 def coerce_uploaded(df: pd.DataFrame) -> pd.DataFrame:
@@ -105,8 +112,13 @@ def coerce_uploaded(df: pd.DataFrame) -> pd.DataFrame:
     return normalized
 
 
-def read_uploaded_table(contents: str, filename: str | None) -> pd.DataFrame:
-    decoded = extract_base64(contents)
+def read_uploaded_table(
+    contents: str,
+    filename: str | None,
+    *,
+    max_bytes: int = DEFAULT_MAX_UPLOAD_BYTES,
+) -> pd.DataFrame:
+    decoded = extract_base64(contents, max_bytes=max_bytes)
     lower = (filename or "").lower()
     if lower.endswith(".csv"):
         return pd.read_csv(io.StringIO(decoded.decode("utf-8-sig")))
@@ -126,9 +138,11 @@ def parse_contents(
     filename: str | None,
     modified_at: float | None,
     theme: str = "light",
+    *,
+    max_bytes: int = DEFAULT_MAX_UPLOAD_BYTES,
 ):
     try:
-        raw = read_uploaded_table(contents, filename)
+        raw = read_uploaded_table(contents, filename, max_bytes=max_bytes)
         df = coerce_uploaded(raw)
     except Exception as exc:
         return dbc.Alert(str(exc), color="warning")

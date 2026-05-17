@@ -492,7 +492,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         allowed_actions=frozenset(),
         win_conditions={"no_final_stockout": True},
         global_settings=_settings(),
-        layout_variant="workspace_signal",
+        layout_variant="workspace_basic",
         teaching_goal="Connect customer popularity to management-by-exception thinking.",
         concept_tags=("hits", "long tail"),
     ),
@@ -709,7 +709,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         allowed_actions=frozenset(),
         win_conditions={"critical_item_min": 1, "surplus_item_min": 1},
         global_settings=_settings(r_cycle=14),
-        layout_variant="workspace_advanced",
+        layout_variant="workspace_signal",
         teaching_goal="Teach the two exception boundaries that frame urgent action and overbuying.",
         concept_tags=("critical point", "surplus"),
         csd_mapping_note=(

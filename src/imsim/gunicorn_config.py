@@ -19,7 +19,7 @@ def _default_threads() -> int:
 
 
 bind = (
-    f"{os.environ.get('IMSIM_HOST') or os.environ.get('HOST', '0.0.0.0')}:"
+    f"{os.environ.get('IMSIM_HOST') or os.environ.get('HOST', '127.0.0.1')}:"
     f"{os.environ.get('IMSIM_PORT') or os.environ.get('PORT', '8050')}"
 )
 worker_class = "gthread"

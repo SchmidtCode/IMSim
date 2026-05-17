@@ -383,6 +383,10 @@ def inventory_graph_height(state: SimulationState) -> int:
         return _LESSON_TWO_GRAPH_HEIGHT
     if level is not None and level.index == 3:
         return _FILL_RATE_GRAPH_HEIGHT
+    if level is not None and level.index in {12, 13}:
+        return 340
+    if level is not None and level.index == 17:
+        return 360
     return _workspace_graph_height(state)
 
 
@@ -930,7 +934,7 @@ def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str
             None,
             colors,
             include_margin=not rows.empty,
-            height=_workspace_graph_height(state),
+            height=inventory_graph_height(state),
         ),
         xaxis_title="Item",
         yaxis_title="Days from OP",
@@ -1036,7 +1040,7 @@ def _exception_signal_figure(
             None,
             colors,
             include_margin=not rows.empty,
-            height=_workspace_graph_height(state),
+            height=inventory_graph_height(state),
         ),
         xaxis_title="Item",
         yaxis_title="Units",
@@ -1587,10 +1591,11 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             "No items loaded yet. Add an item or import a sample workbook.", color="secondary"
         )
     selected_columns = visible_columns(state) or tuple(column_config.keys())
-    compact_lesson_items = level is not None and level.layout_variant in {
-        "intro_pna",
-        "workspace_basic",
-    }
+    compact_lesson_items = (
+        level is not None
+        and level.layout_variant in {"intro_pna", "workspace_basic"}
+        and level.index not in {11}
+    )
     compact_lesson_widths = {
         "item": {"maxWidth": 76},
         "on_hand": {"minWidth": 120},

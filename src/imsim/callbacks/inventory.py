@@ -37,6 +37,7 @@ from .common import CallbackRegistrarContext
 
 def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
     app = ctx.app
+    max_upload_bytes = int(app.server.config.get("IMSIM_MAX_UPLOAD_BYTES", 5 * 1024 * 1024))
 
     @app.callback(
         [
@@ -426,13 +427,23 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             list_of_dates or [],
             strict=False,
         ):
-            card = parse_contents(contents, name, modified, ctx.theme_name(theme))
+            card = parse_contents(
+                contents,
+                name,
+                modified,
+                ctx.theme_name(theme),
+                max_bytes=max_upload_bytes,
+            )
             cards.append(card)
             if isinstance(card, dbc.Alert):
                 errors.append(f"{name}: {card.children}")
                 continue
             try:
-                frames.append(coerce_uploaded(read_uploaded_table(contents, name)))
+                frames.append(
+                    coerce_uploaded(
+                        read_uploaded_table(contents, name, max_bytes=max_upload_bytes)
+                    )
+                )
             except Exception as exc:  # pragma: no cover - defensive UI guard
                 errors.append(f"{name}: {exc}")
         if errors and not frames:
