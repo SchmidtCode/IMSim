@@ -6,7 +6,7 @@ step, then unlocks a full simulator for practicing inventory decisions with live
 [![CI](https://github.com/SchmidtCode/IMSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SchmidtCode/IMSim/actions/workflows/ci.yml)
 [![GHCR](https://img.shields.io/badge/container-ghcr-blue)](https://github.com/SchmidtCode/IMSim/pkgs/container/imsim)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://imsim.pythonanywhere.com/)
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://www.schmidtcode.com/)
 
 ![IMSim simulator preview](assets/readme/IMSim.gif)
 
@@ -67,7 +67,7 @@ Compose files under `deploy/source/`:
 
 ```bash
 cp deploy/source/.env.example .env
-docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-compose.build.yml --project-directory . up -d --build
+docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-Fcompose.build.yml --project-directory . up -d --build
 ```
 
 For a shared homelab deployment, set `IMSIM_ADMIN_TOKEN` in `.env` before you expose the app.
