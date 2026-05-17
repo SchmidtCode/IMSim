@@ -13,7 +13,7 @@ import numpy as np
 from ..models import InventoryItem, Receipt, ServiceMetrics, SimulationState
 from ..repository import SessionRepository
 from .asq import apply_asq_month_end
-from .planning import round_to_pack, safe_div, update_planning_fields
+from .planning import daily_usage_from_monthly, round_to_pack, safe_div, update_planning_fields
 from .training import (
     apply_lesson_evaluation,
     demand_mode,
@@ -47,7 +47,7 @@ class DayMetrics:
 
 
 def simulate_daily_hits(hpm: float) -> int:
-    return int(_rng().poisson(max(0.0, float(hpm)) / 30.0))
+    return int(_rng().poisson(max(0.0, float(hpm))))
 
 
 def simulate_sales(avg_sale_qty: float, standard_pack: float) -> int:
@@ -62,11 +62,11 @@ def simulate_sales(avg_sale_qty: float, standard_pack: float) -> int:
 def _daily_demands(item: InventoryItem, state: SimulationState) -> list[float]:
     mode = demand_mode(state)
     if mode == "deterministic":
-        qty = max(0.0, safe_div(item.usage_rate, 30.0, 0.0))
+        qty = max(0.0, daily_usage_from_monthly(item.usage_rate, state.global_settings.day_basis))
         return [qty] if qty > 0 else []
     hpm = max(0.01, float(item.hits_per_month))
     avg_sale_qty = safe_div(item.usage_rate, hpm, 0.0)
-    orders = simulate_daily_hits(hpm)
+    orders = simulate_daily_hits(daily_usage_from_monthly(hpm, state.global_settings.day_basis))
     demands: list[float] = []
     for _ in range(orders):
         qty = float(simulate_sales(avg_sale_qty, item.standard_pack))

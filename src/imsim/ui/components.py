@@ -13,7 +13,6 @@ from ..services.training import (
     academy_levels,
     active_layout_variant,
     active_level,
-    after_overhead_pct,
     evaluate_active_lesson,
     fill_rate,
     lesson_days_remaining,
@@ -180,6 +179,64 @@ def _lesson_snapshot_disclosure(
     )
 
 
+_GLOSSARY_ENTRIES = (
+    (
+        "PNA",
+        "Projected net available. The inventory position used for replenishment decisions. "
+        "Full training formula: on hand - reserved - committed - backordered + on order + received.",
+    ),
+    (
+        "On hand",
+        "Physical stock currently available in the warehouse before considering future "
+        "receipts or unresolved demand.",
+    ),
+    ("On order", "Quantity already ordered but not yet received."),
+    ("Backorder", "Demand that could not be filled from available stock."),
+    ("Usage rate", "The monthly demand pace used by the simulator."),
+    ("Daily usage", "Usage rate divided by day basis."),
+    ("Lead time", "The time between placing an order and receiving it."),
+    ("OP", "Order point. The level where replenishment should begin."),
+    (
+        "Safety stock",
+        "Extra stock added to protect against normal demand or lead-time variation.",
+    ),
+    (
+        "LP",
+        "Line point. The higher review threshold used to decide what else should ride "
+        "along during a line review.",
+    ),
+    ("OQ", "Order quantity. The practical quantity to buy when replenishment is needed."),
+    (
+        "EOQ",
+        "Economic order quantity. A calculated quantity that balances replenishment cost "
+        "and carrying cost.",
+    ),
+    (
+        "SOQ",
+        "Suggested order quantity. The simulator's recommendation after considering PNA, "
+        "OP/LP, OQ, and standard pack rounding.",
+    ),
+    ("Standard pack", "Supplier pack increment used to round suggested buys."),
+    ("Critical point", "Urgent replenishment threshold below normal protection."),
+    (
+        "Surplus threshold",
+        "LP + OQ in the simulator's short-term overstock model.",
+    ),
+    (
+        "Fill rate",
+        "Percent of stock lines completed without a stockout miss.",
+    ),
+    (
+        "Hits",
+        "How often an item appears on demand lines. Used to show customer frequency/popularity.",
+    ),
+    (
+        "ASQ",
+        "Average sales quantity. Keep locked until advanced and certification content.",
+    ),
+)
+
+
 def _format_pct(value: float | None) -> str:
     return "—" if value is None else f"{value:.1f}%"
 
@@ -198,7 +255,7 @@ def _compact_lesson_pill_text(row: str) -> str:
         ("On-order inventory: ", "On order: "),
         ("Avg inventory value: ", "Avg inv value: "),
         ("Items at/below critical point: ", "At/below CP: "),
-        ("Items above surplus line: ", "Above surplus: "),
+        ("Items above surplus threshold: ", "Above surplus: "),
         ("Backorder at close: ", "Close backorder: "),
     )
     for old, new in replacements:
@@ -294,7 +351,7 @@ def _lesson_item_snapshot_block(level_index: int, items: list[InventoryItem]) ->
         "standard_pack": "Pack",
         "safety_allowance": "Safety %",
         "cp": "CP",
-        "surplus_line": "Surplus",
+        "surplus_line": "Surplus threshold",
         "days_to_op": "Days to OP",
     }
     columns = _lesson_item_snapshot_columns(level_index)
@@ -351,6 +408,53 @@ def _workspace_grid_height(state: SimulationState, *, surface: str) -> str:
         "workspace_certification": "26rem",
         "simulator": "26rem",
     }.get(variant, "26rem")
+
+
+def _lesson_uses_day_basis(level) -> bool:
+    day_basis_phrase = "day basis"
+    return day_basis_phrase in level.formula.casefold() or any(
+        day_basis_phrase in step.casefold() for step in level.tutorial_steps
+    )
+
+
+def _lesson_day_basis_helper(state: SimulationState) -> html.Div:
+    return html.Div(
+        f"Simulator simplified month: {state.global_settings.day_basis} days",
+        className="helper-copy mb-2",
+    )
+
+
+def _lesson_secondary_note(
+    title: str,
+    hint: str,
+    copy: str,
+) -> html.Details:
+    return _lesson_snapshot_disclosure(
+        html.Div(copy, className="helper-copy mb-0"),
+        label=title,
+        hint=hint,
+    )
+
+
+def _lesson_secondary_notes(level) -> list[html.Details]:
+    notes: list[html.Details] = []
+    if level.advanced_note:
+        notes.append(
+            _lesson_secondary_note(
+                "Advanced note",
+                "Optional deeper context",
+                level.advanced_note,
+            )
+        )
+    if level.csd_mapping_note:
+        notes.append(
+            _lesson_secondary_note(
+                "CSD mapping",
+                "Optional system mapping",
+                level.csd_mapping_note,
+            )
+        )
+    return notes
 
 
 def _signal_map_layout_signature(state: SimulationState, rows: pd.DataFrame) -> str:
@@ -907,7 +1011,7 @@ def _exception_signal_figure(
                 hovertemplate=hover,
             ),
             _empty_marker_trace(
-                name="Surplus Line",
+                name="Surplus Threshold",
                 marker=_plot_marker(
                     colors["proposed"],
                     _PLOT_MARKER_SIZE_REM["signal_proposed"],
@@ -948,8 +1052,8 @@ def _exception_signal_figure(
     fig.update_traces(y=rows["pna"].tolist(), selector={"name": "PNA"})
     fig.update_traces(x=item_numbers, selector={"name": "Critical Point"})
     fig.update_traces(y=rows["cp"].tolist(), selector={"name": "Critical Point"})
-    fig.update_traces(x=item_numbers, selector={"name": "Surplus Line"})
-    fig.update_traces(y=rows["surplus_line"].tolist(), selector={"name": "Surplus Line"})
+    fig.update_traces(x=item_numbers, selector={"name": "Surplus Threshold"})
+    fig.update_traces(y=rows["surplus_line"].tolist(), selector={"name": "Surplus Threshold"})
     fig.update_traces(x=item_numbers, selector={"name": "On Hand"})
     fig.update_traces(y=rows["on_hand"].tolist(), selector={"name": "On Hand"})
     _apply_single_guide(fig, colors, y=0, label="Zero")
@@ -1417,7 +1521,7 @@ def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag
                     "step": 1,
                     "showStepperButtons": True,
                 },
-                "headerTooltip": "Current SOQ; adjust before placing the custom order.",
+                "headerTooltip": "Current suggested order quantity (SOQ); adjust before placing the custom order.",
             },
         ],
         defaultColDef={"sortable": True, "filter": True, "resizable": True},
@@ -1448,7 +1552,7 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
         "standard_pack": ("standard_pack", "Pack"),
         "safety_allowance": ("safety_allowance", "Safety %"),
         "cp": ("cp", "CP"),
-        "surplus_line": ("surplus_line", "Surplus"),
+        "surplus_line": ("surplus_line", "Surplus threshold"),
         "days_to_op": ("days_to_op", "Days to OP"),
         "daily_usage": ("daily_usage", "Daily Usage"),
     }
@@ -1505,6 +1609,8 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
     for key in selected_columns:
         field, header = column_config[key]
         column_def: dict[str, object] = {"field": field, "headerName": header}
+        if key == "soq":
+            column_def["headerTooltip"] = "Suggested order quantity."
         if key == "item":
             column_def["pinned"] = "left"
             column_def["maxWidth"] = 90
@@ -1568,6 +1674,83 @@ def build_exception_center(state: SimulationState):
     return html.Div(cards, className="exception-stack")
 
 
+def _reference_definition_block(term: str, definition: str) -> html.Div:
+    return html.Div(
+        [
+            html.Div(term, className="lesson-snapshot-label"),
+            html.Div(definition, className="helper-copy mb-0"),
+        ],
+        className="reference-entry",
+    )
+
+
+def reference_modal_children() -> list:
+    glossary = html.Div(
+        [
+            html.Div("Glossary", className="panel-label"),
+            html.H3("Simulator terms", className="panel-title-small"),
+            html.Div(
+                [
+                    _reference_definition_block(term, definition)
+                    for term, definition in _GLOSSARY_ENTRIES
+                ],
+                className="reference-entry-list",
+            ),
+        ],
+        className="reference-panel",
+    )
+    csd_mapping = html.Div(
+        [
+            html.Div("CSD mapping", className="panel-label"),
+            html.H3("General context", className="panel-title-small"),
+            html.Div(
+                (
+                    "IMSim is an independent inventory management training project. It is "
+                    "not a CSD screen, an Infor tool, or official ERP training."
+                ),
+                className="helper-copy mb-3",
+            ),
+            html.Ul(
+                [
+                    html.Li(
+                        (
+                            "CSD users may recognize concepts from Product Warehouse Product "
+                            "Setup ordering controls, Demand Center/RRAR workflows, Product "
+                            "Inquiry - Replenishment, and surplus reporting."
+                        )
+                    ),
+                    html.Li(
+                        (
+                            "Exact behavior depends on company setup, product line setup, "
+                            "order method, warehouse and product controls, security, and "
+                            "customizations."
+                        )
+                    ),
+                    html.Li(
+                        (
+                            "The simulator keeps its SOQ and exception logic intentionally "
+                            "simple so the lessons stay teachable and comparable."
+                        )
+                    ),
+                ],
+                className="lesson-copy-list",
+            ),
+        ],
+        className="reference-panel",
+    )
+    return [
+        dbc.Tabs(
+            [
+                dbc.Tab(glossary, label="Glossary", tab_id="glossary"),
+                dbc.Tab(csd_mapping, label="CSD Mapping", tab_id="csd-mapping"),
+            ],
+            id="reference-tabs",
+            active_tab="glossary",
+            class_name="reference-tabs",
+        )
+    ]
+
+
 def github_footer_card(github_url: str) -> html.Div:
     return html.Div(
         dbc.Card(
@@ -1584,6 +1767,17 @@ def github_footer_card(github_url: str) -> html.Div:
                                 rel="noopener noreferrer",
                             ),
                         ]
+                    ),
+                    html.Small(
+                        "Independent open-source inventory management training project.",
+                        className="d-block mt-2",
+                    ),
+                    html.Small(
+                        (
+                            "Not affiliated with, endorsed by, sponsored by, or supported "
+                            "by Infor."
+                        ),
+                        className="d-block",
                     ),
                     " ",
                     html.Button(
@@ -1659,6 +1853,8 @@ def lesson_tutorial_children(state: SimulationState) -> list:
     if level is None:
         return [dbc.Alert("Select a lesson from the academy menu.", color="secondary")]
     framing = []
+    day_basis_helper = [_lesson_day_basis_helper(state)] if _lesson_uses_day_basis(level) else []
+    secondary_notes = _lesson_secondary_notes(level)
     if level.teaching_goal:
         framing.append(html.Div(level.teaching_goal, className="helper-copy mb-2"))
     if level.concept_tags:
@@ -1696,11 +1892,14 @@ def lesson_tutorial_children(state: SimulationState) -> list:
                 className="lesson-formula-chip",
             ),
             html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
+            *secondary_notes,
         ]
     return [
         *framing,
         html.Div(level.formula, className="lesson-formula-chip"),
+        *day_basis_helper,
         html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
+        *secondary_notes,
     ]
 
 

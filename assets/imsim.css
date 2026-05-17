@@ -27,7 +27,7 @@
   --imsim-size-dialog-max: 61.25rem;
   --imsim-size-metric-card-min: 8.5rem;
   --imsim-size-table-min: 53.75rem;
-  --imsim-size-footer-width: 17.5rem;
+  --imsim-size-footer-width: 20rem;
   --imsim-size-dashboard-graph-min: 18rem;
   --imsim-size-control-rail-max: 25rem;
   --imsim-size-dashboard-rail-max: 20rem;
@@ -501,6 +501,32 @@ body {
 
 .lesson-disclosure-body {
   padding-top: 0.1rem;
+}
+
+.reference-tabs {
+  margin-top: 0.25rem;
+}
+
+.reference-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.reference-entry-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.reference-entry {
+  border-bottom: 1px solid var(--imsim-line);
+  display: grid;
+  gap: 0.22rem;
+  padding-bottom: 0.55rem;
+}
+
+.reference-entry:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .shell-card,

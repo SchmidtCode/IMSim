@@ -34,6 +34,7 @@ def register_maintenance_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("academy-theme-toggle", "className"),
             Output("lesson-intro-modal", "content_class_name"),
             Output("academy-cheat-code-modal", "content_class_name"),
+            Output("reference-modal", "content_class_name"),
             Output("add-item-modal", "content_class_name"),
             Output("place-custom-order-modal", "content_class_name"),
             Output("po-overview-modal", "content_class_name"),
@@ -79,9 +80,41 @@ def register_maintenance_callbacks(ctx: CallbackRegistrarContext) -> None:
                 if current_theme == "dark"
                 else "imsim-modal-content"
             ),
+            (
+                "imsim-modal-content theme-dark"
+                if current_theme == "dark"
+                else "imsim-modal-content"
+            ),
             grid_class,
             grid_class,
         )
+
+    @app.callback(
+        Output("reference-modal", "is_open"),
+        Input("academy-reference-button", "n_clicks"),
+        Input("experience-reference-button", "n_clicks"),
+        Input("simulator-reference-button", "n_clicks"),
+        Input("reference-modal-close", "n_clicks"),
+        State("reference-modal", "is_open"),
+        prevent_initial_call=True,
+    )
+    def toggle_reference_modal(
+        academy_clicks,
+        experience_clicks,
+        simulator_clicks,
+        close_clicks,
+        is_open,
+    ):
+        triggered = dash.ctx.triggered_id
+        if triggered in {
+            "academy-reference-button",
+            "experience-reference-button",
+            "simulator-reference-button",
+        } and any([academy_clicks, experience_clicks, simulator_clicks]):
+            return True
+        if triggered == "reference-modal-close" and close_clicks:
+            return False
+        return is_open
 
     @app.callback(
         Output("gh-footer-store", "data"),

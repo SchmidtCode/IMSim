@@ -410,7 +410,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         reset_label = "Reset Sandbox" if is_simulator else "Restart Lesson"
         lesson_terminal = ctx.lesson_terminal(state)
         po_label = (
-            "Place SOQ Order"
+            "Place Suggested Order"
             if (is_simulator or (level is not None and level.index >= 13))
             else "Place Guided Reorder"
         )

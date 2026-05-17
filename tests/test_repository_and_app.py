@@ -197,6 +197,10 @@ def test_dash_layout_and_admin_status(client):
     assert "IMSim Academy" in payload
     assert "academy-simulator-button" in payload
     assert "academy-level-18-button" in payload
+    assert "reference-modal" in payload
+    assert "academy-reference-button" in payload
+    assert "experience-reference-button" in payload
+    assert "simulator-reference-button" in payload
     assert "view-scroll-store" in payload
     assert '"disabled":true' in payload
     health = client.get("/health")

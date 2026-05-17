@@ -39,6 +39,7 @@ from imsim.ui.components import (
     inventory_graph_style,
     lesson_compact_summary_children,
     lesson_objective_children,
+    lesson_tutorial_children,
     refresh_inventory_figure,
     service_card_children,
 )
@@ -75,17 +76,18 @@ def test_tick_state_uses_deterministic_training_demand():
     state = build_level_state("level-1")
     item = state.items[0]
     opening_on_hand = item.on_hand
+    daily_usage = item.usage_rate / state.global_settings.day_basis
     state.is_initialized = True
 
     summary = tick_state(state)
 
     assert summary["day"] == 2
     assert state.service_today.orders == 1
-    assert state.service_today.units_ordered == item.usage_rate / 30.0
-    assert state.items[0].on_hand == opening_on_hand - (item.usage_rate / 30.0)
+    assert state.service_today.units_ordered == daily_usage
+    assert state.items[0].on_hand == opening_on_hand - daily_usage
     assert [(point.day, point.total_on_hand, point.total_backorder) for point in state.history] == [
         (1, opening_on_hand, 0.0),
-        (2, opening_on_hand - (item.usage_rate / 30.0), 0.0),
+        (2, opening_on_hand - daily_usage, 0.0),
     ]
 
 
@@ -203,7 +205,7 @@ def test_level_seventeen_uses_exception_boundary_figure():
     assert [trace.name for trace in figure.data] == [
         "PNA",
         "Critical Point",
-        "Surplus Line",
+        "Surplus Threshold",
         "On Hand",
     ]
 
@@ -337,6 +339,70 @@ def test_level_seven_uses_full_pna_formula_wording():
     )
 
 
+def test_formula_fidelity_lessons_use_day_basis_and_updated_wording():
+    lesson_five = academy_level("level-5")
+    lesson_eight = academy_level("level-8")
+    lesson_nine = academy_level("level-9")
+    lesson_ten = academy_level("level-10")
+    lesson_sixteen = academy_level("level-16")
+    lesson_twelve = academy_level("level-12")
+    lesson_seventeen = academy_level("level-17")
+
+    assert lesson_five is not None
+    assert lesson_eight is not None
+    assert lesson_nine is not None
+    assert lesson_ten is not None
+    assert lesson_sixteen is not None
+    assert lesson_twelve is not None
+    assert lesson_seventeen is not None
+    assert lesson_five.formula == "Daily usage = monthly usage rate / day basis"
+    assert lesson_eight.formula == "OP = monthly usage x lead-time days / day basis"
+    assert (
+        lesson_nine.formula
+        == "Safety stock = monthly usage x lead-time days / day basis x safety allowance"
+    )
+    assert lesson_ten.formula == "OP = lead-time demand + safety stock"
+    assert lesson_sixteen.formula == "SOQ = OQ + shortage below OP, rounded to standard pack"
+    assert lesson_twelve.title == "Product Lines and Review Cycle"
+    assert (
+        lesson_seventeen.formula
+        == "Critical point = monthly usage x lead-time days / day basis; surplus threshold = LP + OQ"
+    )
+
+
+def test_lesson_secondary_notes_render_as_collapsed_help():
+    level_sixteen_definition = academy_level("level-16")
+    level_eighteen_definition = academy_level("level-18")
+    level_sixteen = lesson_tutorial_children(build_level_state("level-16"))
+    level_seventeen = lesson_tutorial_children(build_level_state("level-17"))
+    level_eighteen = lesson_tutorial_children(build_level_state("level-18"))
+
+    assert level_sixteen_definition is not None
+    assert level_eighteen_definition is not None
+    assert "SOQ is simplified for training" in level_sixteen_definition.advanced_note
+    assert "training workspace" in level_eighteen_definition.csd_mapping_note
+    advanced_details = [child for child in level_sixteen if isinstance(child, html.Details)]
+    assert [detail.children[0].children[0].children for detail in advanced_details] == [
+        "Advanced note",
+        "CSD mapping",
+    ]
+    assert all(getattr(detail, "open", None) is None for detail in advanced_details)
+    assert any(
+        getattr(child, "children", None) == "Simulator simplified month: 30 days"
+        for child in level_seventeen
+    )
+    assert any(
+        isinstance(child, html.Details)
+        and child.children[0].children[0].children == "CSD mapping"
+        for child in level_seventeen
+    )
+    assert any(
+        isinstance(child, html.Details)
+        and child.children[0].children[0].children == "CSD mapping"
+        for child in level_eighteen
+    )
+
+
 def test_after_overhead_rows_use_level_target_without_duplicate_objective_copy():
     state = build_level_state("level-14")
     state.sales.revenue = 1000.0
@@ -363,6 +429,31 @@ def test_compact_summary_keeps_all_goal_rows_for_three_check_lessons():
     assert "Fill rate: n/a / target 97.0%" in pill_text
     assert "After-OH GM: n/a / target 0.0%" in pill_text
     assert "Close backorder: 0" in pill_text
+
+
+def test_lesson_copy_avoids_official_infor_training_language():
+    banned_phrases = (
+        "csd-certified",
+        "infor-certified",
+        "official csd training",
+        "cloudsuite distribution course",
+        "infor simulator",
+    )
+
+    for level in academy_levels():
+        content = " ".join(
+            [
+                level.title,
+                level.summary,
+                level.formula,
+                *level.tutorial_steps,
+                *level.locked_features,
+                level.advanced_note,
+                level.csd_mapping_note,
+            ]
+        ).casefold()
+        for phrase in banned_phrases:
+            assert phrase not in content
 
 
 def test_custom_order_and_po_overview_use_ag_grid():
@@ -609,7 +700,7 @@ def test_line_point_and_exception_lessons_track_new_objectives():
     assert evaluation is not None
     assert evaluation.passed is True
     assert any("critical point" in row for row in evaluation.metric_rows)
-    assert any("surplus line" in row for row in evaluation.metric_rows)
+    assert any("surplus threshold" in row for row in evaluation.metric_rows)
 
 
 def test_final_lesson_pass_unlocks_simulator_reward():

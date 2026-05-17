@@ -4,9 +4,15 @@ from imsim.models import GlobalSettings, SimulationState
 from imsim.services.asq import apply_asq_month_end
 from imsim.services.planning import (
     calculate_surplus_line,
+    calculate_soq,
+    critical_point_qty,
     create_inventory_item,
+    daily_usage_from_monthly,
+    lead_time_demand,
     round_to_pack,
     round_up_to_pack,
+    review_cycle_demand,
+    safety_stock_qty,
 )
 from imsim.services.simulation import tick_state
 
@@ -14,6 +20,20 @@ from imsim.services.simulation import tick_state
 def test_pack_rounding():
     assert round_to_pack(13, 5) == 15
     assert round_up_to_pack(11, 5) == 15
+
+
+def test_day_basis_defaults_to_30():
+    assert GlobalSettings().day_basis == 30
+
+
+def test_day_basis_helpers_use_the_configured_basis():
+    settings = GlobalSettings(day_basis=28, r_cycle=14)
+
+    assert daily_usage_from_monthly(56, settings.day_basis) == 2
+    assert lead_time_demand(56, 14, settings.day_basis) == 28
+    assert review_cycle_demand(56, settings.r_cycle, settings.day_basis) == 28
+    assert safety_stock_qty(56, 14, 0.5, settings.day_basis) == 14
+    assert critical_point_qty(56, 14, settings.day_basis) == 28
 
 
 def test_soq_and_pna_are_computed_for_new_item():
@@ -36,6 +56,32 @@ def test_soq_and_pna_are_computed_for_new_item():
 
 def test_surplus_line_uses_oq_not_eoq():
     assert calculate_surplus_line(40, 12) == 52
+
+
+def test_soq_branch_logic_is_unchanged():
+    settings = GlobalSettings(r_cycle=14, r_cost=8, k_cost=0.18)
+    item = create_inventory_item(
+        usage_rate=30,
+        lead_time=30,
+        item_cost=20,
+        pna=5,
+        safety_allowance=0.5,
+        standard_pack=5,
+        global_settings=settings,
+        hits_per_month=10,
+    )
+    item.op = 20
+    item.lp = 30
+    item.oq = 12
+
+    item.pna = 31
+    assert calculate_soq(item) == 0
+
+    item.pna = 25
+    assert calculate_soq(item) == 15
+
+    item.pna = 18
+    assert calculate_soq(item) == 15
 
 
 def test_asq_month_end_can_raise_op():

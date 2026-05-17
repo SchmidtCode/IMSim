@@ -85,6 +85,13 @@ If you want the `uv run` workflow or source checkout instructions, jump to the d
 - `examples/sample-items.csv`
 - `examples/Example.xlsx`
 
+## Disclaimer
+
+IMSim is an independent open-source inventory management training project. It is not affiliated
+with, endorsed by, sponsored by, or supported by Infor. Product names such as Infor,
+CloudSuite Distribution, CSD, and Distribution SX.e are referenced only to help users map
+general inventory concepts to systems they may use.
+
 ## License
 
 Apache-2.0. See `LICENSE`.

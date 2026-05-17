@@ -36,6 +36,7 @@ class AsqSettings:
 @dataclass(slots=True)
 class GlobalSettings:
     r_cycle: int = 14
+    day_basis: int = 30
     r_cost: float = 8.0
     k_cost: float = 0.18
     stockout_penalty: float = 5.0
@@ -50,6 +51,7 @@ class GlobalSettings:
         data = data or {}
         return cls(
             r_cycle=int(data.get("r_cycle", 14)),
+            day_basis=max(1, int(data.get("day_basis", 30))),
             r_cost=float(data.get("r_cost", 8.0)),
             k_cost=float(data.get("k_cost", 0.18)),
             stockout_penalty=float(data.get("stockout_penalty", 5.0)),
