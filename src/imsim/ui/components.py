@@ -160,7 +160,11 @@ def _lesson_snapshot_disclosure(
     *,
     label: str = "Show snapshot details",
     hint: str = "Status and goal details",
+    open_by_default: bool = False,
 ) -> html.Details:
+    props: dict[str, object] = {"className": "lesson-snapshot-disclosure"}
+    if open_by_default:
+        props["open"] = True
     return html.Details(
         [
             html.Summary(
@@ -172,7 +176,7 @@ def _lesson_snapshot_disclosure(
             ),
             html.Div(body, className="lesson-disclosure-body"),
         ],
-        className="lesson-snapshot-disclosure",
+        **props,
     )
 
 
@@ -1050,12 +1054,15 @@ def service_card_children(state: SimulationState) -> list:
             _lesson_position_snapshot_block(state),
         ]
         return [
-            html.Div(
-                [
-                    html.Div(top_blocks, className="lesson-snapshot-grid"),
-                    _lesson_item_snapshot_block(level.index, state.items),
-                ],
-                className="lesson-snapshot-stack",
+            _lesson_snapshot_disclosure(
+                html.Div(
+                    [
+                        html.Div(top_blocks, className="lesson-snapshot-grid"),
+                        _lesson_item_snapshot_block(level.index, state.items),
+                    ],
+                    className="lesson-snapshot-stack",
+                ),
+                hint="Service, position, and item status",
             )
         ]
 

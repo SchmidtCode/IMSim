@@ -459,7 +459,7 @@ body {
 
 .lesson-snapshot-disclosure {
   display: grid;
-  gap: 0.8rem;
+  gap: 0.55rem;
 }
 
 .lesson-disclosure-summary {
@@ -469,8 +469,8 @@ body {
   gap: 0.75rem;
   justify-content: space-between;
   list-style: none;
-  min-height: 2.5rem;
-  padding: 0.15rem 0;
+  min-height: 2.15rem;
+  padding: 0.05rem 0;
 }
 
 .lesson-disclosure-summary::-webkit-details-marker {
@@ -500,7 +500,7 @@ body {
 }
 
 .lesson-disclosure-body {
-  padding-top: 0.2rem;
+  padding-top: 0.1rem;
 }
 
 .shell-card,
@@ -1501,6 +1501,10 @@ body {
   gap: 0.45rem;
 }
 
+.dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-disclosure {
+  gap: 0.45rem;
+}
+
 .dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-block {
   gap: 0.22rem;
 }
@@ -1944,10 +1948,11 @@ body {
   }
 
   .dashboard-shell.lesson-layout-workspace-basic .dashboard-main-layout {
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     grid-template-areas:
-      "actions service"
-      "session inventory";
+      "actions inventory"
+      "session inventory"
+      ". service";
     padding-bottom: 1rem;
   }
 
@@ -1956,8 +1961,8 @@ body {
     grid-template-areas:
       "actions graph"
       "session graph"
-      "service service"
-      "inventory inventory";
+      "inventory inventory"
+      "service service";
     padding-bottom: 1rem;
   }
 

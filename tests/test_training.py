@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dash import Patch
+from dash import Patch, html
 from dash_ag_grid import AgGrid
 
 from imsim.models import Receipt, TrainingProfile
@@ -203,6 +203,21 @@ def test_inventory_graph_style_tracks_figure_height():
         "minHeight": "460px",
         "width": "100%",
     }
+
+
+def test_lesson_snapshot_is_collapsed_for_supporting_lessons():
+    level_two_children = service_card_children(build_level_state("level-2"))
+    level_three_children = service_card_children(build_level_state("level-3"))
+    level_six_children = service_card_children(build_level_state("level-6"))
+    level_one_children = service_card_children(build_level_state("level-1"))
+
+    assert isinstance(level_two_children[0], html.Details)
+    assert getattr(level_two_children[0], "open", None) is None
+    assert isinstance(level_three_children[0], html.Details)
+    assert getattr(level_three_children[0], "open", None) is None
+    assert isinstance(level_six_children[0], html.Details)
+    assert getattr(level_six_children[0], "open", None) is None
+    assert not isinstance(level_one_children[0], html.Details)
 
 
 def test_refresh_inventory_figure_returns_patch_when_schema_is_stable():
