@@ -183,7 +183,8 @@ _GLOSSARY_ENTRIES = (
     (
         "PNA",
         "Projected net available. The inventory position used for replenishment decisions. "
-        "Full training formula: on hand - reserved - committed - backordered + on order + received.",
+        "Full training formula: on hand - reserved - committed - backordered + on "
+        "order + received.",
     ),
     (
         "On hand",
@@ -1525,7 +1526,10 @@ def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag
                     "step": 1,
                     "showStepperButtons": True,
                 },
-                "headerTooltip": "Current suggested order quantity (SOQ); adjust before placing the custom order.",
+                "headerTooltip": (
+                    "Current suggested order quantity (SOQ); adjust before placing "
+                    "the custom order."
+                ),
             },
         ],
         defaultColDef={"sortable": True, "filter": True, "resizable": True},
@@ -1718,24 +1722,18 @@ def reference_modal_children() -> list:
             html.Ul(
                 [
                     html.Li(
-                        (
-                            "CSD users may recognize concepts from Product Warehouse Product "
-                            "Setup ordering controls, Demand Center/RRAR workflows, Product "
-                            "Inquiry - Replenishment, and surplus reporting."
-                        )
+                        "CSD users may recognize concepts from Product Warehouse Product "
+                        "Setup ordering controls, Demand Center/RRAR workflows, Product "
+                        "Inquiry - Replenishment, and surplus reporting."
                     ),
                     html.Li(
-                        (
-                            "Exact behavior depends on company setup, product line setup, "
-                            "order method, warehouse and product controls, security, and "
-                            "customizations."
-                        )
+                        "Exact behavior depends on company setup, product line setup, "
+                        "order method, warehouse and product controls, security, and "
+                        "customizations."
                     ),
                     html.Li(
-                        (
-                            "The simulator keeps its SOQ and exception logic intentionally "
-                            "simple so the lessons stay teachable and comparable."
-                        )
+                        "The simulator keeps its SOQ and exception logic intentionally "
+                        "simple so the lessons stay teachable and comparable."
                     ),
                 ],
                 className="lesson-copy-list",

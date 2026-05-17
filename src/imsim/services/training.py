@@ -500,7 +500,10 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         index=12,
         level_id="level-12",
         title="Product Lines and Review Cycle",
-        summary="Learn why a supplier/product line is reviewed as a group once one item triggers action.",
+        summary=(
+            "Learn why a supplier/product line is reviewed as a group once one item "
+            "triggers action."
+        ),
         formula="Review cycle = planned days between P-line purchases",
         tutorial_steps=(
             "A product line is a group of items that can ride the same supplier PO.",
@@ -687,11 +690,15 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         level_id="level-17",
         title="Exceptions: Critical Point and Surplus",
         summary="Identify urgent stockout risk and overstock before entering certification.",
-        formula="Critical point = monthly usage x lead-time days / day basis; surplus threshold = LP + OQ",
+        formula=(
+            "Critical point = monthly usage x lead-time days / day basis; surplus "
+            "threshold = LP + OQ"
+        ),
         tutorial_steps=(
             "Critical point means the item is in urgent replenishment territory.",
             "Surplus threshold marks the model's high-water point.",
-            "Good inventory work means managing shortages and overstock without losing the whole system view.",
+            "Good inventory work means managing shortages and overstock without losing "
+            "the whole system view.",
         ),
         locked_features=(
             "Certification opens ASQ and the exception center.",

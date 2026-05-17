@@ -379,7 +379,10 @@ def test_formula_fidelity_lessons_use_day_basis_and_updated_wording():
     assert lesson_twelve.title == "Product Lines and Review Cycle"
     assert (
         lesson_seventeen.formula
-        == "Critical point = monthly usage x lead-time days / day basis; surplus threshold = LP + OQ"
+        == (
+            "Critical point = monthly usage x lead-time days / day basis; surplus "
+            "threshold = LP + OQ"
+        )
     )
 
 
