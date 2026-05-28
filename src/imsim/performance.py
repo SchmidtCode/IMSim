@@ -298,9 +298,10 @@ class _VirtualUser:
             return
         if is_action_allowed(state, "guided_po"):
             below_op = any(item.pna < item.op for item in state.items)
+            below_lp_count = sum(1 for item in state.items if item.pna < item.lp)
             summary = place_purchase_orders(state)
             if int(summary["lines"]) > 0:
-                record_guided_order(state, below_op=below_op)
+                record_guided_order(state, below_op=below_op, below_lp_count=below_lp_count)
         if is_action_allowed(state, "custom_order"):
             quantities = [item.soq for item in state.items]
             if place_custom_orders(state, quantities):

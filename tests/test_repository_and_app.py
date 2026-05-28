@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -86,6 +87,28 @@ def test_file_repository_rejects_stale_save(test_config):
     state_two.day = 11
     with pytest.raises(SessionConflictError):
         repo_two.save("shared", state_two)
+
+
+def test_file_repository_retries_transient_replace_denial(test_config, monkeypatch):
+    repo = FileSessionRepository(test_config)
+    original_replace = os.replace
+    attempts = 0
+
+    def flaky_replace(source, target):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise PermissionError("temporarily locked")
+        original_replace(source, target)
+
+    monkeypatch.setattr(os, "replace", flaky_replace)
+
+    state = SimulationState()
+    state.day = 12
+    repo.save("flaky", state)
+
+    assert attempts == 2
+    assert repo.get_or_create("flaky").day == 12
 
 
 def test_database_repository_persists_state(tmp_path):

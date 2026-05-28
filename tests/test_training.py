@@ -691,9 +691,26 @@ def test_line_point_and_exception_lessons_track_new_objectives():
     line_point = build_level_state("level-13")
     line_level = academy_level("level-13")
     assert line_level is not None
+    assert line_level.day_window == 40
+    assert line_level.win_conditions == {
+        "guided_order_below_lp_item_min": 2,
+        "guided_order_below_lp_min": 2,
+    }
     line_point.day = line_level.day_window + 1
-    line_point.training.guided_orders_placed = 1
 
+    evaluation = evaluate_active_lesson(line_point)
+
+    assert evaluation is not None
+    assert evaluation.passed is False
+    assert "Guided reorders while 2+ items below LP: 0/2" in evaluation.metric_rows
+
+    line_point.training.guided_orders_below_lp = 1
+    evaluation = evaluate_active_lesson(line_point)
+
+    assert evaluation is not None
+    assert evaluation.passed is False
+
+    line_point.training.guided_orders_below_lp = 2
     evaluation = evaluate_active_lesson(line_point)
 
     assert evaluation is not None

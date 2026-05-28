@@ -298,6 +298,7 @@ class TrainingProfile:
     last_result_message: str = ""
     guided_orders_placed: int = 0
     guided_orders_below_op: int = 0
+    guided_orders_below_lp: int = 0
     custom_orders_placed: int = 0
     parameter_updates_applied: int = 0
 
@@ -388,6 +389,7 @@ class TrainingProfile:
             last_result_message=str(data.get("last_result_message", "")),
             guided_orders_placed=max(0, int(data.get("guided_orders_placed", 0))),
             guided_orders_below_op=max(0, int(data.get("guided_orders_below_op", 0))),
+            guided_orders_below_lp=max(0, int(data.get("guided_orders_below_lp", 0))),
             custom_orders_placed=max(0, int(data.get("custom_orders_placed", 0))),
             parameter_updates_applied=max(0, int(data.get("parameter_updates_applied", 0))),
         )
