@@ -68,7 +68,7 @@ def test_page_lifecycle_changes_refresh_session_state(dash_app):
 
 def test_academy_navigation_wires_final_lesson_button(dash_app):
     assert any(
-        ("academy-level-18-button", "n_clicks") in _input_pairs(spec)
+        ("academy-level-19-button", "n_clicks") in _input_pairs(spec)
         for spec in dash_app.callback_map.values()
     )
 
@@ -112,7 +112,7 @@ def test_dashboard_shell_class_names_follow_lesson_variants():
         build_level_state("level-15")
     )
     assert "lesson-layout-workspace-certification" in dashboard_shell_class_name(
-        build_level_state("level-18")
+        build_level_state("level-19")
     )
 
 

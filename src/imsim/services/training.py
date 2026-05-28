@@ -728,6 +728,85 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
     LevelDefinition(
         index=18,
         level_id="level-18",
+        title="Emergency PLine Bridge Buy",
+        summary=(
+            "Use a temporary Demand Center review-cycle reduction to create a small "
+            "emergency buy without changing the normal product-line setup."
+        ),
+        formula="Emergency bridge buy = PO RRAR recalculated with a temporary 3-day review cycle",
+        tutorial_steps=(
+            (
+                "Confirm the trigger: backorder, rush demand, negative PNA, or an open "
+                "PO that will not arrive soon enough."
+            ),
+            (
+                "Stay in Purchase Demand Center; do not permanently edit Product Line "
+                "Setup just to force a small buy."
+            ),
+            (
+                "Use PO RRAR header actions to temporarily reduce review cycle days "
+                "from 21 to 3 and refresh the recommendation."
+            ),
+            (
+                "Compare the recalculated lines, accept only the emergency bridge "
+                "lines, and leave normal replenishment for the regular buy."
+            ),
+            (
+                "After the bridge order is created, restore the normal 21-day review "
+                "cycle so the standard line buy remains intact."
+            ),
+        ),
+        locked_features=(
+            (
+                "This lesson uses the simulator Policy field as the Demand Center "
+                "Increase/Decrease action."
+            ),
+            "Imports and ASQ remain locked until certification.",
+        ),
+        demand_mode="deterministic",
+        day_window=1,
+        scenario=(
+            _item(90, 20, 90, 50, safety_allowance_pct=25, standard_pack=5, hits_per_month=30),
+            _item(60, 15, 35, 50, safety_allowance_pct=20, standard_pack=5, hits_per_month=12),
+            _item(30, 30, 120, 45, safety_allowance_pct=20, standard_pack=1, hits_per_month=5),
+            _item(45, 10, 22, 15, safety_allowance_pct=30, standard_pack=4, hits_per_month=18),
+        ),
+        visible_panels=frozenset(
+            {"graph", "service", "inventory", "session", "actions", "policy"}
+        ),
+        visible_columns=("item", "pna", "op", "lp", "usage_rate", "soq", "on_order", "backorder"),
+        allowed_actions=frozenset(
+            {"guided_po", "custom_order", "po_overview", "update_parameters"}
+        ),
+        win_conditions={
+            "parameter_update_min": 2,
+            "emergency_review_cycle_max": 3,
+            "emergency_normal_review_cycle": 21,
+            "emergency_bridge_order_min": 1,
+        },
+        global_settings=_settings(
+            r_cycle=21, r_cost=1.5, k_cost=0.30, stockout_penalty=6.0, gm=0.18
+        ),
+        layout_variant="workspace_advanced",
+        teaching_goal=(
+            "Practice a controlled emergency buy without turning it into a permanent "
+            "policy change."
+        ),
+        concept_tags=("Demand Center", "PO RRAR", "review cycle", "bridge buy"),
+        advanced_note=(
+            "Simulator note: the Policy review-cycle control is used here as a stand-in for "
+            "Demand Center's temporary Increase/Decrease action. The learning goal is the "
+            "buyer decision: lower, recalculate, accept selectively, merge, and restore."
+        ),
+        csd_mapping_note=(
+            "CSD mapping: Purchase Demand Center can temporarily adjust review days for a "
+            "PO RRAR update. That action recalculates recommendations for the report run "
+            "without making a permanent Product Line Setup change."
+        ),
+    ),
+    LevelDefinition(
+        index=19,
+        level_id="level-19",
         title="Certification: Balanced Inventory Management",
         summary="Run the full dashboard and balance service, cost, and replenishment decisions.",
         formula="Use the full IM dashboard to hit service and margin together",
@@ -995,6 +1074,24 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
         needed = int(level.win_conditions["surplus_item_min"])
         current = sum(1 for item in state.items if item.on_hand >= item.surplus_line)
         rows.append(f"Items above surplus threshold: {current}/{needed}")
+    if "emergency_review_cycle_max" in level.win_conditions:
+        emergency_cycle = int(level.win_conditions["emergency_review_cycle_max"])
+        normal_cycle = int(level.win_conditions.get("emergency_normal_review_cycle", 21))
+        rows.append(
+            "Temporary review cycle used: "
+            + ("yes" if state.training.emergency_review_cycle_applied else "not yet")
+            + f" / target {emergency_cycle} days"
+        )
+        rows.append(
+            "Bridge PO created while lowered: "
+            f"{state.training.emergency_bridge_orders_placed}/"
+            f"{int(level.win_conditions.get('emergency_bridge_order_min', 1))}"
+        )
+        rows.append(
+            "Normal review cycle restored: "
+            + ("yes" if state.training.emergency_review_cycle_restored else "not yet")
+            + f" / target {normal_cycle} days"
+        )
     return tuple(rows)
 
 
@@ -1073,6 +1170,13 @@ def evaluate_active_lesson(state: SimulationState) -> LessonEvaluation | None:
             sum(1 for item in state.items if item.on_hand >= item.surplus_line)
             >= int(level.win_conditions["surplus_item_min"])
         )
+    if "emergency_review_cycle_max" in level.win_conditions:
+        checks.append(state.training.emergency_review_cycle_applied)
+        checks.append(
+            state.training.emergency_bridge_orders_placed
+            >= int(level.win_conditions.get("emergency_bridge_order_min", 1))
+        )
+        checks.append(state.training.emergency_review_cycle_restored)
 
     passed = all(checks)
     if passed:
@@ -1126,18 +1230,42 @@ def apply_lesson_evaluation(
     return evaluation
 
 
+def _record_emergency_bridge_if_applicable(state: SimulationState) -> None:
+    level = active_level(state)
+    if level is None or "emergency_review_cycle_max" not in level.win_conditions:
+        return
+    emergency_cycle = int(level.win_conditions["emergency_review_cycle_max"])
+    if state.global_settings.r_cycle <= emergency_cycle:
+        state.training.emergency_bridge_orders_placed += 1
+
+
 def record_guided_order(state: SimulationState, *, below_op: bool = False) -> None:
     state.training.guided_orders_placed += 1
     if below_op:
         state.training.guided_orders_below_op += 1
+    _record_emergency_bridge_if_applicable(state)
 
 
 def record_custom_order(state: SimulationState) -> None:
     state.training.custom_orders_placed += 1
+    _record_emergency_bridge_if_applicable(state)
 
 
 def record_parameter_update(state: SimulationState) -> None:
     state.training.parameter_updates_applied += 1
+    level = active_level(state)
+    if level is None or "emergency_review_cycle_max" not in level.win_conditions:
+        return
+    emergency_cycle = int(level.win_conditions["emergency_review_cycle_max"])
+    normal_cycle = int(level.win_conditions.get("emergency_normal_review_cycle", 21))
+    if state.global_settings.r_cycle <= emergency_cycle:
+        state.training.emergency_review_cycle_applied = True
+        state.training.emergency_review_cycle_restored = False
+    elif (
+        state.training.emergency_review_cycle_applied
+        and state.global_settings.r_cycle == normal_cycle
+    ):
+        state.training.emergency_review_cycle_restored = True
 
 
 def _state_for_scenario(
@@ -1183,6 +1311,9 @@ def build_level_state(level_id: str, profile: TrainingProfile | None = None) -> 
     progress.guided_orders_below_op = 0
     progress.custom_orders_placed = 0
     progress.parameter_updates_applied = 0
+    progress.emergency_review_cycle_applied = False
+    progress.emergency_bridge_orders_placed = 0
+    progress.emergency_review_cycle_restored = False
     return _state_for_scenario(
         profile=progress, scenario=level.scenario, settings=level.global_settings
     )
@@ -1200,6 +1331,9 @@ def build_simulator_state(profile: TrainingProfile | None = None) -> SimulationS
     progress.guided_orders_below_op = 0
     progress.custom_orders_placed = 0
     progress.parameter_updates_applied = 0
+    progress.emergency_review_cycle_applied = False
+    progress.emergency_bridge_orders_placed = 0
+    progress.emergency_review_cycle_restored = False
     certification = final_academy_level()
     return _state_for_scenario(
         profile=progress,

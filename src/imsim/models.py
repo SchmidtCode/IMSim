@@ -285,7 +285,7 @@ class InventoryItem:
 
 @dataclass(slots=True)
 class TrainingProfile:
-    training_schema_version: int = 3
+    training_schema_version: int = 4
     current_view: str = "main_menu"
     active_level_id: str | None = None
     highest_unlocked_level: int = 1
@@ -300,6 +300,9 @@ class TrainingProfile:
     guided_orders_below_op: int = 0
     custom_orders_placed: int = 0
     parameter_updates_applied: int = 0
+    emergency_review_cycle_applied: bool = False
+    emergency_bridge_orders_placed: int = 0
+    emergency_review_cycle_restored: bool = False
 
     @staticmethod
     def _migrate_training_data(data: dict[str, Any]) -> dict[str, Any]:
@@ -364,6 +367,22 @@ class TrainingProfile:
             if "level-18" in migrated["completed_levels"]:
                 migrated["highest_unlocked_level"] = max(migrated["highest_unlocked_level"], 18)
             migrated["training_schema_version"] = 3
+            schema_version = 3
+        if schema_version < 4:
+            completed_levels = [str(level_id) for level_id in migrated.get("completed_levels", [])]
+            migrated["completed_levels"] = [
+                "level-19" if level_id == "level-18" else level_id
+                for level_id in completed_levels
+            ]
+            if migrated.get("active_level_id") == "level-18":
+                migrated["active_level_id"] = "level-19"
+            highest_unlocked_level = max(1, int(migrated.get("highest_unlocked_level", 1)))
+            if migrated.get("simulator_unlocked") or migrated.get("auto_po_reward_unlocked"):
+                highest_unlocked_level = max(highest_unlocked_level, 19)
+            if "level-19" in migrated["completed_levels"]:
+                highest_unlocked_level = max(highest_unlocked_level, 19)
+            migrated["highest_unlocked_level"] = highest_unlocked_level
+            migrated["training_schema_version"] = 4
         return migrated
 
     @classmethod
@@ -371,7 +390,7 @@ class TrainingProfile:
         data = cls._migrate_training_data(data or {})
         completed_levels = [str(level_id) for level_id in data.get("completed_levels", [])]
         return cls(
-            training_schema_version=max(3, int(data.get("training_schema_version", 3))),
+            training_schema_version=max(4, int(data.get("training_schema_version", 4))),
             current_view=str(data.get("current_view", "main_menu")),
             active_level_id=(
                 None
@@ -390,6 +409,15 @@ class TrainingProfile:
             guided_orders_below_op=max(0, int(data.get("guided_orders_below_op", 0))),
             custom_orders_placed=max(0, int(data.get("custom_orders_placed", 0))),
             parameter_updates_applied=max(0, int(data.get("parameter_updates_applied", 0))),
+            emergency_review_cycle_applied=_bool(
+                data.get("emergency_review_cycle_applied", False)
+            ),
+            emergency_bridge_orders_placed=max(
+                0, int(data.get("emergency_bridge_orders_placed", 0))
+            ),
+            emergency_review_cycle_restored=_bool(
+                data.get("emergency_review_cycle_restored", False)
+            ),
         )
 
 
