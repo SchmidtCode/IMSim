@@ -1638,7 +1638,11 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
     grid_style = {"height": _workspace_grid_height(state, surface="inventory"), "width": "100%"}
     if compact_lesson_items:
         default_col_def.update({"sortable": False, "filter": False})
-        dash_grid_options = {"animateRows": False, "domLayout": "autoHeight"}
+        dash_grid_options = {
+            "animateRows": False,
+            "domLayout": "autoHeight",
+            "pagination": False,
+        }
         grid_style = {"height": "auto", "minHeight": "7.5rem", "width": "100%"}
     return dag.AgGrid(
         id="inventory-table-grid",
