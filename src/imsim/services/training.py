@@ -866,7 +866,16 @@ def simulator_view_allowed(profile: TrainingProfile) -> bool:
     return profile.simulator_unlocked
 
 
-def is_action_allowed(state: SimulationState, action: str) -> bool:
+ORDER_ACTIONS = frozenset({"guided_po", "custom_order"})
+
+
+def lesson_has_begun(state: SimulationState) -> bool:
+    if state.training.current_view != "lesson":
+        return True
+    return bool(state.is_initialized or state.day > 1 or state.training.lesson_status == "running")
+
+
+def is_action_unlocked(state: SimulationState, action: str) -> bool:
     if state.training.current_view == "main_menu":
         return False
     if state.training.current_view == "simulator":
@@ -879,6 +888,14 @@ def is_action_allowed(state: SimulationState, action: str) -> bool:
     if action == "auto_po":
         return False
     return action in level.allowed_actions
+
+
+def is_action_allowed(state: SimulationState, action: str) -> bool:
+    if not is_action_unlocked(state, action):
+        return False
+    if state.training.current_view == "lesson" and action in ORDER_ACTIONS:
+        return lesson_has_begun(state)
+    return True
 
 
 def lesson_elapsed_days(state: SimulationState) -> int:

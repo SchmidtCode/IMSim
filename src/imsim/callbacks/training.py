@@ -13,6 +13,7 @@ from ..services.training import (
     build_simulator_state,
     cheat_unlock_password_matches,
     is_action_allowed,
+    is_action_unlocked,
     reset_progress_state,
     simulator_view_allowed,
     unlock_all_academy_levels,
@@ -356,6 +357,12 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("start-button", "disabled", allow_duplicate=True),
             Output("reset-button", "children", allow_duplicate=True),
             Output("po-button", "children"),
+            Output("po-button", "className"),
+            Output("po-button", "disabled"),
+            Output("po-button", "title"),
+            Output("place-custom-order-button", "className"),
+            Output("place-custom-order-button", "disabled"),
+            Output("place-custom-order-button", "title"),
             Output("graph-panel-title", "children"),
             Output("service-panel-title", "children"),
             Output("inventory-panel-title", "children"),
@@ -470,6 +477,15 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
                 )
             )
         )
+        guided_po_allowed = is_action_allowed(state, "guided_po")
+        custom_order_allowed = is_action_allowed(state, "custom_order")
+        order_locked_title = (
+            "Start the lesson before placing orders."
+            if state.training.current_view == "lesson"
+            else None
+        )
+        po_button_title = None if guided_po_allowed else order_locked_title
+        custom_order_title = None if custom_order_allowed else order_locked_title
         interval_disabled = not state.is_initialized
         return (
             ctx.panel_style(is_menu),
@@ -497,6 +513,12 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             lesson_terminal,
             reset_label,
             po_label,
+            ctx.button_class("primary", "button-block mb-2"),
+            not guided_po_allowed,
+            po_button_title,
+            ctx.button_class("light", "button-block mb-2"),
+            not custom_order_allowed,
+            custom_order_title,
             graph_title,
             service_panel_title,
             "Planner grid"
@@ -512,12 +534,12 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             ctx.panel_style("inventory" in panels and not (level is not None and level.index == 1)),
             ctx.panel_style("exceptions" in panels),
             ctx.panel_style("kpi" in panels),
-            ctx.panel_style(is_action_allowed(state, "guided_po")),
-            ctx.panel_style(is_action_allowed(state, "custom_order")),
-            ctx.panel_style(is_action_allowed(state, "po_overview")),
-            ctx.panel_style(is_action_allowed(state, "add_items")),
+            ctx.panel_style(is_action_unlocked(state, "guided_po")),
+            ctx.panel_style(is_action_unlocked(state, "custom_order")),
+            ctx.panel_style(is_action_unlocked(state, "po_overview")),
+            ctx.panel_style(is_action_unlocked(state, "add_items")),
             ctx.panel_style(is_simulator and state.training.auto_po_reward_unlocked),
-            ctx.panel_style(is_action_allowed(state, "apply_asq")),
+            ctx.panel_style(is_action_unlocked(state, "apply_asq")),
             not (is_simulator and state.training.auto_po_reward_unlocked),
             *[academy_level_card_children(level.index, state) for level in levels],
             simulator_unlock_children(state),
