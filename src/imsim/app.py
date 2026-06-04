@@ -36,7 +36,7 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
         ],
         assets_folder=str(config.assets_dir),
         suppress_callback_exceptions=False,
-        update_title = None
+        update_title="",
     )
     app.title = "IMSim"
     app.layout = build_layout(config)
