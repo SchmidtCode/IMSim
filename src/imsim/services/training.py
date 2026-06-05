@@ -217,6 +217,8 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             "Fill rate is a customer-service measurement, not an inventory quantity.",
             "A partially filled stock line counts as missed service in this model.",
             "Use a guided reorder to protect upcoming customer lines before stock runs out.",
+            "A guided reorder creates inbound supply first; on-hand inventory only increases "
+            "after the simulated lead time passes and the order is received.",
         ),
         locked_features=(
             "Custom quantities remain locked until later ordering lessons.",
@@ -384,7 +386,15 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             _item(30, 15, 20, 20, hits_per_month=30),
         ),
         visible_panels=frozenset({"service", "inventory", "session", "actions"}),
-        visible_columns=("item", "on_hand", "usage_rate", "lead_time", "op", "days_to_op"),
+        visible_columns=(
+            "item",
+            "on_hand",
+            "on_order",
+            "usage_rate",
+            "lead_time",
+            "op",
+            "days_to_op",
+        ),
         allowed_actions=frozenset({"guided_po"}),
         win_conditions={"fill_rate_min": 0.97, "close_at_or_above_op": True, "guided_order_min": 2},
         global_settings=_settings(),
