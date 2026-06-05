@@ -1717,6 +1717,16 @@ body {
     align-items: start;
   }
 
+  .dashboard-shell.simulator-dashboard .dashboard-main-layout,
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-main-layout {
+    display: grid;
+    grid-template-columns:
+      minmax(17rem, var(--imsim-size-dashboard-rail-max))
+      minmax(0, 1fr);
+    gap: 0.75rem;
+    width: 100%;
+  }
+
   .dashboard-shell.lesson-dashboard .dashboard-rail-column,
   .dashboard-shell.lesson-dashboard .dashboard-main-column,
   .dashboard-shell.simulator-dashboard .dashboard-rail-column,
@@ -1737,6 +1747,15 @@ body {
     overflow: visible;
   }
 
+  .dashboard-shell.simulator-dashboard .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-rail-column,
+  .dashboard-shell.simulator-dashboard .dashboard-main-column,
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-main-column {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0;
+  }
+
   .dashboard-shell.lesson-dashboard #graph-panel,
   .dashboard-shell.simulator-dashboard #graph-panel {
     flex: 1 1 auto;
@@ -1750,6 +1769,24 @@ body {
     flex: 0 0 auto;
   }
 
+  .dashboard-shell.simulator-dashboard .dashboard-detail-row,
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-detail-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .dashboard-shell.simulator-dashboard .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-insights-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    width: 100%;
+    align-items: stretch;
+    margin-bottom: 0.75rem !important;
+  }
+
   .dashboard-shell.lesson-dashboard .dashboard-insights-row > [id],
   .dashboard-shell.lesson-dashboard .dashboard-detail-row > [id],
   .dashboard-shell.simulator-dashboard .dashboard-insights-row > [id],
@@ -1757,11 +1794,26 @@ body {
     display: flex;
   }
 
+  .dashboard-shell.simulator-dashboard .dashboard-insights-row > [id],
+  .dashboard-shell.simulator-dashboard .dashboard-detail-row > [id],
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-insights-row > [id],
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-detail-row > [id] {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0;
+  }
+
   .dashboard-shell.lesson-dashboard .dashboard-insights-row > [id] > .card,
   .dashboard-shell.lesson-dashboard .dashboard-detail-row > [id] > .card,
   .dashboard-shell.simulator-dashboard .dashboard-insights-row > [id] > .card,
   .dashboard-shell.simulator-dashboard .dashboard-detail-row > [id] > .card {
     width: 100%;
+    height: 100%;
+  }
+
+  .dashboard-shell.simulator-dashboard #exceptions-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification #exceptions-panel > .card {
+    height: auto;
   }
 
   .dashboard-shell.lesson-dashboard #inventory-panel .card-body,
@@ -1771,6 +1823,12 @@ body {
     flex-direction: column;
     max-height: none;
     min-height: 0;
+  }
+
+  .dashboard-shell.simulator-dashboard #exceptions-panel .card-body,
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification #exceptions-panel .card-body {
+    max-height: 14rem;
+    overflow-y: auto;
   }
 
   .dashboard-shell.lesson-dashboard #inventory-table-shell,
@@ -2055,6 +2113,14 @@ body {
     height: 100%;
   }
 
+  .dashboard-shell.lesson-dashboard #inventory-panel {
+    align-self: start;
+  }
+
+  .dashboard-shell.lesson-dashboard #inventory-panel > .card {
+    height: auto;
+  }
+
   .dashboard-shell.lesson-layout-workspace-basic #inventory-panel .card-body,
   .dashboard-shell.lesson-layout-workspace-signal #inventory-panel .card-body {
     display: flex;
@@ -2201,7 +2267,7 @@ body {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.75rem;
-    margin-bottom: 0.3rem !important;
+    margin-bottom: 0.75rem !important;
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced .dashboard-detail-row {
@@ -2212,7 +2278,7 @@ body {
 
   .dashboard-shell.lesson-layout-workspace-certification .dashboard-detail-row {
     display: grid;
-    grid-template-columns: minmax(0, 1.8fr) minmax(18rem, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.75rem;
   }
 
@@ -2251,10 +2317,13 @@ body {
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced #inventory-panel .card-body,
-  .dashboard-shell.lesson-layout-workspace-certification #inventory-panel .card-body,
-  .dashboard-shell.lesson-layout-workspace-certification #exceptions-panel .card-body {
+  .dashboard-shell.lesson-layout-workspace-certification #inventory-panel .card-body {
     min-height: 0;
     max-height: none;
+  }
+
+  .dashboard-shell.lesson-layout-workspace-certification #exceptions-panel .card-body {
+    min-height: 0;
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced #inventory-panel .card-body,

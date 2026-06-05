@@ -4,6 +4,7 @@ import json
 import os
 import re
 import tempfile
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
@@ -26,6 +27,8 @@ class InvalidSessionIdError(ValueError):
 
 
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+_WINDOWS_REPLACE_ATTEMPTS = 5
+_WINDOWS_REPLACE_RETRY_DELAY_SECONDS = 0.05
 
 
 def normalize_session_id(session_id: str) -> str:
@@ -145,10 +148,20 @@ class FileSessionRepository:
                 handle.flush()
                 os.fsync(handle.fileno())
                 tmp_path = Path(handle.name)
-            os.replace(tmp_path, path)
+            self._replace_path(tmp_path, path)
         finally:
             if tmp_path is not None and tmp_path.exists():
                 tmp_path.unlink(missing_ok=True)
+
+    def _replace_path(self, source: Path, target: Path) -> None:
+        for attempt in range(_WINDOWS_REPLACE_ATTEMPTS):
+            try:
+                os.replace(source, target)
+                return
+            except PermissionError:
+                if attempt == _WINDOWS_REPLACE_ATTEMPTS - 1:
+                    raise
+                time.sleep(_WINDOWS_REPLACE_RETRY_DELAY_SECONDS)
 
 
 class DatabaseSessionRepository:
