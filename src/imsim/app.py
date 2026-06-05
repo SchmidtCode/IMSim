@@ -122,7 +122,7 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
             state.is_initialized = False
             try:
                 repository.save(session_id, state)
-            except (InvalidSessionIdError, SessionConflictError):
+            except InvalidSessionIdError, SessionConflictError:
                 continue
             response = jsonify({"ok": True, "paused": True})
             response.headers["Cache-Control"] = "no-store"
