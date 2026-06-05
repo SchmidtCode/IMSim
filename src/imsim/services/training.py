@@ -569,9 +569,13 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             _item(30, 20, 75, 38, safety_allowance_pct=25, standard_pack=1, hits_per_month=7),
         ),
         visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
-        visible_columns=("item", "pna", "op", "lp", "usage_rate", "soq"),
+        visible_columns=("item", "pna", "op", "lp", "days_to_op", "soq"),
         allowed_actions=frozenset({"guided_po"}),
-        win_conditions={"guided_order_below_lp_item_min": 2, "guided_order_below_lp_min": 2},
+        win_conditions={
+            "guided_order_below_op_item_min": 1,
+            "guided_order_below_lp_item_min": 3,
+            "guided_order_below_lp_min": 2,
+        },
         global_settings=_settings(r_cycle=14),
         layout_variant="workspace_signal",
         teaching_goal="Show that the trigger item is not the only item to buy.",
@@ -970,11 +974,12 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
         needed = int(level.win_conditions["guided_order_min"])
         rows.append(f"Guided reorders used: {state.training.guided_orders_placed}/{needed}")
     if "guided_order_below_lp_min" in level.win_conditions:
+        needed_op_items = int(level.win_conditions.get("guided_order_below_op_item_min", 0))
         needed_items = int(level.win_conditions.get("guided_order_below_lp_item_min", 2))
         needed_orders = int(level.win_conditions["guided_order_below_lp_min"])
         rows.append(
-            "Guided reorders while "
-            f"{needed_items}+ items below LP: {state.training.guided_orders_below_lp}/"
+            f"Guided reorders while {needed_op_items}+ item below OP and "
+            f"{needed_items}+ total below LP: {state.training.guided_orders_below_lp}/"
             f"{needed_orders}"
         )
     if "on_order_min" in level.win_conditions:
@@ -1150,15 +1155,20 @@ def apply_lesson_evaluation(
 
 
 def record_guided_order(
-    state: SimulationState, *, below_op: bool = False, below_lp_count: int = 0
+    state: SimulationState,
+    *,
+    below_op: bool = False,
+    below_op_count: int = 0,
+    below_lp_count: int = 0,
 ) -> None:
     state.training.guided_orders_placed += 1
     if below_op:
         state.training.guided_orders_below_op += 1
     level = active_level(state)
     if level is not None and "guided_order_below_lp_min" in level.win_conditions:
-        needed = int(level.win_conditions.get("guided_order_below_lp_item_min", 2))
-        if below_lp_count >= needed:
+        needed_op = int(level.win_conditions.get("guided_order_below_op_item_min", 0))
+        needed_lp = int(level.win_conditions.get("guided_order_below_lp_item_min", 2))
+        if below_op_count >= needed_op and below_lp_count >= needed_lp:
             state.training.guided_orders_below_lp += 1
 
 

@@ -23,6 +23,7 @@ from imsim.services.training import (
     evaluate_active_lesson,
     final_academy_level,
     is_action_allowed,
+    record_guided_order,
     reset_progress_state,
     unlock_all_academy_levels,
 )
@@ -176,6 +177,7 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     intro_pna_grid = build_inventory_table(intro_pna_state)
     intro_pna_figure = build_inventory_figure(intro_pna_state)
     ranking_grid = build_inventory_table(ranking_state)
+    line_point_grid = build_inventory_table(line_point_state)
     review_cycle_figure = build_inventory_figure(review_cycle_state)
     line_point_figure = build_inventory_figure(line_point_state)
     signal_grid = build_inventory_table(signal_state)
@@ -192,11 +194,24 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert intro_pna_grid.dashGridOptions["domLayout"] == "autoHeight"
     assert intro_pna_figure.layout.height == 340
     assert isinstance(ranking_grid, AgGrid)
-    assert ranking_grid.style["height"] == "36rem"
+    assert ranking_grid.style["height"] == "auto"
+    assert ranking_grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert isinstance(line_point_grid, AgGrid)
+    assert line_point_grid.style["height"] == "auto"
+    assert line_point_grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert [column["field"] for column in line_point_grid.columnDefs] == [
+        "item",
+        "pna",
+        "op",
+        "lp",
+        "days_to_op",
+        "soq",
+    ]
     assert review_cycle_figure.layout.height == 340
     assert line_point_figure.layout.height == 340
     assert isinstance(signal_grid, AgGrid)
-    assert signal_grid.style["height"] == "32rem"
+    assert signal_grid.style["height"] == "auto"
+    assert signal_grid.dashGridOptions["domLayout"] == "autoHeight"
     assert signal_figure.layout.height == 300
     assert exception_figure.layout.height == 360
     assert certification_figure.layout.height == 360
@@ -204,6 +219,16 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert certification_figure.layout.meta["layout_signature"].startswith(
         "workspace_certification:items:"
     )
+
+
+def test_academy_lesson_inventory_grids_use_compact_height():
+    for level_index in range(1, 19):
+        state = build_level_state(f"level-{level_index}")
+        grid = build_inventory_table(state)
+
+        assert isinstance(grid, AgGrid)
+        assert grid.style["height"] == "auto"
+        assert grid.dashGridOptions["domLayout"] == "autoHeight"
 
 
 def test_level_seventeen_uses_exception_boundary_figure():
@@ -693,7 +718,8 @@ def test_line_point_and_exception_lessons_track_new_objectives():
     assert line_level is not None
     assert line_level.day_window == 40
     assert line_level.win_conditions == {
-        "guided_order_below_lp_item_min": 2,
+        "guided_order_below_op_item_min": 1,
+        "guided_order_below_lp_item_min": 3,
         "guided_order_below_lp_min": 2,
     }
     line_point.day = line_level.day_window + 1
@@ -702,7 +728,10 @@ def test_line_point_and_exception_lessons_track_new_objectives():
 
     assert evaluation is not None
     assert evaluation.passed is False
-    assert "Guided reorders while 2+ items below LP: 0/2" in evaluation.metric_rows
+    assert (
+        "Guided reorders while 1+ item below OP and 3+ total below LP: 0/2"
+        in evaluation.metric_rows
+    )
 
     line_point.training.guided_orders_below_lp = 1
     evaluation = evaluate_active_lesson(line_point)
@@ -727,6 +756,19 @@ def test_line_point_and_exception_lessons_track_new_objectives():
     assert evaluation.passed is True
     assert any("critical point" in row for row in evaluation.metric_rows)
     assert any("surplus threshold" in row for row in evaluation.metric_rows)
+
+
+def test_line_point_qualified_guided_reorder_requires_op_and_lp_signals():
+    state = build_level_state("level-13")
+
+    record_guided_order(state, below_op=True, below_op_count=1, below_lp_count=2)
+    assert state.training.guided_orders_below_lp == 0
+
+    record_guided_order(state, below_op=False, below_op_count=0, below_lp_count=3)
+    assert state.training.guided_orders_below_lp == 0
+
+    record_guided_order(state, below_op=True, below_op_count=1, below_lp_count=3)
+    assert state.training.guided_orders_below_lp == 1
 
 
 def test_final_lesson_pass_unlocks_simulator_reward():

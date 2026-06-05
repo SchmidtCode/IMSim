@@ -2055,6 +2055,14 @@ body {
     height: 100%;
   }
 
+  .dashboard-shell.lesson-dashboard #inventory-panel {
+    align-self: start;
+  }
+
+  .dashboard-shell.lesson-dashboard #inventory-panel > .card {
+    height: auto;
+  }
+
   .dashboard-shell.lesson-layout-workspace-basic #inventory-panel .card-body,
   .dashboard-shell.lesson-layout-workspace-signal #inventory-panel .card-body {
     display: flex;

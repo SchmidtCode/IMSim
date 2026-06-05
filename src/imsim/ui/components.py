@@ -1595,11 +1595,7 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             "No items loaded yet. Add an item or import a sample workbook.", color="secondary"
         )
     selected_columns = visible_columns(state) or tuple(column_config.keys())
-    compact_lesson_items = (
-        level is not None
-        and level.layout_variant in {"intro_pna", "workspace_basic"}
-        and level.index not in {11}
-    )
+    compact_lesson_items = level is not None
     compact_lesson_widths = {
         "item": {"maxWidth": 76},
         "on_hand": {"minWidth": 120},
