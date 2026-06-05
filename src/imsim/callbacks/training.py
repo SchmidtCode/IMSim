@@ -542,3 +542,20 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         state.training.lesson_intro_dismissed = True
         ctx.persist_state(session_id, state)
         return ctx.next_session_revision(session_revision)
+
+    @app.callback(
+        Output("session-revision", "data", allow_duplicate=True),
+        Input("lesson-intro-modal", "is_open"),
+        State("user-data-store", "data"),
+        State("session-revision", "data"),
+        prevent_initial_call=True,
+    )
+    def persist_lesson_intro_close(is_open, client_data, session_revision):
+        if is_open:
+            raise PreventUpdate
+        session_id, state = ctx.require_session(client_data)
+        if state.training.current_view != "lesson" or state.training.lesson_intro_dismissed:
+            raise PreventUpdate
+        state.training.lesson_intro_dismissed = True
+        ctx.persist_state(session_id, state)
+        return ctx.next_session_revision(session_revision)
