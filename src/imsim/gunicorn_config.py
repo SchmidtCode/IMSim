@@ -28,3 +28,4 @@ threads = _env_int("IMSIM_GUNICORN_THREADS", _default_threads())
 timeout = _env_int("IMSIM_GUNICORN_TIMEOUT", 120)
 graceful_timeout = _env_int("IMSIM_GUNICORN_GRACEFUL_TIMEOUT", 30)
 keepalive = _env_int("IMSIM_GUNICORN_KEEPALIVE", 5)
+control_socket_disable = True

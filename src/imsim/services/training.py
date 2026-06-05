@@ -217,6 +217,8 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             "Fill rate is a customer-service measurement, not an inventory quantity.",
             "A partially filled stock line counts as missed service in this model.",
             "Use a guided reorder to protect upcoming customer lines before stock runs out.",
+            "A guided reorder creates inbound supply first; on-hand inventory only increases "
+            "after the simulated lead time passes and the order is received.",
         ),
         locked_features=(
             "Custom quantities remain locked until later ordering lessons.",
@@ -384,7 +386,15 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             _item(30, 15, 20, 20, hits_per_month=30),
         ),
         visible_panels=frozenset({"service", "inventory", "session", "actions"}),
-        visible_columns=("item", "on_hand", "usage_rate", "lead_time", "op", "days_to_op"),
+        visible_columns=(
+            "item",
+            "on_hand",
+            "on_order",
+            "usage_rate",
+            "lead_time",
+            "op",
+            "days_to_op",
+        ),
         allowed_actions=frozenset({"guided_po"}),
         win_conditions={"fill_rate_min": 0.97, "close_at_or_above_op": True, "guided_order_min": 2},
         global_settings=_settings(),
@@ -552,16 +562,20 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             "PO overview controls unlock after the line-point lesson.",
         ),
         demand_mode="deterministic",
-        day_window=14,
+        day_window=40,
         scenario=(
             _item(60, 18, 40, 60, safety_allowance_pct=20, standard_pack=5, hits_per_month=18),
             _item(45, 15, 22, 42, safety_allowance_pct=20, standard_pack=5, hits_per_month=12),
             _item(30, 20, 75, 38, safety_allowance_pct=25, standard_pack=1, hits_per_month=7),
         ),
         visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
-        visible_columns=("item", "pna", "op", "lp", "usage_rate", "soq"),
+        visible_columns=("item", "pna", "op", "lp", "days_to_op", "soq"),
         allowed_actions=frozenset({"guided_po"}),
-        win_conditions={"guided_order_min": 1, "below_lp_min": 2},
+        win_conditions={
+            "guided_order_below_op_item_min": 1,
+            "guided_order_below_lp_item_min": 3,
+            "guided_order_below_lp_min": 2,
+        },
         global_settings=_settings(r_cycle=14),
         layout_variant="workspace_signal",
         teaching_goal="Show that the trigger item is not the only item to buy.",
@@ -1038,6 +1052,15 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
     if "guided_order_min" in level.win_conditions:
         needed = int(level.win_conditions["guided_order_min"])
         rows.append(f"Guided reorders used: {state.training.guided_orders_placed}/{needed}")
+    if "guided_order_below_lp_min" in level.win_conditions:
+        needed_op_items = int(level.win_conditions.get("guided_order_below_op_item_min", 0))
+        needed_items = int(level.win_conditions.get("guided_order_below_lp_item_min", 2))
+        needed_orders = int(level.win_conditions["guided_order_below_lp_min"])
+        rows.append(
+            f"Guided reorders while {needed_op_items}+ item below OP and "
+            f"{needed_items}+ total below LP: {state.training.guided_orders_below_lp}/"
+            f"{needed_orders}"
+        )
     if "on_order_min" in level.win_conditions:
         target = float(level.win_conditions["on_order_min"])
         on_order_total = sum(sum(receipt.qty for receipt in item.pipeline) for item in state.items)
@@ -1131,6 +1154,11 @@ def evaluate_active_lesson(state: SimulationState) -> LessonEvaluation | None:
     if "guided_order_min" in level.win_conditions:
         checks.append(
             state.training.guided_orders_placed >= int(level.win_conditions["guided_order_min"])
+        )
+    if "guided_order_below_lp_min" in level.win_conditions:
+        checks.append(
+            state.training.guided_orders_below_lp
+            >= int(level.win_conditions["guided_order_below_lp_min"])
         )
     if "on_order_min" in level.win_conditions:
         on_order_total = sum(sum(receipt.qty for receipt in item.pipeline) for item in state.items)
@@ -1239,10 +1267,22 @@ def _record_emergency_bridge_if_applicable(state: SimulationState) -> None:
         state.training.emergency_bridge_orders_placed += 1
 
 
-def record_guided_order(state: SimulationState, *, below_op: bool = False) -> None:
+def record_guided_order(
+    state: SimulationState,
+    *,
+    below_op: bool = False,
+    below_op_count: int = 0,
+    below_lp_count: int = 0,
+) -> None:
     state.training.guided_orders_placed += 1
     if below_op:
         state.training.guided_orders_below_op += 1
+    level = active_level(state)
+    if level is not None and "guided_order_below_lp_min" in level.win_conditions:
+        needed_op = int(level.win_conditions.get("guided_order_below_op_item_min", 0))
+        needed_lp = int(level.win_conditions.get("guided_order_below_lp_item_min", 2))
+        if below_op_count >= needed_op and below_lp_count >= needed_lp:
+            state.training.guided_orders_below_lp += 1
     _record_emergency_bridge_if_applicable(state)
 
 
@@ -1309,6 +1349,7 @@ def build_level_state(level_id: str, profile: TrainingProfile | None = None) -> 
     progress.last_result_message = ""
     progress.guided_orders_placed = 0
     progress.guided_orders_below_op = 0
+    progress.guided_orders_below_lp = 0
     progress.custom_orders_placed = 0
     progress.parameter_updates_applied = 0
     progress.emergency_review_cycle_applied = False
@@ -1329,6 +1370,7 @@ def build_simulator_state(profile: TrainingProfile | None = None) -> SimulationS
     progress.last_result_message = ""
     progress.guided_orders_placed = 0
     progress.guided_orders_below_op = 0
+    progress.guided_orders_below_lp = 0
     progress.custom_orders_placed = 0
     progress.parameter_updates_applied = 0
     progress.emergency_review_cycle_applied = False

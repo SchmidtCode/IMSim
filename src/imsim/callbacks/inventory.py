@@ -338,10 +338,17 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
         session_id, state = ctx.require_session(client_data)
         if not state.items or not is_action_allowed(state, "guided_po"):
             raise PreventUpdate
-        below_op = any(item.pna <= item.op for item in state.items)
+        below_op_count = sum(1 for item in state.items if item.pna < item.op)
+        below_op = below_op_count > 0
+        below_lp_count = sum(1 for item in state.items if item.pna < item.lp)
         summary = place_purchase_orders(state)
         if summary["lines"] > 0:
-            record_guided_order(state, below_op=below_op)
+            record_guided_order(
+                state,
+                below_op=below_op,
+                below_op_count=below_op_count,
+                below_lp_count=below_lp_count,
+            )
         ctx.persist_state(session_id, state)
         return ctx.next_session_revision(session_revision)
 
