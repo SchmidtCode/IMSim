@@ -226,11 +226,27 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
           var simulatorVisible = !simulatorStyle || simulatorStyle.display !== "none";
           var dashboardVisible = !dashboardStyle || dashboardStyle.display !== "none";
           var activeClass = dashboardClassName || "";
-          var shouldReset =
+          var activeView = "";
+
+          if (dashboardVisible && lessonVisible && activeClass.indexOf("lesson-dashboard") !== -1) {
+            activeView = "lesson";
+          } else if (
             dashboardVisible &&
-            (lessonVisible || simulatorVisible) &&
-            (activeClass.indexOf("lesson-dashboard") !== -1 ||
-              activeClass.indexOf("simulator-dashboard") !== -1);
+            simulatorVisible &&
+            activeClass.indexOf("simulator-dashboard") !== -1
+          ) {
+            activeView = "simulator";
+          }
+
+          var viewKey = activeView ? activeView + ":" + activeClass : "";
+          if (typeof window.__imsimLastScrollResetViewKey === "undefined") {
+            window.__imsimLastScrollResetViewKey = viewKey;
+            return window.dash_clientside.no_update;
+          }
+
+          var shouldReset =
+            viewKey && viewKey !== window.__imsimLastScrollResetViewKey;
+          window.__imsimLastScrollResetViewKey = viewKey;
 
           if (!shouldReset) {
             return window.dash_clientside.no_update;
