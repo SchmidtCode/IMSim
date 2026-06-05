@@ -1596,17 +1596,25 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
         )
     selected_columns = visible_columns(state) or tuple(column_config.keys())
     compact_lesson_items = level is not None
-    compact_lesson_widths = {
-        "item": {"maxWidth": 76},
+    column_widths = {
+        "item": {"minWidth": 72, "maxWidth": 90},
         "on_hand": {"minWidth": 120},
         "on_order": {"minWidth": 124},
         "backorder": {"minWidth": 128},
         "pna": {"minWidth": 108},
         "op": {"minWidth": 96},
+        "lp": {"minWidth": 96},
+        "oq": {"minWidth": 96},
+        "eoq": {"minWidth": 96},
+        "soq": {"minWidth": 96},
         "usage_rate": {"minWidth": 112},
         "hits_per_month": {"minWidth": 96},
         "item_cost": {"minWidth": 96},
         "lead_time": {"minWidth": 120},
+        "standard_pack": {"minWidth": 112},
+        "safety_allowance": {"minWidth": 118},
+        "cp": {"minWidth": 96},
+        "surplus_line": {"minWidth": 168},
         "days_to_op": {"minWidth": 132},
         "daily_usage": {"minWidth": 128},
     }
@@ -1618,11 +1626,9 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             column_def["headerTooltip"] = "Suggested order quantity."
         if key == "item":
             column_def["pinned"] = "left"
-            column_def["maxWidth"] = 90
         else:
             column_def["type"] = "numericColumn"
-        if compact_lesson_items:
-            column_def.update(compact_lesson_widths.get(key, {}))
+        column_def.update(column_widths.get(key, {}))
         column_defs.append(column_def)
     default_col_def = {"sortable": True, "filter": True, "resizable": True}
     dash_grid_options = {

@@ -183,7 +183,9 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     signal_grid = build_inventory_table(signal_state)
     signal_figure = build_inventory_figure(signal_state)
     exception_figure = build_inventory_figure(exception_state)
+    certification_grid = build_inventory_table(certification_state)
     certification_figure = build_inventory_figure(certification_state)
+    simulator_grid = build_inventory_table(simulator_state)
     simulator_figure = build_inventory_figure(simulator_state)
 
     assert isinstance(basic_grid, AgGrid)
@@ -214,7 +216,17 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert signal_grid.dashGridOptions["domLayout"] == "autoHeight"
     assert signal_figure.layout.height == 300
     assert exception_figure.layout.height == 360
+    assert isinstance(certification_grid, AgGrid)
+    assert certification_grid.style["height"] == "auto"
+    assert certification_grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert certification_grid.columnDefs[-1]["field"] == "soq"
+    assert certification_grid.columnDefs[-1]["minWidth"] == 96
     assert certification_figure.layout.height == 360
+    assert isinstance(simulator_grid, AgGrid)
+    assert simulator_grid.style["height"] == "28rem"
+    assert simulator_grid.dashGridOptions["pagination"] is True
+    assert simulator_grid.columnDefs[-1]["field"] == "soq"
+    assert simulator_grid.columnDefs[-1]["minWidth"] == 96
     assert simulator_figure.layout.height == 460
     assert certification_figure.layout.meta["layout_signature"].startswith(
         "workspace_certification:items:"
