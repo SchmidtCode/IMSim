@@ -43,6 +43,14 @@ def dashboard_shell_class_name(state) -> str:
     return dashboard_class
 
 
+def scroll_reset_view_key(state) -> str:
+    if state.training.current_view == "lesson":
+        return f"lesson:{dashboard_shell_class_name(state)}"
+    if state.training.current_view == "simulator":
+        return f"simulator:{dashboard_shell_class_name(state)}"
+    return state.training.current_view
+
+
 def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
     app = ctx.app
     levels = academy_levels()
@@ -199,6 +207,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             "view": next_state.training.current_view,
             "level_id": next_state.training.active_level_id,
             "revision": next_revision,
+            "view_key": scroll_reset_view_key(next_state),
         }
         return next_revision, html.Div(), scroll_payload
 
@@ -208,33 +217,18 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
           if (!scrollTrigger) {
             return window.dash_clientside.no_update;
           }
-          window.requestAnimationFrame(function () {
-            window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-          });
-          return window.dash_clientside.no_update;
-        }
-        """,
-        Output("view-scroll-sink", "data"),
-        Input("view-scroll-store", "data"),
-        prevent_initial_call=True,
-    )
 
-    app.clientside_callback(
-        """
-        function(dashboardClassName, dashboardStyle, lessonStyle, simulatorStyle) {
-          var lessonVisible = !lessonStyle || lessonStyle.display !== "none";
-          var simulatorVisible = !simulatorStyle || simulatorStyle.display !== "none";
-          var dashboardVisible = !dashboardStyle || dashboardStyle.display !== "none";
-          var activeClass = dashboardClassName || "";
-          var shouldReset =
-            dashboardVisible &&
-            (lessonVisible || simulatorVisible) &&
-            (activeClass.indexOf("lesson-dashboard") !== -1 ||
-              activeClass.indexOf("simulator-dashboard") !== -1);
-
-          if (!shouldReset) {
+          var targetKey = scrollTrigger.view_key || "";
+          var revision = scrollTrigger.revision;
+          if (!targetKey || revision === undefined || revision === null) {
             return window.dash_clientside.no_update;
           }
+
+          var token = String(revision) + ":" + targetKey;
+          if (window.__imsimLastScrollResetToken === token) {
+            return window.dash_clientside.no_update;
+          }
+          window.__imsimPendingScrollResetToken = token;
 
           function resetScroll() {
             if (document.activeElement && typeof document.activeElement.blur === "function") {
@@ -249,20 +243,65 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             }
           }
 
-          window.requestAnimationFrame(resetScroll);
-          window.setTimeout(resetScroll, 60);
-          window.setTimeout(resetScroll, 180);
-          window.setTimeout(resetScroll, 360);
-          window.setTimeout(resetScroll, 720);
-          window.setTimeout(resetScroll, 1200);
+          function isVisible(element) {
+            if (!element) {
+              return false;
+            }
+            var style = window.getComputedStyle(element);
+            return style.display !== "none" && style.visibility !== "hidden";
+          }
+
+          function currentViewKey() {
+            var menu = document.getElementById("academy-menu-shell");
+            var dashboard = document.getElementById("dashboard-shell");
+            var lesson = document.getElementById("lesson-shell");
+            var simulator = document.getElementById("simulator-shell");
+            var activeClass = dashboard ? dashboard.className || "" : "";
+
+            if (isVisible(menu)) {
+              return "main_menu";
+            }
+            if (
+              isVisible(dashboard) &&
+              isVisible(lesson) &&
+              activeClass.indexOf("lesson-dashboard") !== -1
+            ) {
+              return "lesson:" + activeClass;
+            }
+            if (
+              isVisible(dashboard) &&
+              isVisible(simulator) &&
+              activeClass.indexOf("simulator-dashboard") !== -1
+            ) {
+              return "simulator:" + activeClass;
+            }
+            return "";
+          }
+
+          var attempts = 0;
+          function resetWhenRendered() {
+            if (window.__imsimPendingScrollResetToken !== token) {
+              return;
+            }
+            if (currentViewKey() === targetKey) {
+              window.__imsimLastScrollResetToken = token;
+              resetScroll();
+              window.setTimeout(resetScroll, 60);
+              window.setTimeout(resetScroll, 180);
+              return;
+            }
+            attempts += 1;
+            if (attempts < 60) {
+              window.requestAnimationFrame(resetWhenRendered);
+            }
+          }
+
+          window.requestAnimationFrame(resetWhenRendered);
           return window.dash_clientside.no_update;
         }
         """,
-        Output("view-scroll-sink", "clear_data"),
-        Input("dashboard-shell", "className"),
-        Input("dashboard-shell", "style"),
-        Input("lesson-shell", "style"),
-        Input("simulator-shell", "style"),
+        Output("view-scroll-sink", "data"),
+        Input("view-scroll-store", "data"),
         prevent_initial_call=True,
     )
 
