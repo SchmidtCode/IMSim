@@ -218,7 +218,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             "A partially filled stock line counts as missed service in this model.",
             "Use a guided reorder to protect upcoming customer lines before stock runs out.",
             "A guided reorder creates inbound supply first; on-hand inventory only increases "
-            "after the simulated lead time passes.",
+            "after the simulated lead time passes and the order is received.",
         ),
         locked_features=(
             "Custom quantities remain locked until later ordering lessons.",
