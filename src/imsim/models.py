@@ -36,6 +36,7 @@ class AsqSettings:
 @dataclass(slots=True)
 class GlobalSettings:
     r_cycle: int = 14
+    review_cycle_override_days: int | None = None
     day_basis: int = 30
     r_cost: float = 8.0
     k_cost: float = 0.18
@@ -49,8 +50,10 @@ class GlobalSettings:
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> GlobalSettings:
         data = data or {}
+        override = data.get("review_cycle_override_days")
         return cls(
             r_cycle=int(data.get("r_cycle", 14)),
+            review_cycle_override_days=(None if override in (None, "") else max(1, int(override))),
             day_basis=max(1, int(data.get("day_basis", 30))),
             r_cost=float(data.get("r_cost", 8.0)),
             k_cost=float(data.get("k_cost", 0.18)),
@@ -372,8 +375,7 @@ class TrainingProfile:
         if schema_version < 4:
             completed_levels = [str(level_id) for level_id in migrated.get("completed_levels", [])]
             migrated["completed_levels"] = [
-                "level-19" if level_id == "level-18" else level_id
-                for level_id in completed_levels
+                "level-19" if level_id == "level-18" else level_id for level_id in completed_levels
             ]
             if migrated.get("active_level_id") == "level-18":
                 migrated["active_level_id"] = "level-19"
@@ -411,9 +413,7 @@ class TrainingProfile:
             guided_orders_below_lp=max(0, int(data.get("guided_orders_below_lp", 0))),
             custom_orders_placed=max(0, int(data.get("custom_orders_placed", 0))),
             parameter_updates_applied=max(0, int(data.get("parameter_updates_applied", 0))),
-            emergency_review_cycle_applied=_bool(
-                data.get("emergency_review_cycle_applied", False)
-            ),
+            emergency_review_cycle_applied=_bool(data.get("emergency_review_cycle_applied", False)),
             emergency_bridge_orders_placed=max(
                 0, int(data.get("emergency_bridge_orders_placed", 0))
             ),

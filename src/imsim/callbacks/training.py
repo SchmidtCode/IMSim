@@ -76,6 +76,10 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("asq-max-diff", "value"),
             Output("asq-period-days", "value"),
             Output("asq-include-transfers", "value"),
+            Output("review-cycle-override-current", "children"),
+            Output("review-cycle-override-indicator", "children"),
+            Output("review-cycle-override-status", "style"),
+            Output("clear-review-cycle-override-button", "disabled"),
         ],
         Input("user-data-store", "data"),
         Input("session-revision", "data"),
@@ -83,6 +87,8 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
     def sync_parameter_controls(client_data, _session_revision):
         state = ctx.current_state(client_data)
         settings = state.global_settings
+        override = settings.review_cycle_override_days
+        override_active = override is not None
         return (
             settings.r_cycle,
             settings.r_cost,
@@ -97,6 +103,10 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             settings.asq.max_amount_diff,
             settings.asq.period_days,
             settings.asq.include_transfers,
+            f"Current/default review cycle: {settings.r_cycle} days",
+            f"Review Cycle Override Active: {override} days" if override_active else "",
+            {} if override_active else {"display": "none"},
+            not override_active,
         )
 
     @app.callback(

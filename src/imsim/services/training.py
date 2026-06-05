@@ -4,7 +4,7 @@ import os
 from dataclasses import asdict, dataclass
 
 from ..models import GlobalSettings, SimulationState, TrainingProfile
-from .planning import create_inventory_item, format_money
+from .planning import create_inventory_item, effective_review_cycle, format_money
 
 
 @dataclass(frozen=True, slots=True)
@@ -744,10 +744,10 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         level_id="level-18",
         title="Emergency PLine Bridge Buy",
         summary=(
-            "Use a temporary Demand Center review-cycle reduction to create a small "
-            "emergency buy without changing the normal product-line setup."
+            "Use a temporary Demand Center review-cycle override to pull a few "
+            "more lines into an emergency buy without changing normal setup."
         ),
-        formula="Emergency bridge buy = PO RRAR recalculated with a temporary 3-day review cycle",
+        formula="Emergency bridge buy = PO RRAR recalculated with a temporary review cycle",
         tutorial_steps=(
             (
                 "Confirm the trigger: backorder, rush demand, negative PNA, or an open "
@@ -758,22 +758,22 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
                 "Setup just to force a small buy."
             ),
             (
-                "Use PO RRAR header actions to temporarily reduce review cycle days "
-                "from 21 to 3 and refresh the recommendation."
+                "Use the Review Cycle Override action to temporarily recalculate "
+                "the recommendation without changing Product Line Setup."
             ),
             (
                 "Compare the recalculated lines, accept only the emergency bridge "
                 "lines, and leave normal replenishment for the regular buy."
             ),
             (
-                "After the bridge order is created, restore the normal 21-day review "
-                "cycle so the standard line buy remains intact."
+                "After the bridge order is created, clear the override so the next "
+                "standard line buy uses the normal review cycle."
             ),
         ),
         locked_features=(
             (
-                "This lesson uses the simulator Policy field as the Demand Center "
-                "Increase/Decrease action."
+                "This lesson uses the simulator Review Cycle Override as the "
+                "Demand Center one-time recalculation action."
             ),
             "Imports and ASQ remain locked until certification.",
         ),
@@ -785,32 +785,28 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             _item(30, 30, 120, 45, safety_allowance_pct=20, standard_pack=1, hits_per_month=5),
             _item(45, 10, 22, 15, safety_allowance_pct=30, standard_pack=4, hits_per_month=18),
         ),
-        visible_panels=frozenset(
-            {"graph", "service", "inventory", "session", "actions", "policy"}
-        ),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions", "policy"}),
         visible_columns=("item", "pna", "op", "lp", "usage_rate", "soq", "on_order", "backorder"),
         allowed_actions=frozenset(
             {"guided_po", "custom_order", "po_overview", "update_parameters"}
         ),
         win_conditions={
-            "parameter_update_min": 2,
-            "emergency_review_cycle_max": 3,
-            "emergency_normal_review_cycle": 21,
+            "emergency_review_cycle_min": 14,
+            "emergency_normal_review_cycle": 7,
             "emergency_bridge_order_min": 1,
         },
         global_settings=_settings(
-            r_cycle=21, r_cost=1.5, k_cost=0.30, stockout_penalty=6.0, gm=0.18
+            r_cycle=7, r_cost=1.5, k_cost=0.30, stockout_penalty=6.0, gm=0.18
         ),
         layout_variant="workspace_advanced",
         teaching_goal=(
-            "Practice a controlled emergency buy without turning it into a permanent "
-            "policy change."
+            "Practice a controlled emergency buy without turning it into a permanent policy change."
         ),
         concept_tags=("Demand Center", "PO RRAR", "review cycle", "bridge buy"),
         advanced_note=(
-            "Simulator note: the Policy review-cycle control is used here as a stand-in for "
-            "Demand Center's temporary Increase/Decrease action. The learning goal is the "
-            "buyer decision: lower, recalculate, accept selectively, merge, and restore."
+            "Simulator note: the Review Cycle Override control stands in for Demand "
+            "Center's temporary report recalculation action. The learning goal is the "
+            "buyer decision: override, recalculate, accept selectively, merge, and clear."
         ),
         csd_mapping_note=(
             "CSD mapping: Purchase Demand Center can temporarily adjust review days for a "
@@ -1097,16 +1093,16 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
         needed = int(level.win_conditions["surplus_item_min"])
         current = sum(1 for item in state.items if item.on_hand >= item.surplus_line)
         rows.append(f"Items above surplus threshold: {current}/{needed}")
-    if "emergency_review_cycle_max" in level.win_conditions:
-        emergency_cycle = int(level.win_conditions["emergency_review_cycle_max"])
+    if "emergency_review_cycle_min" in level.win_conditions:
+        emergency_cycle = int(level.win_conditions["emergency_review_cycle_min"])
         normal_cycle = int(level.win_conditions.get("emergency_normal_review_cycle", 21))
         rows.append(
-            "Temporary review cycle used: "
+            "Temporary review cycle override used: "
             + ("yes" if state.training.emergency_review_cycle_applied else "not yet")
             + f" / target {emergency_cycle} days"
         )
         rows.append(
-            "Bridge PO created while lowered: "
+            "Bridge PO created with override: "
             f"{state.training.emergency_bridge_orders_placed}/"
             f"{int(level.win_conditions.get('emergency_bridge_order_min', 1))}"
         )
@@ -1198,7 +1194,7 @@ def evaluate_active_lesson(state: SimulationState) -> LessonEvaluation | None:
             sum(1 for item in state.items if item.on_hand >= item.surplus_line)
             >= int(level.win_conditions["surplus_item_min"])
         )
-    if "emergency_review_cycle_max" in level.win_conditions:
+    if "emergency_review_cycle_min" in level.win_conditions:
         checks.append(state.training.emergency_review_cycle_applied)
         checks.append(
             state.training.emergency_bridge_orders_placed
@@ -1260,10 +1256,10 @@ def apply_lesson_evaluation(
 
 def _record_emergency_bridge_if_applicable(state: SimulationState) -> None:
     level = active_level(state)
-    if level is None or "emergency_review_cycle_max" not in level.win_conditions:
+    if level is None or "emergency_review_cycle_min" not in level.win_conditions:
         return
-    emergency_cycle = int(level.win_conditions["emergency_review_cycle_max"])
-    if state.global_settings.r_cycle <= emergency_cycle:
+    emergency_cycle = int(level.win_conditions["emergency_review_cycle_min"])
+    if effective_review_cycle(state.global_settings) >= emergency_cycle:
         state.training.emergency_bridge_orders_placed += 1
 
 
@@ -1294,14 +1290,36 @@ def record_custom_order(state: SimulationState) -> None:
 def record_parameter_update(state: SimulationState) -> None:
     state.training.parameter_updates_applied += 1
     level = active_level(state)
-    if level is None or "emergency_review_cycle_max" not in level.win_conditions:
+    if level is None or "emergency_review_cycle_min" not in level.win_conditions:
         return
-    emergency_cycle = int(level.win_conditions["emergency_review_cycle_max"])
+    emergency_cycle = int(level.win_conditions["emergency_review_cycle_min"])
     normal_cycle = int(level.win_conditions.get("emergency_normal_review_cycle", 21))
-    if state.global_settings.r_cycle <= emergency_cycle:
+    if state.global_settings.r_cycle >= emergency_cycle:
         state.training.emergency_review_cycle_applied = True
         state.training.emergency_review_cycle_restored = False
     elif (
+        state.training.emergency_review_cycle_applied
+        and state.global_settings.r_cycle == normal_cycle
+    ):
+        state.training.emergency_review_cycle_restored = True
+
+
+def record_review_cycle_override_applied(state: SimulationState) -> None:
+    level = active_level(state)
+    if level is None or "emergency_review_cycle_min" not in level.win_conditions:
+        return
+    emergency_cycle = int(level.win_conditions["emergency_review_cycle_min"])
+    if effective_review_cycle(state.global_settings) >= emergency_cycle:
+        state.training.emergency_review_cycle_applied = True
+        state.training.emergency_review_cycle_restored = False
+
+
+def record_review_cycle_override_cleared(state: SimulationState) -> None:
+    level = active_level(state)
+    if level is None or "emergency_review_cycle_min" not in level.win_conditions:
+        return
+    normal_cycle = int(level.win_conditions.get("emergency_normal_review_cycle", 21))
+    if (
         state.training.emergency_review_cycle_applied
         and state.global_settings.r_cycle == normal_cycle
     ):

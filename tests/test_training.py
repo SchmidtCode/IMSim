@@ -24,7 +24,8 @@ from imsim.services.training import (
     final_academy_level,
     is_action_allowed,
     record_guided_order,
-    record_parameter_update,
+    record_review_cycle_override_applied,
+    record_review_cycle_override_cleared,
     reset_progress_state,
     unlock_all_academy_levels,
 )
@@ -789,15 +790,15 @@ def test_emergency_bridge_lesson_tracks_temporary_review_cycle_workflow():
     state = build_level_state("level-18")
     level = academy_level("level-18")
     assert level is not None
-    assert state.global_settings.r_cycle == 21
+    assert state.global_settings.r_cycle == 7
     assert is_action_allowed(state, "update_parameters") is True
     assert is_action_allowed(state, "po_overview") is True
 
-    state.global_settings.r_cycle = 3
-    record_parameter_update(state)
+    state.global_settings.review_cycle_override_days = 14
+    record_review_cycle_override_applied(state)
     record_guided_order(state, below_op=True)
-    state.global_settings.r_cycle = 21
-    record_parameter_update(state)
+    state.global_settings.review_cycle_override_days = None
+    record_review_cycle_override_cleared(state)
     state.day = level.day_window + 1
 
     evaluation = evaluate_active_lesson(state)
@@ -807,7 +808,7 @@ def test_emergency_bridge_lesson_tracks_temporary_review_cycle_workflow():
     assert state.training.emergency_review_cycle_applied is True
     assert state.training.emergency_bridge_orders_placed == 1
     assert state.training.emergency_review_cycle_restored is True
-    assert any("Bridge PO created while lowered: 1/1" in row for row in evaluation.metric_rows)
+    assert any("Bridge PO created with override: 1/1" in row for row in evaluation.metric_rows)
 
 
 def test_final_lesson_pass_unlocks_simulator_reward():

@@ -26,6 +26,8 @@ from ..services.training import (
     record_custom_order,
     record_guided_order,
     record_parameter_update,
+    record_review_cycle_override_applied,
+    record_review_cycle_override_cleared,
 )
 from ..services.uploads import coerce_uploaded, parse_contents, read_uploaded_table
 from ..ui.components import (
@@ -294,6 +296,100 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             "Parameters updated.",
             color="success",
             duration=3000,
+        )
+
+    @app.callback(
+        [
+            Output("review-cycle-override-modal", "is_open"),
+            Output("review-cycle-override-learn-more", "is_open"),
+            Output("review-cycle-override-feedback", "children"),
+            Output("session-revision", "data", allow_duplicate=True),
+        ],
+        [
+            Input("review-cycle-override-button", "n_clicks"),
+            Input("review-cycle-override-cancel", "n_clicks"),
+            Input("review-cycle-override-learn-more-button", "n_clicks"),
+            Input("review-cycle-override-apply", "n_clicks"),
+            Input("clear-review-cycle-override-button", "n_clicks"),
+        ],
+        [
+            State("review-cycle-override-modal", "is_open"),
+            State("review-cycle-override-learn-more", "is_open"),
+            State("review-cycle-override-input", "value"),
+            State("user-data-store", "data"),
+            State("session-revision", "data"),
+        ],
+        prevent_initial_call=True,
+    )
+    def handle_review_cycle_override(
+        open_clicks,
+        cancel_clicks,
+        learn_clicks,
+        apply_clicks,
+        clear_clicks,
+        is_open,
+        learn_is_open,
+        override_days,
+        client_data,
+        session_revision,
+    ):
+        triggered = dash_ctx.triggered_id
+        if triggered == "review-cycle-override-button" and open_clicks:
+            return True, False, dash.no_update, dash.no_update
+        if triggered == "review-cycle-override-cancel" and cancel_clicks:
+            return False, False, dash.no_update, dash.no_update
+        if triggered == "review-cycle-override-learn-more-button" and learn_clicks:
+            return is_open, not learn_is_open, dash.no_update, dash.no_update
+        session_id, state = ctx.require_session(client_data)
+        if triggered == "clear-review-cycle-override-button" and clear_clicks:
+            state.global_settings.review_cycle_override_days = None
+            for item in state.items:
+                update_gs_related_values(item, state.global_settings)
+            record_review_cycle_override_cleared(state)
+            ctx.persist_state(session_id, state)
+            return (
+                False,
+                False,
+                dbc.Alert("Review Cycle Override cleared.", color="secondary", duration=3000),
+                ctx.next_session_revision(session_revision),
+            )
+        if triggered != "review-cycle-override-apply" or not apply_clicks:
+            raise PreventUpdate
+        if not is_action_allowed(state, "update_parameters"):
+            return (
+                is_open,
+                learn_is_open,
+                dbc.Alert("Review Cycle Override unlocks in later lessons.", color="warning"),
+                dash.no_update,
+            )
+        try:
+            days = int(float(override_days))
+        except TypeError, ValueError:
+            days = 0
+        if days <= 0:
+            return (
+                is_open,
+                learn_is_open,
+                dbc.Alert("Enter a positive review cycle day value.", color="danger"),
+                dash.no_update,
+            )
+        state.global_settings.review_cycle_override_days = days
+        for item in state.items:
+            update_gs_related_values(item, state.global_settings)
+        record_review_cycle_override_applied(state)
+        ctx.persist_state(session_id, state)
+        message = f"Review Cycle Override Active: {days} days. Recommendations recalculated."
+        color = "success"
+        if days > state.global_settings.r_cycle * 2:
+            message += (
+                " This is more than 2x the normal review cycle and may increase buy quantity."
+            )
+            color = "warning"
+        return (
+            False,
+            False,
+            dbc.Alert(message, color=color, duration=5000),
+            ctx.next_session_revision(session_revision),
         )
 
     @app.callback(

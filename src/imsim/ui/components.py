@@ -472,6 +472,7 @@ def _projected_line_summary(
 ) -> tuple[float, int, float, float]:
     settings = GlobalSettings.from_dict(asdict(state.global_settings))
     settings.r_cycle = int(review_cycle)
+    settings.review_cycle_override_days = None
     total_soq = 0.0
     line_count = 0
     total_lp = 0.0
@@ -488,8 +489,8 @@ def _projected_line_summary(
 
 
 def _emergency_replenishment_panel(state: SimulationState, level) -> html.Div:
-    normal_cycle = int(level.win_conditions.get("emergency_normal_review_cycle", 21))
-    emergency_cycle = int(level.win_conditions.get("emergency_review_cycle_max", 3))
+    normal_cycle = int(level.win_conditions.get("emergency_normal_review_cycle", 7))
+    emergency_cycle = int(level.win_conditions.get("emergency_review_cycle_min", 14))
     normal_qty, normal_lines, normal_lp, normal_cost = _projected_line_summary(
         state, review_cycle=normal_cycle
     )
@@ -507,7 +508,7 @@ def _emergency_replenishment_panel(state: SimulationState, level) -> html.Div:
                     ("Line Point Total", f"{normal_lp:.1f}", f"{emergency_lp:.1f}"),
                     ("Suggested Qty", f"{normal_qty:.1f}", f"{emergency_qty:.1f}"),
                     ("Extended Cost", format_money(normal_cost), format_money(emergency_cost)),
-                    ("Tradeoff", "Full line coverage", "Lower cost bridge buy"),
+                    ("Tradeoff", "Standard line coverage", "Higher bridge coverage"),
                 ),
             ),
             _lesson_snapshot_table(
@@ -530,9 +531,9 @@ def _emergency_replenishment_panel(state: SimulationState, level) -> html.Div:
                 (
                     ("Trigger", "Rush backorder and negative PNA need action now."),
                     ("Refresh", "Run or refresh PO RRAR for Vendor 100 / ELEC."),
-                    ("Adjust", "Temporarily lower review cycle days from 21 to 3."),
+                    ("Adjust", "Temporarily extend review cycle days for this buy."),
                     ("Review", "Accept emergency lines; deny regular line-fill items."),
-                    ("Merge", "Create the PO, validate it, then restore the 21-day cycle."),
+                    ("Merge", "Create the PO, validate it, then clear the override."),
                 ),
             ),
         ],
