@@ -24,7 +24,7 @@
   --imsim-blur-backdrop: 0.5rem;
   --imsim-blur-surface: 0.875rem;
   --imsim-size-shell-max: 100rem;
-  --imsim-size-dialog-max: 61.25rem;
+  --imsim-size-dialog-max: 78rem;
   --imsim-size-metric-card-min: 8.5rem;
   --imsim-size-table-min: 53.75rem;
   --imsim-size-footer-width: 20rem;
@@ -363,9 +363,23 @@ body {
   padding: 1rem;
 }
 
+.lesson-intro-grid {
+  align-items: stretch;
+}
+
 .lesson-intro-grid .lesson-copy-list {
   font-size: 0.94rem;
   line-height: 1.45;
+}
+
+.lesson-intro-grid .lesson-service-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.lesson-intro-grid .lesson-service-table th,
+.lesson-intro-grid .lesson-service-table td {
+  overflow-wrap: anywhere;
 }
 
 .lesson-compact-summary {

@@ -293,7 +293,7 @@ def build_layout(config: IMSimConfig):
                                                             "shell-card lesson-detail-card h-100"
                                                         ),
                                                     ),
-                                                    lg=7,
+                                                    lg=8,
                                                 ),
                                                 dbc.Col(
                                                     dbc.Card(
@@ -310,7 +310,7 @@ def build_layout(config: IMSimConfig):
                                                             "shell-card lesson-detail-card h-100"
                                                         ),
                                                     ),
-                                                    lg=5,
+                                                    lg=4,
                                                 ),
                                             ],
                                             className="g-3 lesson-intro-grid",

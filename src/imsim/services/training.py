@@ -744,30 +744,26 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         level_id="level-18",
         title="Emergency PLine Bridge Buy",
         summary=(
-            "Use a temporary Demand Center review-cycle override to pull a few "
-            "more lines into an emergency buy without changing normal setup."
+            "Use a temporary review-cycle bridge to pull near-term demand into "
+            "one emergency buy without changing normal setup."
         ),
-        formula="Emergency bridge buy = PO RRAR recalculated with a temporary review cycle",
+        formula="Bridge buy = normal line buy recalculated with a temporary review cycle",
         tutorial_steps=(
             (
-                "Confirm the trigger: backorder, rush demand, negative PNA, or an open "
-                "PO that will not arrive soon enough."
+                "Use a bridge only when today's signal is urgent but the normal line "
+                "buy is still too small to cover the near-term risk."
             ),
             (
-                "Stay in Purchase Demand Center; do not permanently edit Product Line "
-                "Setup just to force a small buy."
+                "The override widens the look-ahead window, so items close to line "
+                "point can join this buy instead of waiting for the next cycle."
             ),
             (
-                "Use the Review Cycle Override action to temporarily recalculate "
-                "the recommendation without changing Product Line Setup."
+                "Accept the bridge lines that solve the emergency; do not treat the "
+                "larger buy as the new normal."
             ),
             (
-                "Compare the recalculated lines, accept only the emergency bridge "
-                "lines, and leave normal replenishment for the regular buy."
-            ),
-            (
-                "After the bridge order is created, clear the override so the next "
-                "standard line buy uses the normal review cycle."
+                "After the PO is created, restore the normal review cycle so future "
+                "recommendations return to the planned cadence."
             ),
         ),
         locked_features=(
@@ -802,16 +798,13 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
         teaching_goal=(
             "Practice a controlled emergency buy without turning it into a permanent policy change."
         ),
-        concept_tags=("Demand Center", "PO RRAR", "review cycle", "bridge buy"),
+        concept_tags=("review cycle", "bridge buy", "line point", "one-time only"),
         advanced_note=(
-            "Simulator note: the Review Cycle Override control stands in for Demand "
-            "Center's temporary report recalculation action. The learning goal is the "
-            "buyer decision: override, recalculate, accept selectively, merge, and clear."
-        ),
-        csd_mapping_note=(
-            "CSD mapping: Purchase Demand Center can temporarily adjust review days for a "
-            "PO RRAR update. That action recalculates recommendations for the report run "
-            "without making a permanent Product Line Setup change."
+            "Theory: review cycle is the planned time until the next line review. "
+            "Extending it temporarily increases expected demand coverage, which can "
+            "pull close-to-trigger items into the current recommendation. The tradeoff "
+            "is higher inventory investment, so the override should be visible, "
+            "one-time, and cleared after the bridge order."
         ),
     ),
     LevelDefinition(

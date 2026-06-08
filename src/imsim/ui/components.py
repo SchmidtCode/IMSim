@@ -504,6 +504,15 @@ def _emergency_replenishment_panel(state: SimulationState, level) -> html.Div:
     )
     return html.Div(
         [
+            html.Div(
+                (
+                    "A bridge buy is a temporary timing decision. Raising review cycle "
+                    "days makes the recommendation look farther ahead, which can bring "
+                    "near-line-point items into the same PO. Use it to cover the gap, "
+                    "then return to the regular cadence."
+                ),
+                className="helper-copy mb-2",
+            ),
             _lesson_snapshot_table(
                 "Before / After RRAR",
                 ("Control", "Normal Buy", "Emergency Buy"),
@@ -528,17 +537,6 @@ def _emergency_replenishment_panel(state: SimulationState, level) -> html.Div:
                         "$7,500",
                         "Review after accept",
                     ),
-                ),
-            ),
-            _lesson_snapshot_table(
-                "Decision Flow",
-                ("Stage", "Buyer Decision"),
-                (
-                    ("Trigger", "Rush backorder and negative PNA need action now."),
-                    ("Refresh", "Run or refresh PO RRAR for Vendor 100 / ELEC."),
-                    ("Adjust", "Temporarily extend review cycle days for this buy."),
-                    ("Review", "Accept emergency lines; deny regular line-fill items."),
-                    ("Merge", "Create the PO, validate it, then clear the override."),
                 ),
             ),
         ],
@@ -1994,21 +1992,6 @@ def lesson_tutorial_children(state: SimulationState) -> list:
         return [
             *framing,
             html.Div(level.formula, className="lesson-formula-chip"),
-            html.Div(
-                (
-                    "Navigation: Purchase > Entry > Demand Center > PO RRAR > Header > "
-                    "Actions > Increase/Decrease."
-                ),
-                className="lesson-formula-chip",
-            ),
-            html.Div(
-                (
-                    "Do not permanently change Product Line Setup for this exercise. Use "
-                    "the Review Cycle field in the simulator Policy panel as the temporary "
-                    "Demand Center adjustment, then restore it after the bridge order."
-                ),
-                className="helper-copy mb-2",
-            ),
             _emergency_replenishment_panel(state, level),
             html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
             *secondary_notes,
