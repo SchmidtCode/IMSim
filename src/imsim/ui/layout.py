@@ -409,98 +409,6 @@ def build_layout(config: IMSimConfig):
                     size="xl",
                     content_class_name="imsim-modal-content",
                 ),
-                dbc.Modal(
-                    [
-                        dbc.ModalHeader("One-Time Review Cycle Override"),
-                        dbc.ModalBody(
-                            [
-                                html.Div(
-                                    id="review-cycle-override-current",
-                                    className="helper-copy mb-3",
-                                ),
-                                _number_field(
-                                    "Override Review Cycle Days",
-                                    "review-cycle-override-input",
-                                    value=None,
-                                    min_value=1,
-                                    step=1,
-                                    class_name="mb-2",
-                                ),
-                                html.Div(
-                                    (
-                                        "Use this to temporarily extend the review cycle "
-                                        "for this buying session. This does not update the "
-                                        "product line setup."
-                                    ),
-                                    className="helper-copy",
-                                ),
-                                html.Div(
-                                    id="review-cycle-override-feedback",
-                                    className="mt-3",
-                                ),
-                                dbc.Collapse(
-                                    html.Div(
-                                        [
-                                            html.P(
-                                                "Review Cycle controls how far ahead CSD "
-                                                "looks when calculating line-buy "
-                                                "replenishment. Increasing the review "
-                                                "cycle temporarily can pull additional "
-                                                "products into the recommended buy."
-                                            ),
-                                            html.P(
-                                                "Buyers use this when they are close to a "
-                                                "vendor target, freight-paid amount, "
-                                                "truckload level, or other purchasing "
-                                                "threshold. Use it carefully because a "
-                                                "larger review cycle can increase "
-                                                "inventory investment and carrying cost."
-                                            ),
-                                            html.P(
-                                                (
-                                                    "Example: Current review cycle: 7 days. "
-                                                    "Buyer enters 14 days. The system "
-                                                    "recalculates as if the next review is "
-                                                    "14 days away, which may recommend "
-                                                    "additional products that are not yet at "
-                                                    "normal buy point."
-                                                ),
-                                                className="mb-0",
-                                            ),
-                                        ],
-                                        className="review-override-learn-more",
-                                    ),
-                                    id="review-cycle-override-learn-more",
-                                    is_open=False,
-                                ),
-                            ]
-                        ),
-                        dbc.ModalFooter(
-                            [
-                                _action_button(
-                                    "Cancel",
-                                    "review-cycle-override-cancel",
-                                    "secondary",
-                                ),
-                                _action_button(
-                                    "Learn More",
-                                    "review-cycle-override-learn-more-button",
-                                    "ghost",
-                                ),
-                                _action_button(
-                                    "Apply Override",
-                                    "review-cycle-override-apply",
-                                    "primary",
-                                ),
-                            ],
-                            className="modal-actions",
-                        ),
-                    ],
-                    id="review-cycle-override-modal",
-                    is_open=False,
-                    centered=True,
-                    content_class_name="imsim-modal-content",
-                ),
                 html.Div(
                     [
                         dbc.Card(
@@ -717,34 +625,28 @@ def build_layout(config: IMSimConfig):
                                                             min_value=1,
                                                             class_name="mb-2",
                                                         ),
-                                                        _action_button(
-                                                            "Review Cycle Override",
-                                                            "review-cycle-override-button",
-                                                            "secondary",
-                                                            class_name="button-block mb-2",
+                                                        _number_field(
+                                                            "RC Override",
+                                                            "review-cycle-override-input",
+                                                            value=14,
+                                                            min_value=1,
+                                                            step=1,
+                                                            class_name="mb-1",
                                                         ),
                                                         html.Div(
-                                                            [
-                                                                html.Div(
-                                                                    id=(
-                                                                        "review-cycle-override-"
-                                                                        "indicator"
-                                                                    ),
-                                                                    className=(
-                                                                        "review-override-indicator"
-                                                                    ),
-                                                                ),
-                                                                _action_button(
-                                                                    "Clear Override",
-                                                                    (
-                                                                        "clear-review-cycle-"
-                                                                        "override-button"
-                                                                    ),
-                                                                    "ghost",
-                                                                    class_name=("button-sm mt-2"),
-                                                                ),
-                                                            ],
-                                                            id="review-cycle-override-status",
+                                                            (
+                                                                "Change this for the current "
+                                                                "buy only. It resets to regular "
+                                                                "RC after an order is placed."
+                                                            ),
+                                                            className="helper-copy mb-2",
+                                                        ),
+                                                        html.Div(
+                                                            id="review-cycle-override-indicator",
+                                                            className="review-override-indicator",
+                                                        ),
+                                                        html.Div(
+                                                            id="review-cycle-override-feedback",
                                                             className="mb-2",
                                                         ),
                                                         _number_field(

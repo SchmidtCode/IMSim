@@ -76,10 +76,9 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("asq-max-diff", "value"),
             Output("asq-period-days", "value"),
             Output("asq-include-transfers", "value"),
-            Output("review-cycle-override-current", "children"),
+            Output("review-cycle-override-input", "value"),
             Output("review-cycle-override-indicator", "children"),
-            Output("review-cycle-override-status", "style"),
-            Output("clear-review-cycle-override-button", "disabled"),
+            Output("review-cycle-override-indicator", "style"),
         ],
         Input("user-data-store", "data"),
         Input("session-revision", "data"),
@@ -103,10 +102,9 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             settings.asq.max_amount_diff,
             settings.asq.period_days,
             settings.asq.include_transfers,
-            f"Current/default review cycle: {settings.r_cycle} days",
+            override or settings.r_cycle,
             f"Review Cycle Override Active: {override} days" if override_active else "",
             {} if override_active else {"display": "none"},
-            not override_active,
         )
 
     @app.callback(

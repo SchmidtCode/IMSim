@@ -9,7 +9,12 @@ import plotly.graph_objects as go
 from dash import Patch, html
 
 from ..models import GlobalSettings, InventoryItem, SimulationState
-from ..services.planning import format_money, item_on_order, update_gs_related_values
+from ..services.planning import (
+    effective_review_cycle,
+    format_money,
+    item_on_order,
+    update_gs_related_values,
+)
 from ..services.training import (
     academy_level_status,
     academy_levels,
@@ -542,8 +547,10 @@ def _emergency_replenishment_panel(state: SimulationState, level) -> html.Div:
 
 
 def _signal_map_layout_signature(state: SimulationState, rows: pd.DataFrame) -> str:
+    effective_cycle = effective_review_cycle(state.global_settings)
     return (
-        f"{active_layout_variant(state)}:items:{len(rows)}:r_cycle:{state.global_settings.r_cycle}"
+        f"{active_layout_variant(state)}:items:{len(rows)}:"
+        f"r_cycle:{state.global_settings.r_cycle}:effective_cycle:{effective_cycle}"
     )
 
 
@@ -1056,8 +1063,12 @@ def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str
         fig,
         colors,
         lower_label="OP",
-        upper_label="LP",
-        upper_y=state.global_settings.r_cycle,
+        upper_label=(
+            f"LP Override ({effective_review_cycle(state.global_settings)}d)"
+            if state.global_settings.review_cycle_override_days is not None
+            else "LP"
+        ),
+        upper_y=effective_review_cycle(state.global_settings),
     )
     return _finalize_axes(
         fig,

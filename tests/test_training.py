@@ -5,6 +5,7 @@ from dash_ag_grid import AgGrid
 
 from imsim.models import Receipt, TrainingProfile
 from imsim.services import simulation as simulation_service
+from imsim.services.planning import update_gs_related_values
 from imsim.services.simulation import (
     expedite_or_cancel_receipt,
     expedite_or_cancel_receipts,
@@ -346,6 +347,22 @@ def test_refresh_inventory_figure_rebuilds_when_theme_or_schema_changes():
     assert not isinstance(lesson_two, Patch)
     assert themed.layout.uirevision == "lesson-1:dark"
     assert lesson_two.layout.uirevision == "lesson-2:light"
+
+
+def test_review_cycle_override_rebuilds_signal_map_lp_guide():
+    state = build_level_state("level-18")
+    current_figure = build_inventory_figure(state).to_plotly_json()
+
+    state.global_settings.review_cycle_override_days = 14
+    for item in state.items:
+        update_gs_related_values(item, state.global_settings)
+
+    refreshed = refresh_inventory_figure(state, current_figure=current_figure)
+
+    assert not isinstance(refreshed, Patch)
+    assert refreshed.layout.meta["layout_signature"].endswith("effective_cycle:14")
+    assert refreshed.layout.shapes[1].y0 == 14
+    assert refreshed.layout.annotations[1].text == "LP Override (14d)"
 
 
 def test_inventory_table_uses_ag_grid_with_lesson_visible_columns():
@@ -809,6 +826,34 @@ def test_emergency_bridge_lesson_tracks_temporary_review_cycle_workflow():
     assert state.training.emergency_bridge_orders_placed == 1
     assert state.training.emergency_review_cycle_restored is True
     assert any("Bridge PO created with override: 1/1" in row for row in evaluation.metric_rows)
+
+
+def test_emergency_bridge_lesson_reflects_active_override_before_order():
+    state = build_level_state("level-18")
+    level = academy_level("level-18")
+    assert level is not None
+
+    state.global_settings.review_cycle_override_days = 14
+    for item in state.items:
+        update_gs_related_values(item, state.global_settings)
+
+    evaluation = evaluate_active_lesson(state)
+
+    assert evaluation is not None
+    assert any(
+        "Temporary review cycle override used: yes / target 14 days" in row
+        for row in evaluation.metric_rows
+    )
+
+
+def test_emergency_bridge_order_records_override_use_directly():
+    state = build_level_state("level-18")
+
+    state.global_settings.review_cycle_override_days = 14
+    record_guided_order(state, below_op=True)
+
+    assert state.training.emergency_review_cycle_applied is True
+    assert state.training.emergency_bridge_orders_placed == 1
 
 
 def test_final_lesson_pass_unlocks_simulator_reward():

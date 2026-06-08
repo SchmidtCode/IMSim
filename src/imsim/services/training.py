@@ -1096,9 +1096,12 @@ def _progress_metric_rows(state: SimulationState, level: LevelDefinition) -> tup
     if "emergency_review_cycle_min" in level.win_conditions:
         emergency_cycle = int(level.win_conditions["emergency_review_cycle_min"])
         normal_cycle = int(level.win_conditions.get("emergency_normal_review_cycle", 21))
+        override_used = state.training.emergency_review_cycle_applied or (
+            effective_review_cycle(state.global_settings) >= emergency_cycle
+        )
         rows.append(
             "Temporary review cycle override used: "
-            + ("yes" if state.training.emergency_review_cycle_applied else "not yet")
+            + ("yes" if override_used else "not yet")
             + f" / target {emergency_cycle} days"
         )
         rows.append(
@@ -1260,6 +1263,8 @@ def _record_emergency_bridge_if_applicable(state: SimulationState) -> None:
         return
     emergency_cycle = int(level.win_conditions["emergency_review_cycle_min"])
     if effective_review_cycle(state.global_settings) >= emergency_cycle:
+        state.training.emergency_review_cycle_applied = True
+        state.training.emergency_review_cycle_restored = False
         state.training.emergency_bridge_orders_placed += 1
 
 

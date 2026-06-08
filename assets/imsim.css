@@ -226,17 +226,6 @@ body {
   padding: 0.55rem 0.7rem;
 }
 
-.review-override-learn-more {
-  border: 1px solid var(--imsim-line);
-  border-radius: var(--imsim-radius-sm);
-  background: var(--imsim-control-bg);
-  color: var(--imsim-muted);
-  font-size: 0.9rem;
-  line-height: 1.45;
-  margin-top: 1rem;
-  padding: 0.85rem;
-}
-
 .academy-status-badge {
   margin-top: 0.85rem;
 }

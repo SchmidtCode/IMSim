@@ -234,8 +234,8 @@ def test_dash_layout_and_admin_status(client):
     assert "experience-reference-button" in payload
     assert "simulator-reference-button" in payload
     assert "view-scroll-store" in payload
-    assert "review-cycle-override-button" in payload
-    assert "review-cycle-override-modal" in payload
+    assert "review-cycle-override-input" in payload
+    assert "review-cycle-override-indicator" in payload
     assert '"disabled":true' in payload
     health = client.get("/health")
     assert health.status_code == 200

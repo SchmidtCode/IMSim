@@ -118,7 +118,6 @@ def test_theme_callback_updates_control_modal_content_classes(dash_app):
             ("lesson-intro-modal", "content_class_name"),
             ("academy-cheat-code-modal", "content_class_name"),
             ("reference-modal", "content_class_name"),
-            ("review-cycle-override-modal", "content_class_name"),
             ("add-item-modal", "content_class_name"),
             ("place-custom-order-modal", "content_class_name"),
             ("po-overview-modal", "content_class_name"),
@@ -187,7 +186,6 @@ def test_state_changes_emit_session_revision(dash_app):
         ],
         [("session-revision", "data"), ("update-params-conf", "children")],
         [
-            ("review-cycle-override-modal", "is_open"),
             ("review-cycle-override-feedback", "children"),
             ("session-revision", "data"),
         ],
