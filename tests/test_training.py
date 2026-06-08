@@ -353,16 +353,16 @@ def test_review_cycle_override_rebuilds_signal_map_lp_guide():
     state = build_level_state("level-18")
     current_figure = build_inventory_figure(state).to_plotly_json()
 
-    state.global_settings.review_cycle_override_days = 14
+    state.global_settings.review_cycle_override_days = 11
     for item in state.items:
         update_gs_related_values(item, state.global_settings)
 
     refreshed = refresh_inventory_figure(state, current_figure=current_figure)
 
     assert not isinstance(refreshed, Patch)
-    assert refreshed.layout.meta["layout_signature"].endswith("effective_cycle:14")
-    assert refreshed.layout.shapes[1].y0 == 14
-    assert refreshed.layout.annotations[1].text == "LP Override (14d)"
+    assert refreshed.layout.meta["layout_signature"].endswith("effective_cycle:11")
+    assert refreshed.layout.shapes[1].y0 == 11
+    assert refreshed.layout.annotations[1].text == "LP Override (11d)"
 
 
 def test_inventory_table_uses_ag_grid_with_lesson_visible_columns():
@@ -811,7 +811,7 @@ def test_emergency_bridge_lesson_tracks_temporary_review_cycle_workflow():
     assert is_action_allowed(state, "update_parameters") is True
     assert is_action_allowed(state, "po_overview") is True
 
-    state.global_settings.review_cycle_override_days = 14
+    state.global_settings.review_cycle_override_days = 11
     record_review_cycle_override_applied(state)
     record_guided_order(state, below_op=True)
     state.global_settings.review_cycle_override_days = None
@@ -828,12 +828,33 @@ def test_emergency_bridge_lesson_tracks_temporary_review_cycle_workflow():
     assert any("Bridge PO created with override: 1/1" in row for row in evaluation.metric_rows)
 
 
+def test_emergency_bridge_target_uses_smallest_review_cycle_that_clears_target():
+    target_cost = 7500
+
+    def bridge_summary(review_cycle_days: int) -> tuple[int, float]:
+        state = build_level_state("level-18")
+        state.global_settings.review_cycle_override_days = review_cycle_days
+        for item in state.items:
+            update_gs_related_values(item, state.global_settings)
+        included_lines = sum(1 for item in state.items if item.soq > 0)
+        extended_cost = sum(item.soq * item.item_cost for item in state.items)
+        return included_lines, extended_cost
+
+    ten_day_lines, ten_day_cost = bridge_summary(10)
+    eleven_day_lines, eleven_day_cost = bridge_summary(11)
+
+    assert ten_day_lines == 4
+    assert ten_day_cost < target_cost
+    assert eleven_day_lines == 4
+    assert eleven_day_cost >= target_cost
+
+
 def test_emergency_bridge_lesson_reflects_active_override_before_order():
     state = build_level_state("level-18")
     level = academy_level("level-18")
     assert level is not None
 
-    state.global_settings.review_cycle_override_days = 14
+    state.global_settings.review_cycle_override_days = 11
     for item in state.items:
         update_gs_related_values(item, state.global_settings)
 
@@ -841,7 +862,7 @@ def test_emergency_bridge_lesson_reflects_active_override_before_order():
 
     assert evaluation is not None
     assert any(
-        "Temporary review cycle override used: yes / target 14 days" in row
+        "Temporary review cycle override used: yes / target 11 days" in row
         for row in evaluation.metric_rows
     )
 
@@ -849,7 +870,7 @@ def test_emergency_bridge_lesson_reflects_active_override_before_order():
 def test_emergency_bridge_order_records_override_use_directly():
     state = build_level_state("level-18")
 
-    state.global_settings.review_cycle_override_days = 14
+    state.global_settings.review_cycle_override_days = 11
     record_guided_order(state, below_op=True)
 
     assert state.training.emergency_review_cycle_applied is True

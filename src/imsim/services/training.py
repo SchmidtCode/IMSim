@@ -787,7 +787,7 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             {"guided_po", "custom_order", "po_overview", "update_parameters"}
         ),
         win_conditions={
-            "emergency_review_cycle_min": 14,
+            "emergency_review_cycle_min": 11,
             "emergency_normal_review_cycle": 7,
             "emergency_bridge_order_min": 1,
         },
