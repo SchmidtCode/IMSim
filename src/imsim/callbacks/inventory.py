@@ -332,7 +332,7 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             )
         try:
             days = int(float(override_days))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return dash.no_update, dbc.Alert(
                 "Enter a numeric RC Override value.",
                 color="danger",
