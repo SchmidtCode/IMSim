@@ -12,7 +12,7 @@ step, then unlocks a full simulator for practicing inventory decisions with live
 
 ## Highlights
 
-- 18-lesson academy path that unlocks the full simulator
+- 19-lesson academy path that unlocks the full simulator
 - Inventory policy engine for OP, LP, EOQ, OQ, SOQ, pack rounding, and auto-PO behavior
 - Daily demand simulation with stockout, holding, expedite, revenue, and COGS tracking
 - PostgreSQL-backed or file-backed session persistence behind a shared repository layer

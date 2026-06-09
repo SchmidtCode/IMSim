@@ -76,6 +76,9 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("asq-max-diff", "value"),
             Output("asq-period-days", "value"),
             Output("asq-include-transfers", "value"),
+            Output("review-cycle-override-input", "value"),
+            Output("review-cycle-override-indicator", "children"),
+            Output("review-cycle-override-indicator", "style"),
         ],
         Input("user-data-store", "data"),
         Input("session-revision", "data"),
@@ -83,6 +86,8 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
     def sync_parameter_controls(client_data, _session_revision):
         state = ctx.current_state(client_data)
         settings = state.global_settings
+        override = settings.review_cycle_override_days
+        override_active = override is not None
         return (
             settings.r_cycle,
             settings.r_cost,
@@ -97,6 +102,9 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             settings.asq.max_amount_diff,
             settings.asq.period_days,
             settings.asq.include_transfers,
+            override or settings.r_cycle,
+            f"Review Cycle Override Active: {override} days" if override_active else "",
+            {} if override_active else {"display": "none"},
         )
 
     @app.callback(
@@ -412,6 +420,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("custom-order-wrap", "style"),
             Output("po-overview-wrap", "style"),
             Output("add-item-wrap", "style"),
+            Output("review-cycle-override-wrap", "style"),
             Output("auto-po-shell", "style"),
             Output("asq-controls-shell", "style"),
             Output("auto-po-enabled", "disabled"),
@@ -555,6 +564,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             ctx.panel_style(is_action_allowed(state, "custom_order")),
             ctx.panel_style(is_action_allowed(state, "po_overview")),
             ctx.panel_style(is_action_allowed(state, "add_items")),
+            ctx.panel_style(is_action_allowed(state, "update_parameters")),
             ctx.panel_style(is_simulator and state.training.auto_po_reward_unlocked),
             ctx.panel_style(is_action_allowed(state, "apply_asq")),
             not (is_simulator and state.training.auto_po_reward_unlocked),

@@ -36,6 +36,10 @@ def review_cycle_demand(
     return usage_rate * (review_cycle_days / _normalized_day_basis(day_basis))
 
 
+def effective_review_cycle(global_settings: GlobalSettings) -> int:
+    return int(global_settings.review_cycle_override_days or global_settings.r_cycle)
+
+
 def safety_stock_qty(
     usage_rate: float,
     lead_time_days: float,
@@ -64,7 +68,11 @@ def calculate_op(
 
 
 def calculate_lp(usage_rate: float, global_settings: GlobalSettings, op: float) -> float:
-    return op + review_cycle_demand(usage_rate, global_settings.r_cycle, global_settings.day_basis)
+    return op + review_cycle_demand(
+        usage_rate,
+        effective_review_cycle(global_settings),
+        global_settings.day_basis,
+    )
 
 
 def calculate_eoq(usage_rate: float, item_cost: float, global_settings: GlobalSettings) -> float:
@@ -76,7 +84,7 @@ def calculate_eoq(usage_rate: float, item_cost: float, global_settings: GlobalSe
 def calculate_oq(eoq: float, usage_rate: float, global_settings: GlobalSettings) -> float:
     review_cycle_qty = review_cycle_demand(
         usage_rate,
-        global_settings.r_cycle,
+        effective_review_cycle(global_settings),
         global_settings.day_basis,
     )
     annual_cap = usage_rate * 12.0

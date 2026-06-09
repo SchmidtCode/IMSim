@@ -228,11 +228,14 @@ def test_dash_layout_and_admin_status(client):
     assert "IMSim Academy" in payload
     assert "academy-simulator-button" in payload
     assert "academy-level-18-button" in payload
+    assert "academy-level-19-button" in payload
     assert "reference-modal" in payload
     assert "academy-reference-button" in payload
     assert "experience-reference-button" in payload
     assert "simulator-reference-button" in payload
     assert "view-scroll-store" in payload
+    assert "review-cycle-override-input" in payload
+    assert "review-cycle-override-indicator" in payload
     assert '"disabled":true' in payload
     health = client.get("/health")
     assert health.status_code == 200

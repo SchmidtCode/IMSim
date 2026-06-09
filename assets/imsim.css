@@ -24,7 +24,7 @@
   --imsim-blur-backdrop: 0.5rem;
   --imsim-blur-surface: 0.875rem;
   --imsim-size-shell-max: 100rem;
-  --imsim-size-dialog-max: 61.25rem;
+  --imsim-size-dialog-max: 78rem;
   --imsim-size-metric-card-min: 8.5rem;
   --imsim-size-table-min: 53.75rem;
   --imsim-size-footer-width: 20rem;
@@ -216,6 +216,21 @@ body {
   background: rgba(37, 99, 235, 0.08);
 }
 
+.review-override-indicator {
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  border-radius: var(--imsim-radius-sm);
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--imsim-teal);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.55rem 0.7rem;
+}
+
+.review-override-control {
+  border-top: 1px solid var(--imsim-line);
+  padding-top: 0.9rem;
+}
+
 .academy-status-badge {
   margin-top: 0.85rem;
 }
@@ -353,9 +368,23 @@ body {
   padding: 1rem;
 }
 
+.lesson-intro-grid {
+  align-items: stretch;
+}
+
 .lesson-intro-grid .lesson-copy-list {
   font-size: 0.94rem;
   line-height: 1.45;
+}
+
+.lesson-intro-grid .lesson-service-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.lesson-intro-grid .lesson-service-table th,
+.lesson-intro-grid .lesson-service-table td {
+  overflow-wrap: anywhere;
 }
 
 .lesson-compact-summary {

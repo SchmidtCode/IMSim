@@ -97,6 +97,35 @@ def _toggle_field(
     )
 
 
+def _review_cycle_override_control() -> html.Div:
+    return html.Div(
+        [
+            _number_field(
+                "RC Override",
+                "review-cycle-override-input",
+                value=14,
+                min_value=1,
+                step=1,
+                class_name="mb-1",
+            ),
+            html.Div(
+                ("Use this for the current buy only. It resets after an order is placed."),
+                className="helper-copy mb-2",
+            ),
+            html.Div(
+                id="review-cycle-override-indicator",
+                className="review-override-indicator",
+            ),
+            html.Div(
+                id="review-cycle-override-feedback",
+                className="mb-2",
+            ),
+        ],
+        className="review-override-control mt-3",
+        id="review-cycle-override-wrap",
+    )
+
+
 def build_layout(config: IMSimConfig):
     initial_state = default_state()
     return html.Div(
@@ -293,7 +322,7 @@ def build_layout(config: IMSimConfig):
                                                             "shell-card lesson-detail-card h-100"
                                                         ),
                                                     ),
-                                                    lg=7,
+                                                    lg=8,
                                                 ),
                                                 dbc.Col(
                                                     dbc.Card(
@@ -310,7 +339,7 @@ def build_layout(config: IMSimConfig):
                                                             "shell-card lesson-detail-card h-100"
                                                         ),
                                                     ),
-                                                    lg=5,
+                                                    lg=4,
                                                 ),
                                             ],
                                             className="g-3 lesson-intro-grid",
@@ -601,6 +630,7 @@ def build_layout(config: IMSimConfig):
                                                                     ),
                                                                     id="add-item-wrap",
                                                                 ),
+                                                                _review_cycle_override_control(),
                                                             ]
                                                         ),
                                                     ]

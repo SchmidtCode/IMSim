@@ -26,6 +26,8 @@ from ..services.training import (
     record_custom_order,
     record_guided_order,
     record_parameter_update,
+    record_review_cycle_override_applied,
+    record_review_cycle_override_cleared,
 )
 from ..services.uploads import coerce_uploaded, parse_contents, read_uploaded_table
 from ..ui.components import (
@@ -38,6 +40,14 @@ from .common import CallbackRegistrarContext
 def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
     app = ctx.app
     max_upload_bytes = int(app.server.config.get("IMSIM_MAX_UPLOAD_BYTES", 5 * 1024 * 1024))
+
+    def clear_review_cycle_override_after_order(state) -> None:
+        if state.global_settings.review_cycle_override_days is None:
+            return
+        state.global_settings.review_cycle_override_days = None
+        record_review_cycle_override_cleared(state)
+        for item in state.items:
+            update_gs_related_values(item, state.global_settings)
 
     @app.callback(
         [
@@ -299,6 +309,68 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
     @app.callback(
         [
             Output("session-revision", "data", allow_duplicate=True),
+            Output("review-cycle-override-feedback", "children"),
+        ],
+        Input("review-cycle-override-input", "value"),
+        State("user-data-store", "data"),
+        State("session-revision", "data"),
+        prevent_initial_call=True,
+    )
+    def handle_review_cycle_override(override_days, client_data, session_revision):
+        session_id, state = ctx.require_session(client_data)
+        if not is_action_allowed(state, "update_parameters"):
+            return dash.no_update, dbc.Alert(
+                "Review Cycle Override unlocks in later lessons.",
+                color="warning",
+                duration=3000,
+            )
+        if override_days in (None, ""):
+            return dash.no_update, dbc.Alert(
+                "Enter a positive RC Override value.",
+                color="warning",
+                duration=3000,
+            )
+        try:
+            days = int(float(override_days))
+        except TypeError, ValueError:
+            return dash.no_update, dbc.Alert(
+                "Enter a numeric RC Override value.",
+                color="danger",
+                duration=3000,
+            )
+        if days <= 0:
+            return dash.no_update, dbc.Alert(
+                "Enter a positive RC Override value.",
+                color="danger",
+                duration=3000,
+            )
+        if days == state.global_settings.r_cycle:
+            if state.global_settings.review_cycle_override_days is None:
+                raise PreventUpdate
+            state.global_settings.review_cycle_override_days = None
+            message = "Using regular Review Cycle."
+            color = "secondary"
+            record_review_cycle_override_cleared(state)
+        else:
+            state.global_settings.review_cycle_override_days = days
+            message = f"RC Override active for this buy: {days} days."
+            color = "success"
+            if days > state.global_settings.r_cycle * 2:
+                message += " This is more than 2x regular RC and may increase buy quantity."
+                color = "warning"
+            record_review_cycle_override_applied(state)
+        for item in state.items:
+            update_gs_related_values(item, state.global_settings)
+        ctx.persist_state(session_id, state)
+        return ctx.next_session_revision(session_revision), dbc.Alert(
+            message,
+            color=color,
+            duration=3000,
+        )
+
+    @app.callback(
+        [
+            Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
         ],
         Input("apply-asq-button", "n_clicks"),
@@ -341,6 +413,8 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
         below_op_count = sum(1 for item in state.items if item.pna < item.op)
         below_op = below_op_count > 0
         below_lp_count = sum(1 for item in state.items if item.pna < item.lp)
+        if state.global_settings.review_cycle_override_days is not None:
+            record_review_cycle_override_applied(state)
         summary = place_purchase_orders(state)
         if summary["lines"] > 0:
             record_guided_order(
@@ -349,6 +423,7 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
                 below_op_count=below_op_count,
                 below_lp_count=below_lp_count,
             )
+            clear_review_cycle_override_after_order(state)
         ctx.persist_state(session_id, state)
         return ctx.next_session_revision(session_revision)
 
@@ -400,9 +475,12 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
         if not is_action_allowed(state, "custom_order"):
             raise PreventUpdate
         quantities = [row.get("order_qty") for row in (row_data or [])]
+        if state.global_settings.review_cycle_override_days is not None:
+            record_review_cycle_override_applied(state)
         changed = place_custom_orders(state, list(quantities))
         if changed:
             record_custom_order(state)
+            clear_review_cycle_override_after_order(state)
         ctx.persist_state(session_id, state)
         grid = build_custom_order_grid(state, theme_name)
         set_props("place-custom-order-modal", {"is_open": False})

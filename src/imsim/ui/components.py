@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from dataclasses import asdict
+
 import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 from dash import Patch, html
 
-from ..models import InventoryItem, SimulationState
-from ..services.planning import format_money, item_on_order
+from ..models import GlobalSettings, InventoryItem, SimulationState
+from ..services.planning import (
+    effective_review_cycle,
+    format_money,
+    item_on_order,
+    update_gs_related_values,
+)
 from ..services.training import (
     academy_level_status,
     academy_levels,
@@ -284,7 +291,8 @@ def _lesson_item_snapshot_columns(level_index: int) -> tuple[str, ...]:
         15: ("item", "eoq", "oq", "pna", "op"),
         16: ("item", "pna", "oq", "standard_pack", "soq"),
         17: ("item", "pna", "cp", "surplus_line"),
-        18: ("item", "pna", "op", "lp", "soq"),
+        18: ("item", "pna", "op", "lp", "soq", "on_order"),
+        19: ("item", "pna", "op", "lp", "soq"),
     }.get(level_index, ("item", "on_hand", "on_order", "backorder"))
 
 
@@ -462,9 +470,85 @@ def _lesson_secondary_notes(level) -> list[html.Details]:
     return notes
 
 
+def _projected_line_summary(
+    state: SimulationState,
+    *,
+    review_cycle: int,
+) -> tuple[float, int, float, float]:
+    settings = GlobalSettings.from_dict(asdict(state.global_settings))
+    settings.r_cycle = int(review_cycle)
+    settings.review_cycle_override_days = None
+    total_soq = 0.0
+    line_count = 0
+    total_lp = 0.0
+    total_cost = 0.0
+    for source in state.items:
+        item = InventoryItem.from_dict(source.to_dict())
+        update_gs_related_values(item, settings)
+        total_soq += item.soq
+        total_lp += item.lp
+        total_cost += item.soq * item.item_cost
+        if item.soq > 0:
+            line_count += 1
+    return total_soq, line_count, total_lp, total_cost
+
+
+def _emergency_replenishment_panel(state: SimulationState, level) -> html.Div:
+    normal_cycle = int(level.win_conditions.get("emergency_normal_review_cycle", 7))
+    emergency_cycle = int(level.win_conditions.get("emergency_review_cycle_min", 14))
+    normal_qty, normal_lines, normal_lp, normal_cost = _projected_line_summary(
+        state, review_cycle=normal_cycle
+    )
+    emergency_qty, emergency_lines, emergency_lp, emergency_cost = _projected_line_summary(
+        state, review_cycle=emergency_cycle
+    )
+    return html.Div(
+        [
+            html.Div(
+                (
+                    "A bridge buy is a temporary timing decision. Raising review cycle "
+                    "days makes the recommendation look farther ahead, which can bring "
+                    "near-line-point items into the same PO. Use it to cover the gap, "
+                    "then return to the regular cadence."
+                ),
+                className="helper-copy mb-2",
+            ),
+            _lesson_snapshot_table(
+                "Before / After RRAR",
+                ("Control", "Normal Buy", "Emergency Buy"),
+                (
+                    ("Review Cycle", f"{normal_cycle} days", f"{emergency_cycle} days"),
+                    ("Included Lines", str(normal_lines), str(emergency_lines)),
+                    ("Line Point Total", f"{normal_lp:.1f}", f"{emergency_lp:.1f}"),
+                    ("Suggested Qty", f"{normal_qty:.1f}", f"{emergency_qty:.1f}"),
+                    ("Extended Cost", format_money(normal_cost), format_money(emergency_cost)),
+                    ("Tradeoff", "Standard line coverage", "Higher bridge coverage"),
+                ),
+            ),
+            _lesson_snapshot_table(
+                "Demand Center Header",
+                ("Buyer", "Vendor", "Warehouse", "PLine", "Target", "Merge"),
+                (
+                    (
+                        "RSC",
+                        "100 - Apex Electrical",
+                        "MAIN",
+                        "ELEC",
+                        "$7,500",
+                        "Review after accept",
+                    ),
+                ),
+            ),
+        ],
+        className="lesson-snapshot-stack",
+    )
+
+
 def _signal_map_layout_signature(state: SimulationState, rows: pd.DataFrame) -> str:
+    effective_cycle = effective_review_cycle(state.global_settings)
     return (
-        f"{active_layout_variant(state)}:items:{len(rows)}:r_cycle:{state.global_settings.r_cycle}"
+        f"{active_layout_variant(state)}:items:{len(rows)}:"
+        f"r_cycle:{state.global_settings.r_cycle}:effective_cycle:{effective_cycle}"
     )
 
 
@@ -977,8 +1061,12 @@ def _signal_map_figure(state: SimulationState, theme: str, colors: dict[str, str
         fig,
         colors,
         lower_label="OP",
-        upper_label="LP",
-        upper_y=state.global_settings.r_cycle,
+        upper_label=(
+            f"LP Override ({effective_review_cycle(state.global_settings)}d)"
+            if state.global_settings.review_cycle_override_days is not None
+            else "LP"
+        ),
+        upper_y=effective_review_cycle(state.global_settings),
     )
     return _finalize_axes(
         fig,
@@ -1897,6 +1985,14 @@ def lesson_tutorial_children(state: SimulationState) -> list:
                 ),
                 className="lesson-formula-chip",
             ),
+            html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
+            *secondary_notes,
+        ]
+    if level.index == 18 and state.items:
+        return [
+            *framing,
+            html.Div(level.formula, className="lesson-formula-chip"),
+            _emergency_replenishment_panel(state, level),
             html.Ul([html.Li(step) for step in level.tutorial_steps], className="lesson-copy-list"),
             *secondary_notes,
         ]

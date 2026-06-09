@@ -13,6 +13,7 @@ from imsim.services.planning import (
     round_to_pack,
     round_up_to_pack,
     safety_stock_qty,
+    update_gs_related_values,
 )
 from imsim.services.simulation import tick_state
 
@@ -52,6 +53,29 @@ def test_soq_and_pna_are_computed_for_new_item():
     assert item.op > 0
     assert item.lp > item.op
     assert item.soq >= item.standard_pack
+
+
+def test_review_cycle_override_recalculates_lp_and_soq_without_changing_default():
+    settings = GlobalSettings(r_cycle=7, r_cost=1, k_cost=0.18)
+    item = create_inventory_item(
+        usage_rate=60,
+        lead_time=14,
+        item_cost=20,
+        pna=40,
+        safety_allowance=0.2,
+        standard_pack=5,
+        global_settings=settings,
+        hits_per_month=10,
+    )
+    default_lp = item.lp
+    default_oq = item.oq
+
+    settings.review_cycle_override_days = 14
+    update_gs_related_values(item, settings)
+
+    assert settings.r_cycle == 7
+    assert item.lp > default_lp
+    assert item.oq > default_oq
 
 
 def test_surplus_line_uses_oq_not_eoq():
