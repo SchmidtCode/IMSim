@@ -567,9 +567,9 @@ def build_layout(config: IMSimConfig):
                                     className="g-3 align-items-center",
                                 )
                             ),
-                            className="shell-card hero-banner-card experience-banner-card mb-4",
+                            className="shell-card hero-banner-card experience-banner-card",
                         ),
-                        html.Div(id="kpi-strip", className="mt-4"),
+                        html.Div(id="kpi-strip", className="dashboard-kpi-strip"),
                         dbc.Row(
                             [
                                 dbc.Col(
@@ -633,7 +633,7 @@ def build_layout(config: IMSimConfig):
                                                         ),
                                                     ]
                                                 ),
-                                                className="shell-card mb-3",
+                                                className="shell-card",
                                             ),
                                             id="actions-panel",
                                         ),
@@ -922,7 +922,7 @@ def build_layout(config: IMSimConfig):
                                                         ),
                                                     ]
                                                 ),
-                                                className="shell-card mb-3",
+                                                className="shell-card",
                                             ),
                                             id="graph-panel",
                                         ),
@@ -978,7 +978,7 @@ def build_layout(config: IMSimConfig):
                                                     md=4,
                                                 ),
                                             ],
-                                            className="g-3 mb-3 dashboard-insights-row",
+                                            className="g-3 dashboard-insights-row",
                                         ),
                                         dbc.Row(
                                             [
@@ -1035,7 +1035,7 @@ def build_layout(config: IMSimConfig):
                                     className="dashboard-main-column",
                                 ),
                             ],
-                            className="mt-3 g-3 dashboard-main-layout",
+                            className="g-3 dashboard-main-layout",
                         ),
                     ],
                     id="dashboard-shell",

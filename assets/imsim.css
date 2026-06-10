@@ -34,6 +34,9 @@
   --imsim-size-dashboard-panel-max: 15rem;
   --imsim-size-lesson-grid-min: 38rem;
   --imsim-size-lesson-grid-max: 42rem;
+  --imsim-lesson-gap: 0.75rem;
+  --imsim-lesson-card-pad: 0.9rem;
+  --imsim-lesson-card-gap: 0.55rem;
   --imsim-slider-rail-size: 0.375rem;
   --imsim-slider-handle-size: 1.125rem;
   --imsim-slider-handle-offset: -0.375rem;
@@ -1495,7 +1498,7 @@ body {
 .dashboard-shell.lesson-dashboard {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 0.85rem;
+  gap: var(--imsim-lesson-gap);
   min-height: 0;
   margin-top: 0;
 }
@@ -1577,11 +1580,13 @@ body {
 }
 
 .dashboard-shell.lesson-dashboard .experience-banner-card {
-  margin-bottom: 0 !important;
+  margin-bottom: var(--imsim-lesson-gap) !important;
 }
 
-.dashboard-shell.lesson-dashboard #kpi-strip {
+.dashboard-shell.lesson-dashboard #kpi-strip,
+.dashboard-shell.lesson-dashboard .dashboard-kpi-strip {
   margin-top: 0 !important;
+  margin-bottom: var(--imsim-lesson-gap);
 }
 
 .dashboard-shell.lesson-dashboard .experience-banner-card .card-body {
@@ -1615,10 +1620,17 @@ body {
 }
 
 .dashboard-shell.lesson-dashboard .dashboard-main-layout {
-  --bs-gutter-x: 0.85rem;
-  --bs-gutter-y: 0.85rem;
+  --bs-gutter-x: var(--imsim-lesson-gap);
+  --bs-gutter-y: var(--imsim-lesson-gap);
   margin: 0 !important;
   min-height: 0;
+}
+
+.dashboard-shell.lesson-dashboard .session-card.mt-3,
+.dashboard-shell.lesson-dashboard .control-label.mt-3,
+.dashboard-shell.lesson-dashboard #asq-apply-feedback.mt-3,
+.dashboard-shell.lesson-dashboard #guided-order-feedback.mt-3 {
+  margin-top: var(--imsim-lesson-gap) !important;
 }
 
 .dashboard-shell.lesson-dashboard .panel-label {
@@ -1650,7 +1662,7 @@ body {
 .dashboard-shell.lesson-dashboard .session-card .card-body,
 .dashboard-shell.lesson-dashboard #service-panel .card-body,
 .dashboard-shell.lesson-dashboard #inventory-panel .card-body {
-  padding: 0.9rem;
+  padding: var(--imsim-lesson-card-pad);
 }
 
 .dashboard-shell.lesson-dashboard #service-panel .list-group-item {
@@ -1658,11 +1670,11 @@ body {
 }
 
 .dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-stack {
-  gap: 0.45rem;
+  gap: var(--imsim-lesson-card-gap);
 }
 
 .dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-disclosure {
-  gap: 0.45rem;
+  gap: var(--imsim-lesson-card-gap);
 }
 
 .dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-block {
@@ -1676,6 +1688,27 @@ body {
 
 .dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-label {
   font-size: 0.68rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel .lesson-disclosure-body,
+.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel .lesson-disclosure-body {
+  overflow-x: auto;
+  padding-bottom: 0.1rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel .lesson-snapshot-grid,
+.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel .lesson-snapshot-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel .lesson-snapshot-stack,
+.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel .lesson-snapshot-stack {
+  gap: 0.6rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel .lesson-snapshot-block,
+.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel .lesson-snapshot-block {
+  min-width: 0;
 }
 
 .dashboard-shell.lesson-dashboard .inventory-table {
@@ -1701,8 +1734,8 @@ body {
 .dashboard-shell.lesson-dashboard #graph-panel > .card > .card-body {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.95rem 0.95rem 1.35rem;
+  gap: var(--imsim-lesson-card-gap);
+  padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 1.1rem;
 }
 
 .dashboard-shell.lesson-dashboard #graph-panel .dash-graph,
@@ -1857,7 +1890,7 @@ body {
     grid-template-columns:
       minmax(17rem, var(--imsim-size-dashboard-rail-max))
       minmax(0, 1fr);
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
     width: 100%;
   }
 
@@ -1907,7 +1940,7 @@ body {
   .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-detail-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
     width: 100%;
   }
 
@@ -1915,10 +1948,10 @@ body {
   .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-insights-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
     width: 100%;
     align-items: stretch;
-    margin-bottom: 0.75rem !important;
+    margin-bottom: var(--imsim-lesson-gap) !important;
   }
 
   .dashboard-shell.lesson-dashboard .dashboard-insights-row > [id],
@@ -1984,7 +2017,7 @@ body {
       "session graph"
       ". inventory"
       ". service";
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
     align-items: start;
     align-content: start;
     height: auto;
@@ -2065,7 +2098,7 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card > .card-body {
-    padding: 0.95rem 1rem 1.5rem;
+    padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 1.1rem;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel {
@@ -2088,7 +2121,7 @@ body {
   .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) .dashboard-main-column {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
   }
 
   .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #graph-panel {
@@ -2126,7 +2159,7 @@ body {
   }
 
   .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #graph-panel > .card > .card-body {
-    padding: 1rem 1rem 1.45rem;
+    padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 1.1rem;
   }
 
   .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #inventory-graph {
@@ -2150,7 +2183,7 @@ body {
   .dashboard-shell.lesson-layout-workspace-signal .dashboard-main-layout {
     display: grid;
     grid-template-columns: minmax(18rem, 20rem) minmax(0, 1fr);
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
     align-items: start;
   }
 
@@ -2326,7 +2359,7 @@ body {
       ". service";
     align-items: start;
     align-content: start;
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
     height: auto;
     padding-bottom: 1rem;
   }
@@ -2367,7 +2400,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    padding: 1rem 1rem 1.5rem;
+    padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 1.1rem;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-graph {
@@ -2400,20 +2433,30 @@ body {
   .dashboard-shell.lesson-layout-workspace-certification .dashboard-insights-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 0.75rem !important;
+    gap: var(--imsim-lesson-gap);
+    margin-bottom: var(--imsim-lesson-gap) !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-insights-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel {
+    grid-column: 1 / -1;
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced .dashboard-detail-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
   }
 
   .dashboard-shell.lesson-layout-workspace-certification .dashboard-detail-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced #service-panel,
@@ -2475,7 +2518,7 @@ body {
     grid-template-areas:
       "service graph"
       "session graph";
-    gap: 0.75rem;
+    gap: var(--imsim-lesson-gap);
     align-items: start;
     padding-bottom: 1rem;
   }

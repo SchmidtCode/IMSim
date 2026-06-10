@@ -564,7 +564,10 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             ctx.panel_style(is_action_allowed(state, "custom_order")),
             ctx.panel_style(is_action_allowed(state, "po_overview")),
             ctx.panel_style(is_action_allowed(state, "add_items")),
-            ctx.panel_style(is_action_allowed(state, "update_parameters")),
+            ctx.panel_style(
+                is_action_allowed(state, "review_cycle_override")
+                or is_action_allowed(state, "update_parameters")
+            ),
             ctx.panel_style(is_simulator and state.training.auto_po_reward_unlocked),
             ctx.panel_style(is_action_allowed(state, "apply_asq")),
             not (is_simulator and state.training.auto_po_reward_unlocked),

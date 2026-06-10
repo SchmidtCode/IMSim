@@ -808,7 +808,8 @@ def test_emergency_bridge_lesson_tracks_temporary_review_cycle_workflow():
     level = academy_level("level-18")
     assert level is not None
     assert state.global_settings.r_cycle == 7
-    assert is_action_allowed(state, "update_parameters") is True
+    assert is_action_allowed(state, "review_cycle_override") is True
+    assert is_action_allowed(state, "update_parameters") is False
     assert is_action_allowed(state, "po_overview") is True
 
     state.global_settings.review_cycle_override_days = 11

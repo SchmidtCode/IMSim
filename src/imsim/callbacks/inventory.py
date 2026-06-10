@@ -318,7 +318,10 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
     )
     def handle_review_cycle_override(override_days, client_data, session_revision):
         session_id, state = ctx.require_session(client_data)
-        if not is_action_allowed(state, "update_parameters"):
+        if not (
+            is_action_allowed(state, "review_cycle_override")
+            or is_action_allowed(state, "update_parameters")
+        ):
             return dash.no_update, dbc.Alert(
                 "Review Cycle Override unlocks in later lessons.",
                 color="warning",
