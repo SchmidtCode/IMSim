@@ -67,7 +67,7 @@ Compose files under `deploy/source/`:
 
 ```bash
 cp deploy/source/.env.example .env
-docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-Fcompose.build.yml --project-directory . up -d --build
+docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-compose.build.yml --project-directory . up -d --build
 ```
 
 For the non-container contributor workflow:
