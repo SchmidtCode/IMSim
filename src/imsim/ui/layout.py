@@ -224,7 +224,7 @@ def build_layout(config: IMSimConfig):
                                                             id=f"academy-level-{level.index}-card",
                                                         )
                                                     ),
-                                                    className="shell-card academy-card h-100",
+                                                    className="shell-card academy-card",
                                                 ),
                                                 lg=4,
                                                 md=6,
@@ -264,7 +264,7 @@ def build_layout(config: IMSimConfig):
                                                             ),
                                                         ]
                                                     ),
-                                                    className="shell-card academy-card h-100",
+                                                    className="shell-card academy-card",
                                                 ),
                                                 lg=4,
                                                 md=6,

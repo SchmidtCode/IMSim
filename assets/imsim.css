@@ -192,11 +192,11 @@ body {
 }
 
 .academy-shell .card-body {
-  padding: clamp(1.15rem, 2vw, 1.7rem);
+  padding: clamp(1rem, 1.65vw, 1.35rem);
 }
 
 .academy-card {
-  height: 100%;
+  height: auto;
 }
 
 .academy-card.shell-card {
@@ -205,8 +205,13 @@ body {
 
 .academy-card .card-body {
   display: grid;
-  grid-template-rows: auto auto minmax(4.75rem, auto) auto auto 1fr;
+  grid-template-rows: auto;
   align-content: start;
+  gap: 0.55rem;
+}
+
+.academy-card .button-block {
+  margin-top: 0.35rem !important;
 }
 
 .academy-card-kicker,
@@ -219,17 +224,18 @@ body {
 
 .academy-card-title {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-  font-size: 1.28rem;
+  font-size: 1.18rem;
   font-weight: 700;
-  line-height: 1.12;
-  margin-top: 0.35rem;
+  line-height: 1.14;
+  margin-top: 0.15rem;
 }
 
 .academy-card-copy {
   color: var(--imsim-muted);
-  line-height: 1.5;
-  margin: 0.65rem 0 0;
-  min-height: 4rem;
+  font-size: 0.92rem;
+  line-height: 1.42;
+  margin: 0.15rem 0 0;
+  min-height: 0;
 }
 
 .academy-card-formula,
@@ -239,8 +245,8 @@ body {
   gap: 0.35rem;
   max-width: 100%;
   min-width: 0;
-  margin-top: 0.85rem;
-  padding: 0.45rem 0.7rem;
+  margin-top: 0.1rem;
+  padding: 0.38rem 0.62rem;
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-pill);
   background: color-mix(in srgb, var(--imsim-blue) 7%, transparent);
@@ -264,7 +270,8 @@ body {
 }
 
 .academy-status-badge {
-  margin-top: 0.85rem;
+  justify-self: start;
+  margin-top: 0.1rem;
 }
 
 .cheat-code-row {
@@ -298,20 +305,20 @@ body {
 }
 
 .lesson-copy-list {
-  margin: 0.85rem 0 0;
+  margin: 0.55rem 0 0;
   padding-left: 1.1rem;
   color: var(--imsim-ink);
 }
 
 .lesson-copy-list li + li {
-  margin-top: 0.45rem;
+  margin-top: 0.3rem;
 }
 
 .lesson-objective-headline {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.08rem;
   font-weight: 700;
-  margin-top: 0.15rem;
+  margin: 0.05rem 0 0;
 }
 
 .lesson-locked-list {
@@ -395,16 +402,18 @@ body {
 }
 
 .lesson-intro-grid .lesson-detail-card .card-body {
-  padding: 1rem;
+  padding: 0.9rem 0.95rem;
 }
 
 .lesson-intro-grid {
   align-items: stretch;
+  --bs-gutter-x: 0.85rem;
+  --bs-gutter-y: 0.85rem;
 }
 
 .lesson-intro-grid .lesson-copy-list {
-  font-size: 0.94rem;
-  line-height: 1.45;
+  font-size: 0.9rem;
+  line-height: 1.38;
 }
 
 .lesson-intro-grid .lesson-service-table {
