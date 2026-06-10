@@ -67,7 +67,24 @@ Compose files under `deploy/source/`:
 
 ```bash
 cp deploy/source/.env.example .env
-docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-Fcompose.build.yml --project-directory . up -d --build
+docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-compose.build.yml --project-directory . up -d --build
+```
+
+For the non-container contributor workflow:
+
+```bash
+cp deploy/source/.env.example .env
+uv python install 3.14.5
+uv sync --group dev
+uv run pre-commit install
+uv run imsim
+```
+
+Pre-commit runs Ruff before commits and pytest before pushes. To run the hooks manually:
+
+```bash
+uv run pre-commit run --all-files
+uv run pre-commit run --hook-stage pre-push --all-files
 ```
 
 For a shared homelab deployment, set `IMSIM_ADMIN_TOKEN` in `.env` before you expose the app.

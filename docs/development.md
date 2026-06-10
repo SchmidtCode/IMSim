@@ -8,6 +8,7 @@ For the fastest non-container workflow:
 cp deploy/source/.env.example .env
 uv python install 3.14.5
 uv sync --group dev
+uv run pre-commit install
 uv run imsim
 ```
 
@@ -20,6 +21,9 @@ docker compose -f deploy/source/docker-compose.yml -f deploy/source/docker-compo
 ## Common Commands
 
 ```bash
+uv run pre-commit install
+uv run pre-commit run --all-files
+uv run pre-commit run --hook-stage pre-push --all-files
 uv run pytest
 uv run ruff check .
 uv run ruff format .
@@ -29,6 +33,7 @@ docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 git .
 ```
 
 CI also runs `gitleaks` across full git history on every push and pull request.
+The installed pre-commit hooks run Ruff before commits and pytest before pushes.
 
 ## Repo Layout
 
