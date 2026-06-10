@@ -168,11 +168,10 @@ def build_layout(config: IMSimConfig):
                                                     ),
                                                     html.P(
                                                         (
-                                                            "Learn inventory management "
-                                                            "a level at a time. Work "
-                                                            "through guided lessons, "
-                                                            "unlock controls, "
-                                                            "and earn the full simulator."
+                                                            "Practice replenishment decisions "
+                                                            "through guided lessons, then "
+                                                            "unlock the simulator when the "
+                                                            "operating model clicks."
                                                         ),
                                                         className="hero-copy",
                                                     ),
@@ -448,16 +447,15 @@ def build_layout(config: IMSimConfig):
                                             [
                                                 html.Div("Simulator", className="hero-kicker"),
                                                 html.H1(
-                                                    "Unlocked Simulator",
+                                                    "Simulator workspace",
                                                     id="simulator-title",
                                                     className="hero-title",
                                                 ),
                                                 html.P(
                                                     (
-                                                        "This is the full IM dashboard. Imports, "
-                                                        "free play, and the sandbox "
-                                                        "reward controls "
-                                                        "are now available."
+                                                        "Run the full inventory workspace with "
+                                                        "imports, policy controls, signal maps, "
+                                                        "and sandbox reward controls."
                                                     ),
                                                     id="simulator-copy",
                                                     className="hero-copy",
@@ -510,14 +508,14 @@ def build_layout(config: IMSimConfig):
                                                     className="hero-kicker",
                                                 ),
                                                 html.H1(
-                                                    "Lesson control deck",
+                                                    "Lesson workspace",
                                                     id="experience-title",
                                                     className="hero-title",
                                                 ),
                                                 html.P(
                                                     (
-                                                        "Use the lesson controls and hit "
-                                                        "the objective window."
+                                                        "Adjust the live controls, read the "
+                                                        "signals, and close the objective window."
                                                     ),
                                                     id="experience-copy",
                                                     className="hero-copy",
@@ -584,7 +582,7 @@ def build_layout(config: IMSimConfig):
                                                             "Command rail", className="panel-label"
                                                         ),
                                                         html.H3(
-                                                            "Controls", className="panel-title"
+                                                            "Operations", className="panel-title"
                                                         ),
                                                         html.Div(
                                                             [
@@ -623,9 +621,9 @@ def build_layout(config: IMSimConfig):
                                                                 ),
                                                                 html.Div(
                                                                     _action_button(
-                                                                        "Add or Import Items",
+                                                                        "Add / import items",
                                                                         "add-item-button",
-                                                                        "warning",
+                                                                        "light",
                                                                         class_name="button-block",
                                                                     ),
                                                                     id="add-item-wrap",
@@ -901,7 +899,7 @@ def build_layout(config: IMSimConfig):
                                                 dbc.CardBody(
                                                     [
                                                         html.Div(
-                                                            "Visuals", className="panel-label"
+                                                            "Signal map", className="panel-label"
                                                         ),
                                                         html.H3(
                                                             "Inventory signal map",
@@ -993,7 +991,7 @@ def build_layout(config: IMSimConfig):
                                                                     className="panel-label",
                                                                 ),
                                                                 html.H3(
-                                                                    "Planner grid",
+                                                                    "Inventory planner",
                                                                     className="panel-title",
                                                                     id="inventory-panel-title",
                                                                 ),
@@ -1016,7 +1014,7 @@ def build_layout(config: IMSimConfig):
                                                                     className="panel-label",
                                                                 ),
                                                                 html.H3(
-                                                                    "ASQ exception center",
+                                                                    "Exception center",
                                                                     className="panel-title",
                                                                 ),
                                                                 html.Div(

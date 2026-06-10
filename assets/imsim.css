@@ -1,25 +1,25 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap");
 
 :root {
-  --imsim-bg-top: #fbf8f2;
-  --imsim-bg: #f4f1ea;
-  --imsim-surface: rgba(255, 255, 255, 0.82);
-  --imsim-surface-strong: #fffdf8;
-  --imsim-ink: #132238;
-  --imsim-muted: #536277;
-  --imsim-line: rgba(19, 34, 56, 0.12);
-  --imsim-teal: #0f766e;
-  --imsim-orange: #f97316;
-  --imsim-blue: #2563eb;
-  --imsim-danger: #dc2626;
-  --imsim-control-bg: rgba(255, 253, 248, 0.92);
-  --imsim-radius-sm: 0.75rem;
-  --imsim-radius-md: 0.875rem;
-  --imsim-radius-lg: 1rem;
-  --imsim-radius-xl: 1.125rem;
-  --imsim-radius-2xl: 1.25rem;
-  --imsim-radius-3xl: 1.5rem;
-  --imsim-radius-4xl: 1.75rem;
+  --imsim-bg-top: #f7f8f5;
+  --imsim-bg: #eef1ec;
+  --imsim-surface: rgba(255, 255, 255, 0.92);
+  --imsim-surface-strong: #fcfdf9;
+  --imsim-ink: #15231f;
+  --imsim-muted: #5b6964;
+  --imsim-line: rgba(21, 35, 31, 0.13);
+  --imsim-teal: #167264;
+  --imsim-orange: #b9621e;
+  --imsim-blue: #315f8f;
+  --imsim-danger: #b33b3b;
+  --imsim-control-bg: rgba(252, 253, 249, 0.96);
+  --imsim-radius-sm: 0.35rem;
+  --imsim-radius-md: 0.45rem;
+  --imsim-radius-lg: 0.55rem;
+  --imsim-radius-xl: 0.65rem;
+  --imsim-radius-2xl: 0.75rem;
+  --imsim-radius-3xl: 0.875rem;
+  --imsim-radius-4xl: 1rem;
   --imsim-radius-pill: 999rem;
   --imsim-blur-backdrop: 0.5rem;
   --imsim-blur-surface: 0.875rem;
@@ -41,54 +41,63 @@
   --imsim-border-strong: 0.1875rem;
   --imsim-border-metric: 0.3125rem;
   --imsim-focus-ring-size: 0.25rem;
-  --imsim-shadow: 0 1.5rem 3.75rem rgba(19, 34, 56, 0.12);
-  --imsim-shadow-modal: 0 2.25rem 5.625rem rgba(2, 8, 18, 0.34);
-  --imsim-shadow-float: 0 1.125rem 2.5rem rgba(2, 8, 18, 0.32);
-  --imsim-shadow-action-teal: 0 0.875rem 1.75rem rgba(15, 118, 110, 0.2);
-  --imsim-shadow-action-green: 0 0.875rem 1.75rem rgba(21, 128, 61, 0.2);
-  --imsim-shadow-focus-soft: 0 0 0 var(--imsim-focus-ring-size) rgba(37, 99, 235, 0.12);
-  --imsim-shadow-focus-strong: 0 0 0 var(--imsim-focus-ring-size) rgba(37, 99, 235, 0.18);
-  --imsim-shadow-focus-slider: 0 0 0 var(--imsim-focus-ring-size) rgba(37, 99, 235, 0.14);
+  --imsim-shadow: 0 0.75rem 1.75rem rgba(21, 35, 31, 0.07);
+  --imsim-shadow-modal: 0 1.4rem 3.25rem rgba(2, 8, 18, 0.26);
+  --imsim-shadow-float: 0 0.9rem 2rem rgba(2, 8, 18, 0.22);
+  --imsim-shadow-action-teal: none;
+  --imsim-shadow-action-green: none;
+  --imsim-shadow-focus-soft: 0 0 0 var(--imsim-focus-ring-size) rgba(49, 95, 143, 0.12);
+  --imsim-shadow-focus-strong: 0 0 0 var(--imsim-focus-ring-size) rgba(49, 95, 143, 0.18);
+  --imsim-shadow-focus-slider: 0 0 0 var(--imsim-focus-ring-size) rgba(49, 95, 143, 0.14);
   --imsim-shadow-focus-slider-dark:
     0 0 0 var(--imsim-focus-ring-size) rgba(45, 212, 191, 0.16);
-  --imsim-bg-accent-a: rgba(15, 118, 110, 0.18);
-  --imsim-bg-accent-b: rgba(249, 115, 22, 0.14);
-  --imsim-graph-bg: rgba(255, 255, 255, 0.55);
+  --imsim-bg-grid: rgba(21, 35, 31, 0.035);
+  --imsim-bg-accent-a: rgba(22, 114, 100, 0.07);
+  --imsim-bg-accent-b: rgba(185, 98, 30, 0.05);
+  --imsim-graph-bg: rgba(252, 253, 249, 0.86);
   --imsim-session-bg: var(--imsim-surface);
-  --imsim-session-inner-bg: rgba(255, 253, 248, 0.96);
-  --imsim-maintenance-bg: rgba(255, 255, 255, 0.88);
-  --imsim-upload-bg: rgba(15, 118, 110, 0.04);
-  --imsim-table-stripe: rgba(15, 118, 110, 0.05);
-  --imsim-table-hover: rgba(37, 99, 235, 0.06);
+  --imsim-session-inner-bg: rgba(247, 248, 245, 0.92);
+  --imsim-maintenance-bg: rgba(252, 253, 249, 0.92);
+  --imsim-upload-bg: rgba(22, 114, 100, 0.045);
+  --imsim-table-stripe: rgba(22, 114, 100, 0.035);
+  --imsim-table-hover: rgba(49, 95, 143, 0.055);
 }
 
 body {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  line-height: 1.5;
   margin: 0;
+  overflow-x: hidden;
 }
 
 .imsim-theme {
   min-height: 100vh;
   min-height: 100dvh;
   color: var(--imsim-ink);
+  overflow-x: clip;
   background:
-    radial-gradient(circle at top left, var(--imsim-bg-accent-a), transparent 35%),
-    radial-gradient(circle at top right, var(--imsim-bg-accent-b), transparent 34%),
+    linear-gradient(90deg, var(--imsim-bg-grid) 1px, transparent 1px),
+    linear-gradient(180deg, var(--imsim-bg-grid) 1px, transparent 1px),
     linear-gradient(180deg, var(--imsim-bg-top) 0%, var(--imsim-bg) 100%);
+  background-size:
+    3rem 3rem,
+    3rem 3rem,
+    auto;
 }
 
 .theme-dark {
   --imsim-bg-top: #08111d;
   --imsim-bg: #0c1523;
-  --imsim-surface: rgba(13, 24, 38, 0.82);
+  --imsim-surface: rgba(13, 24, 38, 0.9);
   --imsim-surface-strong: rgba(18, 31, 49, 0.94);
   --imsim-ink: #e6eefc;
   --imsim-muted: #9aabc6;
   --imsim-line: rgba(214, 228, 255, 0.14);
-  --imsim-shadow: 0 1.625rem 4.375rem rgba(2, 8, 18, 0.48);
-  --imsim-shadow-float: 0 1.125rem 2.5rem rgba(2, 8, 18, 0.38);
-  --imsim-bg-accent-a: rgba(15, 118, 110, 0.24);
-  --imsim-bg-accent-b: rgba(37, 99, 235, 0.18);
+  --imsim-shadow: 0 1rem 2.5rem rgba(2, 8, 18, 0.38);
+  --imsim-shadow-float: 0 1rem 2rem rgba(2, 8, 18, 0.34);
+  --imsim-bg-grid: rgba(214, 228, 255, 0.035);
+  --imsim-bg-accent-a: rgba(15, 118, 110, 0.12);
+  --imsim-bg-accent-b: rgba(37, 99, 235, 0.1);
   --imsim-graph-bg: rgba(10, 19, 32, 0.7);
   --imsim-control-bg: rgba(10, 19, 32, 0.92);
   --imsim-session-bg: var(--imsim-surface);
@@ -101,6 +110,15 @@ body {
 
 .imsim-shell {
   max-width: var(--imsim-size-shell-max);
+}
+
+.imsim-shell,
+.imsim-shell .row,
+.imsim-shell [class*="col-"],
+.imsim-shell .card,
+.imsim-shell .card-body,
+.shell-card {
+  min-width: 0;
 }
 
 .session-card-header {
@@ -124,9 +142,9 @@ body {
 .metric-label,
 .footer-title {
   color: var(--imsim-muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
@@ -134,12 +152,12 @@ body {
 .panel-title {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 .hero-title {
   font-size: clamp(1.8rem, 3vw, 2.6rem);
-  line-height: 1;
+  line-height: 1.05;
   margin-bottom: 0.35rem;
   max-width: none;
 }
@@ -174,11 +192,21 @@ body {
 }
 
 .academy-shell .card-body {
-  padding-block: 1.4rem;
+  padding: clamp(1.15rem, 2vw, 1.7rem);
 }
 
 .academy-card {
   height: 100%;
+}
+
+.academy-card.shell-card {
+  box-shadow: none;
+}
+
+.academy-card .card-body {
+  display: grid;
+  grid-template-rows: auto auto minmax(4.75rem, auto) auto auto 1fr;
+  align-content: start;
 }
 
 .academy-card-kicker,
@@ -191,9 +219,9 @@ body {
 
 .academy-card-title {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-  font-size: 1.4rem;
+  font-size: 1.28rem;
   font-weight: 700;
-  line-height: 1.05;
+  line-height: 1.12;
   margin-top: 0.35rem;
 }
 
@@ -201,7 +229,7 @@ body {
   color: var(--imsim-muted);
   line-height: 1.5;
   margin: 0.65rem 0 0;
-  min-height: 4.5rem;
+  min-height: 4rem;
 }
 
 .academy-card-formula,
@@ -209,11 +237,15 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
   margin-top: 0.85rem;
   padding: 0.45rem 0.7rem;
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-pill);
-  background: rgba(37, 99, 235, 0.08);
+  background: color-mix(in srgb, var(--imsim-blue) 7%, transparent);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .review-override-indicator {
@@ -302,9 +334,7 @@ body {
 }
 
 .lesson-intro-content {
-  background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 34%),
-    linear-gradient(180deg, var(--imsim-surface-strong), var(--imsim-surface));
+  background: linear-gradient(180deg, var(--imsim-surface-strong), var(--imsim-surface));
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-4xl);
   box-shadow: var(--imsim-shadow-modal);
@@ -312,7 +342,7 @@ body {
 }
 
 .imsim-modal-content {
-  background: linear-gradient(180deg, var(--imsim-surface-strong), var(--imsim-surface));
+  background: var(--imsim-surface-strong);
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-3xl);
   box-shadow: var(--imsim-shadow-modal);
@@ -400,15 +430,18 @@ body {
   align-items: center;
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-pill);
+  max-width: 100%;
+  min-width: 0;
   min-height: 2.15rem;
   padding: 0.45rem 0.78rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .lesson-compact-chip {
   background: rgba(37, 99, 235, 0.08);
   color: var(--imsim-muted);
   font-size: 0.78rem;
-  white-space: nowrap;
 }
 
 .lesson-compact-inline {
@@ -562,11 +595,14 @@ body {
 .metric-card,
 .footer-card {
   background: var(--imsim-surface);
-  -webkit-backdrop-filter: blur(var(--imsim-blur-surface));
-  backdrop-filter: blur(var(--imsim-blur-surface));
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-3xl);
   box-shadow: var(--imsim-shadow);
+}
+
+.dashboard-shell .shell-card,
+.lesson-intro-grid .shell-card {
+  box-shadow: none;
 }
 
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
@@ -593,7 +629,7 @@ body {
 .session-primary-block,
 .session-speed-block {
   border: 1px solid var(--imsim-line);
-  border-radius: var(--imsim-radius-2xl);
+  border-radius: var(--imsim-radius-xl);
   background: var(--imsim-session-inner-bg);
   padding: 0.85rem 0.95rem;
 }
@@ -620,14 +656,16 @@ body {
 }
 
 .panel-title {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
+  font-size: 1.38rem;
+  line-height: 1.15;
+  margin-bottom: 0.85rem;
 }
 
 .panel-title-small {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
   font-size: 1.1rem;
   font-weight: 700;
+  line-height: 1.18;
   margin-bottom: 0.8rem;
 }
 
@@ -649,14 +687,15 @@ body {
 
 .control-label {
   color: var(--imsim-muted);
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .control-input {
   width: 100%;
-  min-height: 3rem;
-  padding: 0.8rem 0.95rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.8rem;
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-lg);
   background: var(--imsim-control-bg);
@@ -764,11 +803,11 @@ body {
   align-items: center;
   justify-content: center;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 0.94rem;
   font-weight: 600;
   line-height: 1.2;
-  min-height: 3rem;
-  padding: 0.8rem 1rem;
+  min-height: 2.75rem;
+  padding: 0.68rem 0.92rem;
   text-align: center;
   text-decoration: none;
   transition:
@@ -780,7 +819,7 @@ body {
 }
 
 .imsim-button:hover {
-  transform: translateY(-0.0625rem);
+  transform: translateY(-0.03125rem);
 }
 
 .imsim-button:focus-visible {
@@ -815,30 +854,30 @@ body {
 }
 
 .button-primary:hover {
-  background: #0d675f;
-  border-color: #0d675f;
+  background: #105f54;
+  border-color: #105f54;
 }
 
 .button-success {
-  background: #15803d;
-  border-color: #15803d;
+  background: #287848;
+  border-color: #287848;
   box-shadow: var(--imsim-shadow-action-green);
 }
 
 .button-success:hover {
-  background: #166534;
-  border-color: #166534;
+  background: #20643c;
+  border-color: #20643c;
 }
 
 .button-secondary {
-  background: #33485f;
-  border-color: #33485f;
+  background: #354743;
+  border-color: #354743;
   color: #f4f7fb;
 }
 
 .button-secondary:hover {
-  background: #2a3d52;
-  border-color: #2a3d52;
+  background: #2b3b37;
+  border-color: #2b3b37;
 }
 
 .button-warning {
@@ -847,8 +886,8 @@ body {
 }
 
 .button-warning:hover {
-  background: #ea6b10;
-  border-color: #ea6b10;
+  background: #9f5218;
+  border-color: #9f5218;
 }
 
 .button-danger {
@@ -867,29 +906,29 @@ body {
 }
 
 .button-info:hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
+  background: #284f78;
+  border-color: #284f78;
 }
 
 .button-light {
-  background: rgba(37, 99, 235, 0.1);
-  border-color: rgba(37, 99, 235, 0.16);
+  background: color-mix(in srgb, var(--imsim-blue) 8%, var(--imsim-surface-strong));
+  border-color: color-mix(in srgb, var(--imsim-blue) 20%, var(--imsim-line));
   color: var(--imsim-ink);
 }
 
 .button-light:hover {
-  background: rgba(37, 99, 235, 0.16);
-  border-color: rgba(37, 99, 235, 0.22);
+  background: color-mix(in srgb, var(--imsim-blue) 13%, var(--imsim-surface-strong));
+  border-color: color-mix(in srgb, var(--imsim-blue) 30%, var(--imsim-line));
 }
 
 .button-dark {
-  background: #18283e;
-  border-color: #18283e;
+  background: #17231f;
+  border-color: #17231f;
 }
 
 .button-dark:hover {
-  background: #132238;
-  border-color: #132238;
+  background: #101a17;
+  border-color: #101a17;
 }
 
 .button-ghost {
@@ -899,8 +938,8 @@ body {
 }
 
 .button-ghost:hover {
-  background: rgba(37, 99, 235, 0.08);
-  border-color: rgba(37, 99, 235, 0.25);
+  background: color-mix(in srgb, var(--imsim-blue) 8%, transparent);
+  border-color: color-mix(in srgb, var(--imsim-blue) 28%, var(--imsim-line));
 }
 
 .button-link {
@@ -921,8 +960,8 @@ body {
 .speed-readout {
   display: inline-flex;
   align-items: center;
-  min-height: 2.7rem;
-  padding: 0.55rem 0.85rem;
+  min-height: 2.55rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-md);
   background-color: var(--imsim-control-bg);
@@ -935,13 +974,15 @@ body {
 
 .metric-card .card-body {
   min-height: var(--imsim-size-metric-card-min);
+  padding: 1rem;
 }
 
 .metric-value {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-  font-size: 1.9rem;
+  font-size: 1.7rem;
   font-weight: 700;
-  margin-top: 0.55rem;
+  letter-spacing: -0.02em;
+  margin-top: 0.42rem;
 }
 
 .metric-subtitle {
@@ -950,29 +991,38 @@ body {
 }
 
 .metric-good {
-  border-top: var(--imsim-border-metric) solid var(--imsim-teal);
+  border-top: var(--imsim-border-strong) solid var(--imsim-teal);
 }
 
 .metric-warn {
-  border-top: var(--imsim-border-metric) solid var(--imsim-orange);
+  border-top: var(--imsim-border-strong) solid var(--imsim-orange);
 }
 
 .metric-neutral {
-  border-top: var(--imsim-border-metric) solid var(--imsim-blue);
+  border-top: var(--imsim-border-strong) solid var(--imsim-blue);
 }
 
 .upload-shell {
-  border: var(--imsim-border-accent) dashed rgba(15, 118, 110, 0.35);
-  border-radius: var(--imsim-radius-2xl);
-  padding: 2rem 1rem;
+  border: 1px dashed color-mix(in srgb, var(--imsim-teal) 42%, var(--imsim-line));
+  border-radius: var(--imsim-radius-xl);
+  padding: 1.45rem 1rem;
   text-align: center;
   background: var(--imsim-upload-bg);
   cursor: pointer;
+  transition:
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.upload-shell:hover,
+.upload-shell:focus-within {
+  background: color-mix(in srgb, var(--imsim-teal) 7%, transparent);
+  border-color: color-mix(in srgb, var(--imsim-teal) 58%, var(--imsim-line));
 }
 
 .preview-card,
 .exception-card {
-  border-radius: var(--imsim-radius-xl);
+  border-radius: var(--imsim-radius-lg);
   border: 1px solid var(--imsim-line);
   background: var(--imsim-surface-strong);
   margin-bottom: 0.85rem;
@@ -980,30 +1030,30 @@ body {
 
 .imsim-ag-grid {
   --ag-font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --ag-border-radius: var(--imsim-radius-lg);
-  --ag-wrapper-border-radius: var(--imsim-radius-lg);
+  --ag-border-radius: var(--imsim-radius-md);
+  --ag-wrapper-border-radius: var(--imsim-radius-md);
   --ag-border-color: var(--imsim-line);
   --ag-row-border-color: var(--imsim-line);
   --ag-header-column-resize-handle-color: var(--imsim-muted);
-  --ag-cell-horizontal-padding: 0.75rem;
-  --ag-header-height: 2.9rem;
-  --ag-row-height: 2.75rem;
+  --ag-cell-horizontal-padding: 0.62rem;
+  --ag-header-height: 2.55rem;
+  --ag-row-height: 2.35rem;
 }
 
 .theme-light .imsim-ag-grid {
-  --ag-background-color: rgba(255, 253, 248, 0.98);
-  --ag-chrome-background-color: rgba(244, 241, 234, 0.96);
+  --ag-background-color: rgba(252, 253, 249, 0.98);
+  --ag-chrome-background-color: rgba(238, 241, 236, 0.96);
   --ag-foreground-color: var(--imsim-ink);
   --ag-secondary-foreground-color: var(--imsim-muted);
-  --ag-header-background-color: rgba(244, 241, 234, 0.96);
+  --ag-header-background-color: rgba(238, 241, 236, 0.96);
   --ag-header-foreground-color: var(--imsim-ink);
-  --ag-odd-row-background-color: rgba(15, 118, 110, 0.04);
-  --ag-row-hover-color: rgba(37, 99, 235, 0.08);
-  --ag-selected-row-background-color: rgba(37, 99, 235, 0.14);
-  --ag-subheader-background-color: rgba(244, 241, 234, 0.92);
-  --ag-modal-overlay-background-color: rgba(255, 253, 248, 0.9);
-  --ag-menu-background-color: rgba(255, 253, 248, 0.98);
-  --ag-tooltip-background-color: rgba(255, 253, 248, 0.98);
+  --ag-odd-row-background-color: rgba(22, 114, 100, 0.032);
+  --ag-row-hover-color: rgba(49, 95, 143, 0.07);
+  --ag-selected-row-background-color: rgba(49, 95, 143, 0.13);
+  --ag-subheader-background-color: rgba(238, 241, 236, 0.92);
+  --ag-modal-overlay-background-color: rgba(252, 253, 249, 0.9);
+  --ag-menu-background-color: rgba(252, 253, 249, 0.98);
+  --ag-tooltip-background-color: rgba(252, 253, 249, 0.98);
   --ag-input-focus-border-color: var(--imsim-blue);
   --ag-range-selection-border-color: rgba(37, 99, 235, 0.3);
 }
@@ -1032,7 +1082,7 @@ body {
 .imsim-ag-grid .ag-picker-field-wrapper,
 .imsim-ag-grid .ag-input-field-input,
 .imsim-ag-grid .ag-text-field-input {
-  border-radius: var(--imsim-radius-lg);
+  border-radius: var(--imsim-radius-md);
 }
 
 .imsim-ag-grid .ag-root-wrapper {
@@ -1054,6 +1104,18 @@ body {
 .imsim-ag-grid .ag-input-field-input,
 .imsim-ag-grid .ag-text-field-input {
   color: inherit;
+}
+
+.imsim-ag-grid .ag-header-cell-label,
+.imsim-ag-grid .ag-header-group-cell-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.imsim-ag-grid .ag-cell {
+  font-size: 0.88rem;
 }
 
 .imsim-ag-grid .ag-cell.custom-order-qty-cell {
@@ -1082,15 +1144,22 @@ body {
 .inventory-table {
   --bs-table-striped-bg: var(--imsim-table-stripe);
   --bs-table-hover-bg: var(--imsim-table-hover);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   margin-bottom: 0;
   min-width: var(--imsim-size-table-min);
 }
 
 .inventory-table th,
 .inventory-table td {
-  padding: 0.85rem 0.75rem;
+  padding: 0.62rem 0.68rem;
   white-space: nowrap;
+}
+
+.inventory-table th {
+  color: var(--imsim-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .table-scroll-shell {
@@ -1130,6 +1199,10 @@ body {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+.modal-actions {
+  justify-content: flex-end;
 }
 
 .maintenance-card {
@@ -1177,20 +1250,14 @@ body {
 
 .theme-dark .metric-neutral {
   border-top-color: var(--imsim-blue);
-  background-image:
-    linear-gradient(180deg, rgba(37, 99, 235, 0.18) 0%, rgba(37, 99, 235, 0.08) 18%, transparent 36%);
 }
 
 .theme-dark .metric-good {
   border-top-color: var(--imsim-teal);
-  background-image:
-    linear-gradient(180deg, rgba(15, 118, 110, 0.18) 0%, rgba(15, 118, 110, 0.08) 18%, transparent 36%);
 }
 
 .theme-dark .metric-warn {
   border-top-color: var(--imsim-orange);
-  background-image:
-    linear-gradient(180deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.09) 18%, transparent 36%);
 }
 
 .theme-dark .btn-light {
@@ -1400,7 +1467,7 @@ body {
   flex-direction: column;
   min-height: 0;
   gap: 0.35rem;
-  padding-bottom: 1.4rem;
+  padding: 1rem 1rem 1.35rem;
 }
 
 .dashboard-shell #graph-panel > .card {
@@ -1419,7 +1486,7 @@ body {
 .dashboard-shell.lesson-dashboard {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 0.75rem;
+  gap: 0.85rem;
   min-height: 0;
   margin-top: 0;
 }
@@ -1431,26 +1498,26 @@ body {
 
 .dashboard-shell.simulator-dashboard {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .dashboard-shell.simulator-dashboard .dashboard-rail-column {
   display: grid;
   align-content: start;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .dashboard-shell.simulator-dashboard .dashboard-main-column {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .dashboard-shell.simulator-dashboard .dashboard-main-layout,
 .dashboard-shell.simulator-dashboard .dashboard-insights-row,
 .dashboard-shell.simulator-dashboard .dashboard-detail-row {
-  --bs-gutter-x: 0.75rem;
-  --bs-gutter-y: 0.75rem;
+  --bs-gutter-x: 0.85rem;
+  --bs-gutter-y: 0.85rem;
 }
 
 .dashboard-shell.simulator-dashboard .dashboard-main-layout,
@@ -1471,6 +1538,35 @@ body {
   margin: 0 !important;
 }
 
+.dashboard-shell #actions-panel > .card,
+.dashboard-shell #policy-panel > .card,
+.dashboard-shell #session-panel > .card {
+  background: color-mix(in srgb, var(--imsim-surface-strong) 78%, var(--imsim-bg));
+}
+
+.dashboard-shell #actions-panel .card-body,
+.dashboard-shell #policy-panel .card-body {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.dashboard-shell #actions-panel .button-block {
+  justify-content: flex-start;
+  min-height: 2.55rem;
+}
+
+.dashboard-shell #guided-po-wrap .button-block {
+  min-height: 2.85rem;
+}
+
+.dashboard-shell #update-params-conf:empty,
+.dashboard-shell #asq-apply-feedback:empty,
+.dashboard-shell #upload-feedback:empty,
+.dashboard-shell #output-item-upload:empty,
+.dashboard-shell #add-item-error:empty {
+  display: none;
+}
+
 .dashboard-shell.lesson-dashboard .experience-banner-card {
   margin-bottom: 0 !important;
 }
@@ -1480,7 +1576,7 @@ body {
 }
 
 .dashboard-shell.lesson-dashboard .experience-banner-card .card-body {
-  padding: 0.7rem 1rem 0.75rem;
+  padding: 0.8rem 1rem 0.85rem;
 }
 
 .dashboard-shell.lesson-dashboard .hero-title {
@@ -1510,8 +1606,8 @@ body {
 }
 
 .dashboard-shell.lesson-dashboard .dashboard-main-layout {
-  --bs-gutter-x: 0.75rem;
-  --bs-gutter-y: 0.75rem;
+  --bs-gutter-x: 0.85rem;
+  --bs-gutter-y: 0.85rem;
   margin: 0 !important;
   min-height: 0;
 }
@@ -1545,7 +1641,7 @@ body {
 .dashboard-shell.lesson-dashboard .session-card .card-body,
 .dashboard-shell.lesson-dashboard #service-panel .card-body,
 .dashboard-shell.lesson-dashboard #inventory-panel .card-body {
-  padding: 0.95rem;
+  padding: 0.9rem;
 }
 
 .dashboard-shell.lesson-dashboard #service-panel .list-group-item {
@@ -1597,7 +1693,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding-bottom: 1.45rem;
+  padding: 0.95rem 0.95rem 1.35rem;
 }
 
 .dashboard-shell.lesson-dashboard #graph-panel .dash-graph,
@@ -2523,6 +2619,94 @@ body {
   .session-card-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .imsim-shell {
+    max-width: 100vw;
+    overflow-x: hidden;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    width: 100%;
+  }
+
+  .imsim-shell .row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .imsim-shell .row > * {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .imsim-shell *,
+  .imsim-shell *::before,
+  .imsim-shell *::after {
+    max-width: 100%;
+  }
+
+  .imsim-shell p,
+  .imsim-shell li,
+  .imsim-shell td,
+  .imsim-shell th,
+  .imsim-shell span,
+  .imsim-shell a {
+    overflow-wrap: anywhere;
+  }
+
+  .academy-shell .card-body {
+    padding: 1rem;
+  }
+
+  .academy-shell,
+  .academy-card,
+  .metric-card,
+  .dashboard-shell .shell-card {
+    max-width: calc(100vw - 1.5rem) !important;
+    width: calc(100vw - 1.5rem) !important;
+  }
+
+  .hero-actions-wrap {
+    width: 100%;
+  }
+
+  .hero-actions-compact {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: calc(100vw - 3.5rem) !important;
+    width: calc(100vw - 3.5rem) !important;
+  }
+
+  .hero-actions .imsim-button {
+    max-width: calc(100vw - 3.5rem) !important;
+    width: calc(100vw - 3.5rem) !important;
+  }
+
+  .hero-copy {
+    max-width: calc(100vw - 3.5rem) !important;
+    overflow-wrap: anywhere;
+    width: calc(100vw - 3.5rem) !important;
+  }
+
+  .academy-card .card-body {
+    grid-template-rows: none;
+  }
+
+  .academy-card-copy {
+    max-width: calc(100vw - 3.5rem) !important;
+    min-height: 0;
+    width: calc(100vw - 3.5rem) !important;
+  }
+
+  .academy-card-formula,
+  .lesson-formula-chip {
+    display: block !important;
+    border-radius: var(--imsim-radius-lg);
+    max-width: calc(100vw - 3.5rem) !important;
+    white-space: normal !important;
+    width: calc(100vw - 3.5rem) !important;
   }
 }
 

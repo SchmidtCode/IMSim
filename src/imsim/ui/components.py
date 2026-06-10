@@ -36,28 +36,28 @@ def _items_frame(items: list[InventoryItem]) -> pd.DataFrame:
 def _figure_theme(theme: str) -> dict[str, str]:
     if theme == "dark":
         return {
-            "plot_bg": "rgba(13, 24, 38, 0.94)",
-            "surface": "#17273d",
+            "plot_bg": "rgba(10, 19, 32, 0.72)",
+            "surface": "#121f31",
             "text": "#e6eefc",
             "muted": "#9aabc6",
             "line": "rgba(214, 228, 255, 0.14)",
             "guide": "rgba(148, 163, 184, 0.7)",
             "pna": "#2dd4bf",
-            "proposed": "#fb923c",
+            "proposed": "#d9904a",
             "ats": "#60a5fa",
             "zero": "#f87171",
         }
     return {
-        "plot_bg": "rgba(255,255,255,0.55)",
-        "surface": "#fffdf8",
-        "text": "#132238",
-        "muted": "#536277",
-        "line": "rgba(19, 34, 56, 0.12)",
-        "guide": "rgba(19, 34, 56, 0.55)",
-        "pna": "#0f766e",
-        "proposed": "#f97316",
-        "ats": "#2563eb",
-        "zero": "#dc2626",
+        "plot_bg": "rgba(252,253,249,0.86)",
+        "surface": "#fcfdf9",
+        "text": "#15231f",
+        "muted": "#5b6964",
+        "line": "rgba(21, 35, 31, 0.13)",
+        "guide": "rgba(21, 35, 31, 0.5)",
+        "pna": "#167264",
+        "proposed": "#b9621e",
+        "ats": "#315f8f",
+        "zero": "#b33b3b",
     }
 
 
@@ -92,16 +92,40 @@ def _plot_base_layout(
     include_margin: bool = True,
     height: int | None = None,
 ) -> dict[str, object]:
+    muted = colors.get("muted", colors["text"])
     layout: dict[str, object] = {
         "paper_bgcolor": "rgba(0,0,0,0)",
         "plot_bgcolor": colors["plot_bg"],
-        "font": {"color": colors["text"]},
+        "font": {
+            "color": colors["text"],
+            "family": "IBM Plex Sans, Segoe UI, sans-serif",
+            "size": 13,
+        },
         "legend_title_text": "",
-        "legend": {"font": {"color": colors["text"]}},
+        "legend": {
+            "font": {"color": muted, "size": 12},
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "right",
+            "x": 1,
+        },
         "hoverlabel": {
             "bgcolor": colors["surface"],
             "bordercolor": colors["line"],
             "font": {"color": colors["text"]},
+        },
+        "xaxis": {
+            "gridcolor": colors["line"],
+            "linecolor": colors["line"],
+            "tickfont": {"color": muted, "size": 11},
+            "zerolinecolor": colors["line"],
+        },
+        "yaxis": {
+            "gridcolor": colors["line"],
+            "linecolor": colors["line"],
+            "tickfont": {"color": muted, "size": 11},
+            "zerolinecolor": colors["line"],
         },
     }
     if title:
