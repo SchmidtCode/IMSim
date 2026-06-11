@@ -517,6 +517,7 @@ def academy_level_card_children(level_index: int, state: SimulationState) -> lis
 def simulator_unlock_children(state: SimulationState) -> list:
     unlocked = state.training.simulator_unlocked
     return [
+        html.Div("Simulator", className="academy-card-kicker"),
         html.Div("Simulator Mode", className="academy-card-title"),
         html.P(
             "The full IM dashboard with imports, ASQ, and the sandbox reward controls."
@@ -526,8 +527,9 @@ def simulator_unlock_children(state: SimulationState) -> list:
         ),
         dbc.Badge(
             "Unlocked" if unlocked else "Locked",
-            color="success" if unlocked else "secondary",
+            color="primary" if unlocked else "secondary",
             pill=True,
             class_name="academy-status-badge",
         ),
+        html.Div("Free-play sandbox", className="academy-card-formula"),
     ]

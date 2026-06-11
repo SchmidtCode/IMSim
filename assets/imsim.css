@@ -228,6 +228,12 @@ body {
   min-height: 100%;
 }
 
+.academy-card-status-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
 .academy-card .button-block {
   margin-top: auto !important;
 }

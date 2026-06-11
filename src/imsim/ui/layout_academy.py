@@ -42,11 +42,12 @@ def _simulator_col(initial_state: SimulationState) -> dbc.Col:
                 html.Div(
                     simulator_unlock_children(initial_state),
                     id="academy-simulator-card",
+                    className="academy-card-status-block",
                 ),
                 action_button(
                     "Open Simulator",
                     "academy-simulator-button",
-                    "dark",
+                    "primary",
                     disabled=True,
                     class_name="button-block mt-3",
                 ),
