@@ -1896,33 +1896,31 @@ body {
 
   .dashboard-shell.lesson-dashboard .dashboard-main-layout,
   .dashboard-shell.simulator-dashboard .dashboard-main-layout {
-    height: auto;
-    min-height: 0;
-    flex-wrap: nowrap;
-    align-items: start;
-    width: 100%;
-  }
-
-  .dashboard-shell.simulator-dashboard .dashboard-main-layout,
-  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-main-layout {
     display: grid;
     grid-template-columns:
       minmax(17rem, var(--imsim-size-dashboard-rail-max))
       minmax(0, 1fr);
     gap: var(--imsim-lesson-gap);
+    height: auto;
+    min-height: 0;
+    align-items: start;
     width: 100%;
+    max-width: 100%;
+    --bs-gutter-x: 0;
+    --bs-gutter-y: 0;
   }
 
   .dashboard-shell.lesson-dashboard .dashboard-rail-column,
   .dashboard-shell.lesson-dashboard .dashboard-main-column,
   .dashboard-shell.simulator-dashboard .dashboard-rail-column,
   .dashboard-shell.simulator-dashboard .dashboard-main-column {
+    width: auto !important;
+    max-width: none !important;
+    flex: unset !important;
+    padding-left: 0;
+    padding-right: 0;
     min-height: 0;
-  }
-
-  .dashboard-shell.lesson-dashboard .dashboard-rail-column,
-  .dashboard-shell.simulator-dashboard .dashboard-rail-column {
-    max-width: var(--imsim-size-dashboard-rail-max);
+    min-width: 0;
   }
 
   .dashboard-shell.lesson-dashboard .dashboard-main-column,
@@ -1931,15 +1929,6 @@ body {
     flex-direction: column;
     min-height: 0;
     overflow: visible;
-  }
-
-  .dashboard-shell.simulator-dashboard .dashboard-rail-column,
-  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-rail-column,
-  .dashboard-shell.simulator-dashboard .dashboard-main-column,
-  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-main-column {
-    width: 100% !important;
-    max-width: none !important;
-    padding: 0;
   }
 
   .dashboard-shell.lesson-dashboard #graph-panel,
