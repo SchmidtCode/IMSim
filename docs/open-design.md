@@ -34,6 +34,42 @@ http://127.0.0.1:61784
 
 The port can change between runs.
 
+## Repair Electron After Restart
+
+If Open Design fails with:
+
+```text
+Electron failed to install correctly, please delete node_modules/electron and try installing again
+```
+
+run the install command again from the Open Design checkout:
+
+```powershell
+$env:PATH = "C:\GitHub\IMSim\tmp\tools\node-v24.16.0-win-x64;" + $env:PATH
+$env:COREPACK_HOME = "C:\GitHub\IMSim\tmp\corepack"
+Set-Location C:\GitHub\IMSim\tmp\open-design
+corepack.cmd pnpm install
+```
+
+If the Electron binary is still missing after that, check whether this file exists:
+
+```text
+C:\GitHub\IMSim\tmp\open-design\node_modules\.pnpm\electron@41.3.0\node_modules\electron\dist\electron.exe
+```
+
+When the ZIP exists in the Electron cache but `electron.exe` is missing, manually extract the cached ZIP into the package `dist` folder and write `path.txt`:
+
+```powershell
+Expand-Archive -Path "$env:LOCALAPPDATA\electron\Cache\6adfa0dc89c15947725ec04c89849786a8804f2488dd36dbd275f988ee61ef5b\electron-v41.3.0-win32-x64.zip" -DestinationPath "C:\GitHub\IMSim\tmp\open-design\node_modules\.pnpm\electron@41.3.0\node_modules\electron\dist" -Force
+Set-Content -Path "C:\GitHub\IMSim\tmp\open-design\node_modules\.pnpm\electron@41.3.0\node_modules\electron\path.txt" -Value "electron.exe" -NoNewline
+```
+
+Then verify:
+
+```powershell
+corepack.cmd pnpm --filter @open-design/desktop exec electron --version
+```
+
 ## Project Location Gotcha
 
 Do not add `C:\GitHub\IMSim` itself as an Open Design project location while this no-admin setup is in use. Open Design stores its daemon data in `C:\GitHub\IMSim\tmp\open-design\.od`, and it rejects project-location roots that overlap daemon data.
