@@ -135,6 +135,7 @@ body {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
+  margin-bottom: var(--imsim-lesson-card-gap);
 }
 
 .theme-toggle-button {
@@ -2121,6 +2122,43 @@ body {
     overflow: visible;
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-layout {
+    grid-template-columns: minmax(17rem, 23rem) minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: "rail main";
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--imsim-lesson-gap);
+    min-width: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-rail-column {
+    grid-area: rail;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-column {
+    grid-area: main;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-detail-row {
+    display: flex;
+    margin: 0 !important;
+    width: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel {
+    grid-area: auto;
+  }
+
   .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) .dashboard-main-layout {
     align-items: stretch;
     padding-bottom: 1rem;
@@ -2313,11 +2351,48 @@ body {
     overflow-y: visible;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-11.lesson-layout-workspace-basic .dashboard-main-layout {
-    grid-template-rows: auto auto;
-    grid-template-areas:
-      "session inventory"
-      "service inventory";
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-main-layout {
+    grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: "rail main";
+  }
+
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-rail-column,
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-main-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--imsim-lesson-gap);
+    min-width: 0;
+  }
+
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-rail-column {
+    grid-area: rail;
+  }
+
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-main-column {
+    grid-area: main;
+  }
+
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-insights-row,
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-detail-row {
+    display: flex;
+    margin: 0 !important;
+    width: 100%;
+  }
+
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-detail-row {
+    order: 2;
+  }
+
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-insights-row {
+    order: 3;
+  }
+
+  .dashboard-shell.lesson-layout-workspace-basic #actions-panel,
+  .dashboard-shell.lesson-layout-workspace-basic #session-panel,
+  .dashboard-shell.lesson-layout-workspace-basic #service-panel,
+  .dashboard-shell.lesson-layout-workspace-basic #inventory-panel {
+    grid-area: auto;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-11.lesson-layout-workspace-basic #session-panel .session-card,
@@ -2360,11 +2435,8 @@ body {
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 .dashboard-main-layout {
     grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
-    grid-template-areas:
-      "actions graph"
-      "session inventory"
-      ". service";
+    grid-template-rows: auto;
+    grid-template-areas: "rail main";
     align-items: start;
     align-content: start;
     gap: var(--imsim-lesson-gap);
@@ -2377,7 +2449,7 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 #graph-panel {
-    grid-area: graph;
+    grid-area: auto;
     min-height: 24rem;
     width: 100% !important;
     max-width: none !important;
