@@ -1900,6 +1900,7 @@ body {
     min-height: 0;
     flex-wrap: nowrap;
     align-items: start;
+    width: 100%;
   }
 
   .dashboard-shell.simulator-dashboard .dashboard-main-layout,
@@ -2445,6 +2446,7 @@ body {
   .dashboard-shell.lesson-layout-workspace-advanced #graph-panel,
   .dashboard-shell.lesson-layout-workspace-certification #graph-panel {
     min-height: 20rem;
+    margin-bottom: var(--imsim-lesson-gap)
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced .dashboard-insights-row,
