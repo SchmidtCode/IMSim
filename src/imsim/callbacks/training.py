@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import dash_bootstrap_components as dbc
-from dash import Input, Output, State, html, no_update
+from dash import Input, Output, State, html
 from dash import ctx as dash_ctx
 from dash.exceptions import PreventUpdate
 
@@ -11,7 +10,6 @@ from ..services.training import (
     active_level,
     build_level_state,
     build_simulator_state,
-    cheat_unlock_password_matches,
     is_action_allowed,
     reset_progress_state,
     simulator_view_allowed,
@@ -314,67 +312,27 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
     )
 
     @app.callback(
+        Output("session-revision", "data", allow_duplicate=True),
+        Input("academy-cheat-code-button", "n_clicks"),
         [
-            Output("academy-cheat-code-modal", "is_open"),
-            Output("academy-cheat-code-feedback", "children"),
-            Output("academy-cheat-code-input", "value"),
-            Output("session-revision", "data", allow_duplicate=True),
-        ],
-        [
-            Input("academy-cheat-code-button", "n_clicks"),
-            Input("academy-cheat-code-cancel", "n_clicks"),
-            Input("academy-cheat-code-submit", "n_clicks"),
-        ],
-        [
-            State("academy-cheat-code-input", "value"),
             State("user-data-store", "data"),
             State("session-revision", "data"),
         ],
         prevent_initial_call=True,
     )
-    def handle_academy_cheat_code(
-        open_clicks,
-        cancel_clicks,
-        submit_clicks,
-        password,
-        client_data,
-        session_revision,
-    ):
+    def unlock_all_academy_progress(clicks, client_data, session_revision):
         trig = dash_ctx.triggered_id
-        click_count = _triggered_click_count(
-            trig,
-            {
-                "academy-cheat-code-button": open_clicks,
-                "academy-cheat-code-cancel": cancel_clicks,
-                "academy-cheat-code-submit": submit_clicks,
-            },
-        )
+        click_count = _triggered_click_count(trig, {"academy-cheat-code-button": clicks})
         if click_count <= 0:
             raise PreventUpdate
-        if trig == "academy-cheat-code-button":
-            return True, html.Div(), "", no_update
-        if trig == "academy-cheat-code-cancel":
-            return False, html.Div(), "", no_update
-        if trig != "academy-cheat-code-submit":
+        if trig != "academy-cheat-code-button":
             raise PreventUpdate
-        if not cheat_unlock_password_matches(password):
-            return (
-                True,
-                dbc.Alert("Nope. The magic words are not magic enough.", color="warning"),
-                no_update,
-                no_update,
-            )
 
         session_id, state = ctx.require_session(client_data)
         unlock_all_academy_levels(state.training)
         state.is_initialized = False
         ctx.persist_state(session_id, state)
-        return (
-            False,
-            html.Div(),
-            "",
-            ctx.next_session_revision(session_revision),
-        )
+        return ctx.next_session_revision(session_revision)
 
     @app.callback(
         [

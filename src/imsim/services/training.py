@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from dataclasses import asdict, dataclass
 
 from ..models import GlobalSettings, SimulationState, TrainingProfile
@@ -874,15 +873,6 @@ def clone_training_profile(profile: TrainingProfile) -> TrainingProfile:
 
 def academy_levels() -> tuple[LevelDefinition, ...]:
     return LESSON_DEFINITIONS
-
-
-def cheat_unlock_password() -> str:
-    return os.environ.get("IMSIM_CHEAT_UNLOCK_PASSWORD", "spreadsheets rule")
-
-
-def cheat_unlock_password_matches(password: str | None) -> bool:
-    normalized = " ".join(str(password or "").strip().casefold().split())
-    return normalized == " ".join(cheat_unlock_password().strip().casefold().split())
 
 
 def unlock_all_academy_levels(profile: TrainingProfile) -> TrainingProfile:

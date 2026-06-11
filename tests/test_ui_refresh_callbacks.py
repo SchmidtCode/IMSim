@@ -1,7 +1,20 @@
 from __future__ import annotations
 
+import imsim.ui.components as ui_components
 from imsim.callbacks.training import dashboard_shell_class_name
 from imsim.services.training import build_level_state
+
+
+def _walk_components(component):
+    yield component
+    children = getattr(component, "children", None)
+    if children is None or isinstance(children, str):
+        return
+    if isinstance(children, (list, tuple)):
+        for child in children:
+            yield from _walk_components(child)
+        return
+    yield from _walk_components(children)
 
 
 def _output_pairs(spec):
@@ -21,6 +34,52 @@ def _find_callback(dash_app, required_outputs):
         if required.issubset(_output_pairs(spec)):
             return spec
     raise AssertionError(f"Callback with outputs {sorted(required)} not found")
+
+
+def test_components_facade_exports_existing_ui_surface():
+    expected = {
+        "_grid_theme_class",
+        "_plot_base_layout",
+        "_plot_line",
+        "_plot_marker",
+        "_plot_marker_outline",
+        "academy_level_card_children",
+        "build_custom_order_grid",
+        "build_exception_center",
+        "build_inventory_figure",
+        "build_inventory_table",
+        "build_kpi_strip",
+        "build_po_overview_grid",
+        "github_footer_card",
+        "inventory_graph_style",
+        "refresh_inventory_figure",
+        "service_card_children",
+    }
+    assert expected <= set(ui_components.__all__)
+    assert all(hasattr(ui_components, name) for name in expected)
+
+
+def test_layout_keeps_callback_target_ids(dash_app):
+    component_ids = {
+        getattr(component, "id", None)
+        for component in _walk_components(dash_app.layout)
+        if getattr(component, "id", None)
+    }
+    assert {
+        "academy-menu-shell",
+        "lesson-shell",
+        "simulator-shell",
+        "dashboard-shell",
+        "academy-cheat-code-button",
+        "reference-modal",
+        "add-item-modal",
+        "place-custom-order-modal",
+        "po-overview-modal",
+        "inventory-graph",
+        "inventory-table-shell",
+        "custom-order-grid",
+        "po-overview-grid",
+    } <= component_ids
 
 
 def test_dashboard_render_listens_to_session_revision_and_theme(dash_app):
@@ -116,7 +175,6 @@ def test_theme_callback_updates_control_modal_content_classes(dash_app):
         dash_app,
         [
             ("lesson-intro-modal", "content_class_name"),
-            ("academy-cheat-code-modal", "content_class_name"),
             ("reference-modal", "content_class_name"),
             ("add-item-modal", "content_class_name"),
             ("place-custom-order-modal", "content_class_name"),
@@ -141,20 +199,14 @@ def test_reference_modal_toggle_is_wired(dash_app):
     }
 
 
-def test_academy_cheat_code_modal_updates_progress(dash_app):
-    spec = _find_callback(
-        dash_app,
-        [
-            ("academy-cheat-code-modal", "is_open"),
-            ("academy-cheat-code-feedback", "children"),
-            ("session-revision", "data"),
-        ],
-    )
-    assert _input_pairs(spec) == {
-        ("academy-cheat-code-button", "n_clicks"),
-        ("academy-cheat-code-cancel", "n_clicks"),
-        ("academy-cheat-code-submit", "n_clicks"),
-    }
+def test_unlock_all_button_updates_progress(dash_app):
+    matches = [
+        spec
+        for spec in dash_app.callback_map.values()
+        if ("session-revision", "data") in _output_pairs(spec)
+        and _input_pairs(spec) == {("academy-cheat-code-button", "n_clicks")}
+    ]
+    assert matches
 
 
 def test_randomize_button_populates_manual_item_fields(dash_app):

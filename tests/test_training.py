@@ -20,7 +20,6 @@ from imsim.services.training import (
     apply_lesson_evaluation,
     build_level_state,
     build_simulator_state,
-    cheat_unlock_password_matches,
     evaluate_active_lesson,
     final_academy_level,
     is_action_allowed,
@@ -934,7 +933,7 @@ def test_training_profile_migrates_legacy_certification_progress():
     assert legacy.auto_po_reward_unlocked is True
 
 
-def test_cheat_unlock_opens_all_levels_without_completing_lessons():
+def test_unlock_all_opens_all_levels_without_completing_lessons():
     profile = TrainingProfile(completed_levels=["level-1"])
 
     unlock_all_academy_levels(profile)
@@ -944,8 +943,6 @@ def test_cheat_unlock_opens_all_levels_without_completing_lessons():
     assert profile.simulator_unlocked is True
     assert profile.auto_po_reward_unlocked is True
     assert profile.last_result_title == "Academy unlocked"
-    assert cheat_unlock_password_matches("  spreadsheets   rule  ") is True
-    assert cheat_unlock_password_matches("spreadsheet vibes") is False
 
 
 def test_active_layout_variant_tracks_bridge_and_certification():
