@@ -1760,7 +1760,7 @@ body {
 .dashboard-shell.lesson-dashboard #graph-panel .js-plotly-plot,
 .dashboard-shell.lesson-dashboard #graph-panel .plot-container,
 .dashboard-shell.lesson-dashboard #graph-panel .svg-container {
-  height: auto !important;
+  height: 100% !important;
 }
 
 .dashboard-shell.lesson-layout-workspace-signal #inventory-graph {
@@ -2639,6 +2639,7 @@ body {
     grid-area: graph;
     display: flex;
     min-height: 0;
+    height: 100%;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel > .card,
