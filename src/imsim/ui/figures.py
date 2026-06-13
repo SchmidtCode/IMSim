@@ -397,19 +397,31 @@ def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str
             _empty_line_trace(
                 name="On Hand",
                 line=_plot_line(colors["pna"]),
-                marker=_plot_marker(colors["pna"], _PLOT_MARKER_SIZE_REM["lesson"]),
+                marker=_plot_marker(
+                    colors["pna"],
+                    _PLOT_MARKER_SIZE_REM["lesson"],
+                    line=_plot_marker_outline(colors["surface"]),
+                ),
                 hovertemplate="On hand %{y:.1f}<extra></extra>",
             ),
             _empty_line_trace(
                 name="On Order",
-                line=_plot_line(colors["ats"]),
-                marker=_plot_marker(colors["ats"], _PLOT_MARKER_SIZE_REM["lesson"]),
+                line=_plot_line(colors["ats"], dash="dot"),
+                marker=_plot_marker(
+                    colors["ats"],
+                    _PLOT_MARKER_SIZE_REM["lesson_backorder"],
+                    symbol="square",
+                ),
                 hovertemplate="On order %{y:.1f}<extra></extra>",
             ),
             _empty_line_trace(
                 name="PNA",
-                line=_plot_line(colors["proposed"]),
-                marker=_plot_marker(colors["proposed"], _PLOT_MARKER_SIZE_REM["lesson"]),
+                line=_plot_line(colors["proposed"], dash="dash"),
+                marker=_plot_marker(
+                    colors["proposed"],
+                    _PLOT_MARKER_SIZE_REM["lesson_backorder"],
+                    symbol="diamond",
+                ),
                 hovertemplate="PNA %{y:.1f}<extra></extra>",
             ),
             _empty_line_trace(
@@ -439,10 +451,15 @@ def _lesson_two_figure(state: SimulationState, theme: str, colors: dict[str, str
     fig.update_traces(x=days, selector={"name": "On Order"})
     fig.update_traces(
         y=[point.total_on_order for point in history],
+        opacity=0.74,
         selector={"name": "On Order"},
     )
     fig.update_traces(x=days, selector={"name": "PNA"})
-    fig.update_traces(y=[point.total_pna for point in history], selector={"name": "PNA"})
+    fig.update_traces(
+        y=[point.total_pna for point in history],
+        opacity=0.78,
+        selector={"name": "PNA"},
+    )
     fig.update_traces(x=days, selector={"name": "OP"})
     fig.update_traces(y=[op_value for _day in days], selector={"name": "OP"})
     fig.update_traces(x=days, selector={"name": "Backorder"})

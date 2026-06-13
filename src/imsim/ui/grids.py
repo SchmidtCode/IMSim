@@ -270,7 +270,10 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
             "domLayout": "autoHeight",
             "pagination": False,
         }
-        grid_style = {"height": "auto", "minHeight": "7.5rem", "width": "100%"}
+        min_height = (
+            "5rem" if level is not None and level.index in (2, 3) else "7.5rem"
+        )
+        grid_style = {"height": "auto", "minHeight": min_height, "width": "100%"}
     return dag.AgGrid(
         id="inventory-table-grid",
         rowData=rows,

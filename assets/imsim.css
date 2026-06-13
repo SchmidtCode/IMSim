@@ -42,6 +42,7 @@
   --imsim-lesson-gap: var(--imsim-space-panel-gap);
   --imsim-lesson-card-pad: 0.9rem;
   --imsim-lesson-card-gap: 0.55rem;
+  --imsim-lesson-signal-card-overlap: var(--imsim-lesson-gap);
   --imsim-slider-rail-size: 0.375rem;
   --imsim-slider-handle-size: 1.125rem;
   --imsim-slider-handle-offset: -0.375rem;
@@ -1884,6 +1885,88 @@ body {
   overflow: visible;
 }
 
+.dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-detail-row {
+  order: 2;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-insights-row {
+  order: 3;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-table-grid {
+  min-height: 5rem !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2
+  #inventory-table-grid
+  > div
+  > .ag-root-wrapper.ag-layout-auto-height {
+  height: 5rem !important;
+  min-height: 5rem !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card {
+  border-bottom-color: transparent;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel {
+  margin-top: calc(0rem - var(--imsim-lesson-signal-card-overlap));
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel > .card {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-3 .dashboard-main-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-3 .dashboard-detail-row {
+  order: 2;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-3 .dashboard-insights-row {
+  order: 3;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-table-grid {
+  min-height: 5rem !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-3
+  #inventory-table-grid
+  > div
+  > .ag-root-wrapper.ag-layout-auto-height {
+  height: 5rem !important;
+  min-height: 5rem !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-3 #graph-panel > .card {
+  border-bottom-color: transparent;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-panel {
+  margin-top: calc(0rem - var(--imsim-lesson-signal-card-overlap));
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-panel > .card {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 /* Responsive adjustments */
 @media (min-width: 1200px) {
   .control-rail-column {
@@ -2107,7 +2190,7 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card > .card-body {
-    padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 1.1rem;
+    padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 0.45rem;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel {
@@ -2480,7 +2563,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 1.1rem;
+    padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 0.45rem;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-3 #inventory-graph {
