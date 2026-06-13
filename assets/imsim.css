@@ -1968,6 +1968,13 @@ body {
   border-top-right-radius: 0;
 }
 
+.dashboard-shell.lesson-dashboard.lesson-level-4
+  #inventory-table-grid
+  .ag-body-viewport.ag-layout-auto-height {
+  height: 7rem !important;
+  max-height: 7rem !important;
+}
+
 /* Responsive adjustments */
 @media (min-width: 1200px) {
   .control-rail-column {
@@ -2460,8 +2467,13 @@ body {
   .dashboard-shell.lesson-layout-workspace-basic .dashboard-insights-row,
   .dashboard-shell.lesson-layout-workspace-basic .dashboard-detail-row {
     display: flex;
-    margin: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
     width: 100%;
+  }
+
+  .dashboard-shell.lesson-layout-workspace-basic .dashboard-insights-row {
+    margin-top: 0 !important;
   }
 
   .dashboard-shell.lesson-layout-workspace-basic .dashboard-detail-row {
