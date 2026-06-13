@@ -1975,6 +1975,62 @@ body {
   max-height: 7rem !important;
 }
 
+.dashboard-shell.lesson-dashboard.lesson-level-6 #inventory-table-grid {
+  min-height: 5rem !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-6
+  #inventory-table-grid
+  > div
+  > .ag-root-wrapper.ag-layout-auto-height {
+  height: 5rem !important;
+  min-height: 5rem !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-6 #graph-panel > .card {
+  border-bottom-color: transparent;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-6 #inventory-panel {
+  margin-top: calc(0rem - var(--imsim-lesson-signal-card-overlap));
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-6 #inventory-panel > .card {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-7 #inventory-table-grid {
+  min-height: 7.5rem !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-7
+  #inventory-table-grid
+  > div
+  > .ag-root-wrapper.ag-layout-auto-height {
+  height: 7.5rem !important;
+  min-height: 7.5rem !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-7 #graph-panel > .card {
+  border-bottom-color: transparent;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-7 #inventory-panel {
+  margin-top: calc(0rem - var(--imsim-lesson-signal-card-overlap));
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-7 #inventory-panel > .card {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 /* Responsive adjustments */
 @media (min-width: 1200px) {
   .control-rail-column {
@@ -2297,6 +2353,11 @@ body {
 
   .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #graph-panel > .card > .card-body {
     padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 1.1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-6 #graph-panel > .card > .card-body,
+  .dashboard-shell.lesson-dashboard.lesson-level-7 #graph-panel > .card > .card-body {
+    padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 0.45rem;
   }
 
   .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #inventory-graph {
