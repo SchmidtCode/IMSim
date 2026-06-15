@@ -35,6 +35,7 @@ from imsim.ui.components import (
     _plot_line,
     _plot_marker,
     _plot_marker_outline,
+    academy_progress_children,
     build_custom_order_grid,
     build_inventory_figure,
     build_inventory_table,
@@ -47,6 +48,19 @@ from imsim.ui.components import (
     refresh_inventory_figure,
     service_card_children,
 )
+
+
+def _component_text(component) -> list[str]:
+    if component is None:
+        return []
+    if isinstance(component, str):
+        return [component]
+    if isinstance(component, (list, tuple)):
+        text: list[str] = []
+        for child in component:
+            text.extend(_component_text(child))
+        return text
+    return _component_text(getattr(component, "children", None))
 
 
 def test_build_level_state_preserves_progress_and_opens_lesson():
@@ -902,6 +916,33 @@ def test_final_lesson_pass_unlocks_simulator_reward():
     assert "level-19" in state.training.completed_levels
     assert state.training.current_view == "lesson"
     assert state.training.active_level_id == "level-19"
+
+
+def test_academy_progress_shows_next_unlock_before_completion():
+    state = reset_progress_state()
+    state.training.completed_levels = ["level-1"]
+    state.training.highest_unlocked_level = 2
+
+    text = " ".join(_component_text(academy_progress_children(state)))
+
+    assert "Next Unlock" in text
+    assert "Level 2" in text
+    assert "Certified" not in text
+
+
+def test_academy_progress_shows_certified_after_all_lessons_complete():
+    state = reset_progress_state()
+    state.training.completed_levels = [level.level_id for level in academy_levels()]
+    state.training.highest_unlocked_level = len(academy_levels())
+    state.training.simulator_unlocked = True
+    state.training.auto_po_reward_unlocked = True
+
+    text = " ".join(_component_text(academy_progress_children(state)))
+
+    assert "Certified" in text
+    assert "Complete" in text
+    assert "Next Unlock" not in text
+    assert "Highest playable lesson" not in text
 
 
 def test_simulator_state_uses_final_academy_lesson_seed():
