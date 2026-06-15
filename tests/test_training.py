@@ -927,19 +927,19 @@ def test_academy_progress_shows_next_unlock_before_completion():
 
     assert "Next Unlock" in text
     assert "Level 2" in text
-    assert "Certified" not in text
+    assert "Certificate Complete" not in text
 
 
-def test_academy_progress_shows_certified_after_all_lessons_complete():
+def test_academy_progress_shows_certificate_complete_after_final_lesson_complete():
     state = reset_progress_state()
-    state.training.completed_levels = [level.level_id for level in academy_levels()]
+    state.training.completed_levels = [academy_levels()[-1].level_id]
     state.training.highest_unlocked_level = len(academy_levels())
     state.training.simulator_unlocked = True
     state.training.auto_po_reward_unlocked = True
 
     text = " ".join(_component_text(academy_progress_children(state)))
 
-    assert "Certified" in text
+    assert "Certificate Complete" in text
     assert "Complete" in text
     assert "Next Unlock" not in text
     assert "Highest playable lesson" not in text

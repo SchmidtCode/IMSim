@@ -1893,8 +1893,9 @@ def academy_progress_children(state: SimulationState) -> list:
     total_levels = len(levels)
     completed = len(state.training.completed_levels)
     completed_level_ids = set(state.training.completed_levels)
-    certified = all(level.level_id in completed_level_ids for level in levels)
-    progress_title = "Certified" if certified else "Next Unlock"
+    certification_level_id = levels[-1].level_id if levels else None
+    certified = certification_level_id in completed_level_ids
+    progress_title = "Certificate Complete" if certified else "Next Unlock"
     progress_value = (
         "Complete"
         if certified
