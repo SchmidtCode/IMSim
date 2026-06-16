@@ -292,8 +292,20 @@ def reference_modal_children() -> list:
 
 
 def academy_progress_children(state: SimulationState) -> list:
-    total_levels = len(academy_levels())
+    levels = academy_levels()
+    total_levels = len(levels)
     completed = len(state.training.completed_levels)
+    completed_level_ids = set(state.training.completed_levels)
+    certification_level_id = levels[-1].level_id if levels else None
+    certified = certification_level_id in completed_level_ids
+    progress_title = "Certificate Complete" if certified else "Next Unlock"
+    progress_value = (
+        "Complete"
+        if certified
+        else f"Level {min(total_levels, state.training.highest_unlocked_level)}"
+    )
+    progress_tone = "good" if (certified or completed) else "neutral"
+    progress_subtitle = "Academy complete" if certified else "Highest playable lesson"
     simulator = "Unlocked" if state.training.simulator_unlocked else "Locked"
     return [
         dbc.Row(
@@ -309,10 +321,10 @@ def academy_progress_children(state: SimulationState) -> list:
                 ),
                 dbc.Col(
                     _kpi_card(
-                        "Next Unlock",
-                        f"Level {min(total_levels, state.training.highest_unlocked_level)}",
-                        "good" if completed else "neutral",
-                        "Highest playable lesson",
+                        progress_title,
+                        progress_value,
+                        progress_tone,
+                        progress_subtitle,
                     ),
                     md=4,
                 ),
