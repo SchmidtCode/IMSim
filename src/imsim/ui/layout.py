@@ -23,6 +23,7 @@ def _stores_and_intervals(config: IMSimConfig) -> list:
         dcc.Store(id="upload-preview-data"),
         dcc.Store(id="theme-store", storage_type="local", data="light"),
         dcc.Store(id="session-revision", data=0),
+        dcc.Store(id="dashboard-layout-revision", data=0),
         dcc.Store(id="dashboard-tick", data=0),
         dcc.Store(id="view-scroll-store"),
         dcc.Store(id="view-scroll-sink"),

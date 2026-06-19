@@ -194,6 +194,14 @@ def inventory_graph_height(state: SimulationState) -> int:
 
 def inventory_graph_style(state: SimulationState) -> dict[str, str]:
     height = inventory_graph_height(state)
+    level = active_level(state)
+    if level is not None and level.index == 1:
+        return {
+            "flex": "1 1 auto",
+            "height": "100%",
+            "minHeight": f"{height}px",
+            "width": "100%",
+        }
     return {"height": f"{height}px", "minHeight": f"{height}px", "width": "100%"}
 
 

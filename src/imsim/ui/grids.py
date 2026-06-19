@@ -274,13 +274,18 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
         if level is not None and level.index in (2, 3, 6):
             min_height = "5rem"
         grid_style = {"height": "auto", "minHeight": min_height, "width": "100%"}
+    grid_props: dict[str, object] = {}
+    grid_props["columnSize"] = "responsiveSizeToFit" if compact_lesson_items else "sizeToFit"
+    class_name = _grid_theme_class(theme)
+    if compact_lesson_items:
+        class_name = f"{class_name} lesson-inventory-grid"
     return dag.AgGrid(
         id="inventory-table-grid",
         rowData=rows,
         columnDefs=column_defs,
         defaultColDef=default_col_def,
-        className=_grid_theme_class(theme),
-        columnSize="sizeToFit",
+        className=class_name,
         dashGridOptions=dash_grid_options,
         style=grid_style,
+        **grid_props,
     )
