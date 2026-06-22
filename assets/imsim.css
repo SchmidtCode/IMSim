@@ -2620,8 +2620,8 @@ body {
     grid-template-rows: auto auto auto;
     grid-template-areas:
       "session graph"
-      "inventory inventory"
-      "service service";
+      ". inventory"
+      ". service";
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #graph-panel {
@@ -2633,8 +2633,8 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #service-panel {
-    width: min(100%, 24rem) !important;
-    max-width: 24rem !important;
+    width: 100% !important;
+    max-width: none !important;
     justify-self: start;
   }
 
@@ -2797,7 +2797,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     .dashboard-main-column {
     display: grid;
@@ -2812,12 +2813,14 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     .dashboard-insights-row,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     .dashboard-detail-row {
     display: contents;
@@ -2826,7 +2829,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #graph-panel {
     grid-area: graph;
@@ -2835,7 +2839,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #costs-panel {
     grid-area: costs;
@@ -2843,7 +2848,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #sales-panel {
     grid-area: sales;
@@ -2851,7 +2857,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #inventory-panel {
     grid-area: inventory;
@@ -2859,7 +2866,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #service-panel {
     grid-area: service;
@@ -2867,27 +2875,32 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #graph-panel,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #service-panel,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #costs-panel,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #sales-panel,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #inventory-panel {
     padding: 0;
@@ -2898,31 +2911,36 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #graph-panel
     > .card,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #service-panel
     > .card,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #costs-panel
     > .card,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #sales-panel
     > .card,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #inventory-panel
     > .card {
@@ -3069,7 +3087,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     .dashboard-main-column {
     display: grid;
@@ -3085,12 +3104,14 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     .dashboard-insights-row,
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     .dashboard-detail-row {
     display: contents;
@@ -3099,7 +3120,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #graph-panel {
     grid-area: graph;
@@ -3107,7 +3129,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #costs-panel {
     grid-area: costs;
@@ -3115,7 +3138,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #sales-panel {
     grid-area: sales;
@@ -3123,7 +3147,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #inventory-panel {
     grid-area: inventory;
@@ -3131,7 +3156,8 @@ body {
 
   .dashboard-shell.lesson-dashboard:is(
       .lesson-level-14,
-      .lesson-level-15
+      .lesson-level-15,
+      .lesson-level-16
     ).lesson-layout-workspace-advanced
     #service-panel {
     grid-area: service;
