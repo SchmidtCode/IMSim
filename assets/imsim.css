@@ -36,6 +36,7 @@
   --imsim-size-dashboard-panel-max: 15rem;
   --imsim-size-lesson-grid-min: 38rem;
   --imsim-size-lesson-grid-max: 42rem;
+  --imsim-size-lesson-grid-body-compact: 7rem;
   --imsim-space-panel-gap: 0.75rem;
   --imsim-space-card-gap: 0.85rem;
   --imsim-space-panel-pad: 0.95rem;
@@ -1985,9 +1986,12 @@ body {
 
 .dashboard-shell.lesson-dashboard.lesson-level-4
   #inventory-table-grid
+  .ag-body-viewport.ag-layout-auto-height,
+.dashboard-shell.lesson-dashboard.lesson-level-5
+  #inventory-table-grid
   .ag-body-viewport.ag-layout-auto-height {
-  height: 7rem !important;
-  max-height: 7rem !important;
+  height: var(--imsim-size-lesson-grid-body-compact) !important;
+  max-height: var(--imsim-size-lesson-grid-body-compact) !important;
 }
 
 .dashboard-shell.lesson-dashboard.lesson-level-6 #inventory-table-grid {
