@@ -2729,10 +2729,18 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-insights-row,
-  .dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-detail-row {
+  .dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-detail-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-detail-row {
     margin-left: 0 !important;
     margin-right: 0 !important;
     width: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-rail-column {
+    display: grid;
+    align-content: start;
+    gap: var(--imsim-lesson-gap);
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel,
@@ -3090,6 +3098,12 @@ body {
 
   .lesson-compact-chip {
     white-space: normal;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-rail-column {
+    display: grid;
+    align-content: start;
+    gap: var(--imsim-lesson-gap);
   }
 
   .dashboard-shell.lesson-dashboard:is(
