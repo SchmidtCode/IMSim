@@ -1877,7 +1877,7 @@ body {
 }
 
 .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
 }
 
