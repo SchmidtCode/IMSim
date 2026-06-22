@@ -2728,6 +2728,13 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-detail-row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100%;
+  }
+
   .dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel,
   .dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel {
     grid-column: 1 / -1;
