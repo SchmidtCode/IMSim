@@ -20,6 +20,7 @@ from ..ui.components import (
     sales_card_children,
     service_card_children,
 )
+from ..ui.grids import build_inventory_rows
 from .common import CallbackRegistrarContext
 
 
@@ -114,6 +115,18 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
             _inventory_table_update(state, theme_name, dash_ctx.triggered_id),
             build_exception_center(state),
         )
+
+    @app.callback(
+        Output("inventory-table-grid", "rowData"),
+        Input("dashboard-tick", "data"),
+        State("user-data-store", "data"),
+        prevent_initial_call=True,
+    )
+    def refresh_lesson_inventory_rows(_dashboard_tick, client_data):
+        state = ctx.current_state(client_data)
+        if active_level(state) is None:
+            raise PreventUpdate
+        return build_inventory_rows(state)
 
     @app.callback(
         [

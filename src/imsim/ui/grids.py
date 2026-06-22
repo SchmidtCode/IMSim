@@ -165,30 +165,7 @@ def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag
     )
 
 
-def build_inventory_table(state: SimulationState, theme: str = "light"):
-    level = active_level(state)
-    column_config = {
-        "item": ("item", "Item"),
-        "usage_rate": ("usage_rate", "Usage"),
-        "hits_per_month": ("hits_per_month", "Hits"),
-        "item_cost": ("item_cost", "Cost"),
-        "lead_time": ("lead_time", "Lead Time"),
-        "op": ("op", "OP"),
-        "lp": ("lp", "LP"),
-        "eoq": ("eoq", "EOQ"),
-        "oq": ("oq", "OQ"),
-        "pna": ("pna", "PNA"),
-        "on_hand": ("on_hand", "On Hand"),
-        "on_order": ("on_order", "On Order"),
-        "backorder": ("backorder", "Backorder"),
-        "soq": ("soq", "SOQ"),
-        "standard_pack": ("standard_pack", "Pack"),
-        "safety_allowance": ("safety_allowance", "Safety %"),
-        "cp": ("cp", "CP"),
-        "surplus_line": ("surplus_line", "Surplus threshold"),
-        "days_to_op": ("days_to_op", "Days to OP"),
-        "daily_usage": ("daily_usage", "Daily Usage"),
-    }
+def build_inventory_rows(state: SimulationState) -> list[dict[str, float | int]]:
     rows = []
     for index, item in enumerate(state.items, start=1):
         rows.append(
@@ -215,6 +192,34 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
                 "daily_usage": round(item.daily_ur, 2),
             }
         )
+    return rows
+
+
+def build_inventory_table(state: SimulationState, theme: str = "light"):
+    level = active_level(state)
+    column_config = {
+        "item": ("item", "Item"),
+        "usage_rate": ("usage_rate", "Usage"),
+        "hits_per_month": ("hits_per_month", "Hits"),
+        "item_cost": ("item_cost", "Cost"),
+        "lead_time": ("lead_time", "Lead Time"),
+        "op": ("op", "OP"),
+        "lp": ("lp", "LP"),
+        "eoq": ("eoq", "EOQ"),
+        "oq": ("oq", "OQ"),
+        "pna": ("pna", "PNA"),
+        "on_hand": ("on_hand", "On Hand"),
+        "on_order": ("on_order", "On Order"),
+        "backorder": ("backorder", "Backorder"),
+        "soq": ("soq", "SOQ"),
+        "standard_pack": ("standard_pack", "Pack"),
+        "safety_allowance": ("safety_allowance", "Safety %"),
+        "cp": ("cp", "CP"),
+        "surplus_line": ("surplus_line", "Surplus threshold"),
+        "days_to_op": ("days_to_op", "Days to OP"),
+        "daily_usage": ("daily_usage", "Daily Usage"),
+    }
+    rows = build_inventory_rows(state)
     if not rows:
         return dbc.Alert(
             "No items loaded yet. Add an item or import a sample workbook.", color="secondary"

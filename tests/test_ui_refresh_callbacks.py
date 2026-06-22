@@ -54,6 +54,7 @@ def test_components_facade_exports_existing_ui_surface():
         "build_custom_order_grid",
         "build_exception_center",
         "build_inventory_figure",
+        "build_inventory_rows",
         "build_inventory_table",
         "build_kpi_strip",
         "build_po_overview_grid",
@@ -121,7 +122,7 @@ def test_running_lesson_tick_does_not_rebuild_training_shell():
     assert _lesson_tick_session_revision({"lesson_completed": 1}, 7, ctx) == 8
 
 
-def test_lesson_dashboard_tick_does_not_touch_inventory_grid():
+def test_lesson_dashboard_tick_does_not_remount_inventory_grid():
     state = build_level_state("level-3")
     simulator_state = build_simulator_state()
 
@@ -132,6 +133,12 @@ def test_lesson_dashboard_tick_does_not_touch_inventory_grid():
     assert isinstance(initial_table, AgGrid)
     assert lesson_tick is dash.no_update
     assert isinstance(simulator_tick, AgGrid)
+
+
+def test_lesson_inventory_grid_rows_refresh_on_dashboard_tick(dash_app):
+    spec = _find_callback(dash_app, [("inventory-table-grid", "rowData")])
+
+    assert _input_pairs(spec) == {("dashboard-tick", "data")}
 
 
 def test_interval_tick_updates_terminal_lesson_controls_immediately(dash_app):
