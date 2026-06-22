@@ -32,6 +32,7 @@ from ..services.training import (
 from ..services.uploads import coerce_uploaded, parse_contents, read_uploaded_table
 from ..ui.components import (
     build_custom_order_grid,
+    build_inventory_rows,
     build_po_overview_grid,
 )
 from .common import CallbackRegistrarContext
@@ -401,7 +402,10 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
         )
 
     @app.callback(
-        Output("session-revision", "data", allow_duplicate=True),
+        [
+            Output("session-revision", "data", allow_duplicate=True),
+            Output("inventory-table-grid", "rowData", allow_duplicate=True),
+        ],
         Input("po-button", "n_clicks"),
         State("user-data-store", "data"),
         State("session-revision", "data"),
@@ -428,7 +432,7 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             )
             clear_review_cycle_override_after_order(state)
         ctx.persist_state(session_id, state)
-        return ctx.next_session_revision(session_revision)
+        return ctx.next_session_revision(session_revision), build_inventory_rows(state)
 
     @app.callback(
         [

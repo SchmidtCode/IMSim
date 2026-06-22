@@ -9,6 +9,7 @@ from imsim.callbacks.training import (
     _dashboard_layout_revision_update,
     dashboard_shell_class_name,
 )
+from imsim.services.simulation import place_purchase_orders
 from imsim.services.training import build_level_state, build_simulator_state
 
 
@@ -189,9 +190,26 @@ def test_dashboard_layout_revision_ignores_start_only_changes():
     assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
 
     state.day = 2
+    assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
 
+    state.global_settings.r_cycle += 1
     changed_revision = _dashboard_layout_revision_update(state, initial_revision, ctx)
     assert changed_revision["revision"] == initial_revision["revision"] + 1
+
+
+def test_dashboard_layout_revision_ignores_guided_order_data_changes():
+    class RevisionContext:
+        def next_session_revision(self, revision):
+            return int(revision or 0) + 1
+
+    ctx = RevisionContext()
+    state = build_level_state("level-3")
+    initial_revision = _dashboard_layout_revision_update(state, 0, ctx)
+
+    place_purchase_orders(state)
+    state.training.guided_orders_placed += 1
+
+    assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
 
 
 def test_page_lifecycle_changes_refresh_session_state(dash_app):
@@ -314,6 +332,10 @@ def test_state_changes_emit_session_revision(dash_app):
             ("session-revision", "data"),
             ("asq-apply-feedback", "children"),
             ("lesson-snapshot-open-store", "data"),
+        ],
+        [
+            ("session-revision", "data"),
+            ("inventory-table-grid", "rowData"),
         ],
         [
             ("session-revision", "data"),

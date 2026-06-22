@@ -225,13 +225,15 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
             Output("lesson-snapshot-open-store", "data", allow_duplicate=True),
+            Output("dashboard-tick", "data", allow_duplicate=True),
         ],
         Input("reset-button", "n_clicks"),
         State("user-data-store", "data"),
         State("session-revision", "data"),
+        State("dashboard-tick", "data"),
         prevent_initial_call=True,
     )
-    def reset_simulation(n_clicks, client_data, session_revision):
+    def reset_simulation(n_clicks, client_data, session_revision, dashboard_tick):
         if not n_clicks:
             raise PreventUpdate
         session_id = (client_data or {}).get("uuid", "__bootstrap__")
@@ -251,7 +253,12 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         ctx.carry_revision(state, current)
         if session_id != "__bootstrap__":
             ctx.persist_state(session_id, state)
-        return ctx.next_session_revision(session_revision), dash.no_update, {"open": False}
+        return (
+            ctx.next_session_revision(session_revision),
+            dash.no_update,
+            {"open": False},
+            ctx.next_session_revision(dashboard_tick),
+        )
 
     @app.callback(
         [
