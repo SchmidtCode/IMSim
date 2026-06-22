@@ -2603,11 +2603,13 @@ body {
     height: 100%;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal #graph-panel {
+  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #graph-panel {
     align-self: stretch;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal #graph-panel > .card {
+  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal #graph-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #graph-panel > .card {
     height: 100%;
   }
 
