@@ -61,6 +61,14 @@ def _inventory_table_update(state, theme_name: str, triggered_id):
     return build_inventory_table(state, theme_name)
 
 
+def _snapshot_open_state(snapshot_open_data) -> bool:
+    return bool(
+        snapshot_open_data.get("open")
+        if isinstance(snapshot_open_data, dict)
+        else snapshot_open_data
+    )
+
+
 def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
     app = ctx.app
 
@@ -81,10 +89,16 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         Input("dashboard-tick", "data"),
         Input("theme-store", "data"),
         State("inventory-graph", "figure"),
+        State("lesson-snapshot-open-store", "data"),
         prevent_initial_call="initial_duplicate",
     )
     def render_dashboard(
-        client_data, _dashboard_layout_revision, _dashboard_tick, theme, current_figure
+        client_data,
+        _dashboard_layout_revision,
+        _dashboard_tick,
+        theme,
+        current_figure,
+        snapshot_open_data,
     ):
         session_id = (client_data or {}).get("uuid")
         state = ctx.repository.get_or_create(session_id) if session_id else default_state()
@@ -93,7 +107,7 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
             f"Day: {state.day}",
             refresh_inventory_figure(state, theme_name, current_figure),
             inventory_graph_style(state),
-            service_card_children(state),
+            service_card_children(state, _snapshot_open_state(snapshot_open_data)),
             costs_card_children(state),
             sales_card_children(state),
             build_kpi_strip(state),
@@ -197,6 +211,7 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         [
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
+            Output("lesson-snapshot-open-store", "data", allow_duplicate=True),
         ],
         Input("reset-button", "n_clicks"),
         State("user-data-store", "data"),
@@ -223,7 +238,7 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         ctx.carry_revision(state, current)
         if session_id != "__bootstrap__":
             ctx.persist_state(session_id, state)
-        return ctx.next_session_revision(session_revision), dash.no_update
+        return ctx.next_session_revision(session_revision), dash.no_update, {"open": False}
 
     @app.callback(
         [

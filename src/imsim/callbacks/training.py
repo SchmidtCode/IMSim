@@ -185,6 +185,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
             Output("view-scroll-store", "data", allow_duplicate=True),
+            Output("lesson-snapshot-open-store", "data", allow_duplicate=True),
         ],
         [
             *level_button_inputs,
@@ -257,7 +258,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             "revision": next_revision,
             "view_key": scroll_reset_view_key(next_state),
         }
-        return next_revision, html.Div(), scroll_payload
+        return next_revision, html.Div(), scroll_payload, {"open": False}
 
     app.clientside_callback(
         """

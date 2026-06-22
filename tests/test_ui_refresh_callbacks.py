@@ -87,6 +87,7 @@ def test_layout_keeps_callback_target_ids(dash_app):
         "custom-order-grid",
         "po-overview-grid",
         "dashboard-layout-revision",
+        "lesson-snapshot-open-store",
     } <= component_ids
 
 
@@ -201,13 +202,14 @@ def test_academy_navigation_wires_final_lesson_button(dash_app):
     )
 
 
-def test_academy_navigation_emits_scroll_reset_trigger(dash_app):
+def test_academy_navigation_resets_scroll_and_snapshot_state(dash_app):
     spec = _find_callback(
         dash_app,
         [
             ("session-revision", "data"),
             ("asq-apply-feedback", "children"),
             ("view-scroll-store", "data"),
+            ("lesson-snapshot-open-store", "data"),
         ],
     )
     assert ("academy-simulator-button", "n_clicks") in _input_pairs(spec)
@@ -300,6 +302,11 @@ def test_state_changes_emit_session_revision(dash_app):
             ("dashboard-tick", "data"),
             ("session-revision", "data"),
             ("asq-apply-feedback", "children"),
+        ],
+        [
+            ("session-revision", "data"),
+            ("asq-apply-feedback", "children"),
+            ("lesson-snapshot-open-store", "data"),
         ],
         [
             ("session-revision", "data"),

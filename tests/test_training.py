@@ -421,6 +421,16 @@ def test_early_ordering_snapshots_are_collapsed_by_default():
         assert "open" not in snapshot_json["props"]
 
 
+def test_lesson_snapshot_can_preserve_expanded_state():
+    state = build_level_state("level-5")
+
+    snapshot = service_card_children(state, snapshot_open=True)[0]
+    snapshot_json = snapshot.to_plotly_json()
+
+    assert snapshot_json["props"]["id"] == "lesson-snapshot-disclosure"
+    assert snapshot_json["props"]["open"] is True
+
+
 def test_level_seven_uses_full_pna_formula_wording():
     level = academy_level("level-7")
 
