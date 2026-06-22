@@ -207,6 +207,8 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert isinstance(basic_grid, AgGrid)
     assert basic_grid.style["height"] == "auto"
     assert basic_grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert basic_grid.columnSize == "responsiveSizeToFit"
+    assert "lesson-inventory-grid" in basic_grid.className
     assert isinstance(intro_pna_grid, AgGrid)
     assert intro_pna_grid.style["height"] == "auto"
     assert intro_pna_grid.dashGridOptions["domLayout"] == "autoHeight"
@@ -241,6 +243,7 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert isinstance(simulator_grid, AgGrid)
     assert simulator_grid.style["height"] == "28rem"
     assert simulator_grid.dashGridOptions["pagination"] is True
+    assert simulator_grid.columnSize == "sizeToFit"
     assert simulator_grid.columnDefs[-1]["field"] == "soq"
     assert simulator_grid.columnDefs[-1]["minWidth"] == 96
     assert simulator_figure.layout.height == 460
@@ -277,9 +280,16 @@ def test_level_seventeen_uses_exception_boundary_figure():
 
 
 def test_inventory_graph_style_tracks_figure_height():
+    intro_state = build_level_state("level-1")
     lesson_state = build_level_state("level-2")
     simulator_state = build_simulator_state()
 
+    assert inventory_graph_style(intro_state) == {
+        "flex": "1 1 auto",
+        "height": "100%",
+        "minHeight": "340px",
+        "width": "100%",
+    }
     assert inventory_graph_style(lesson_state) == {
         "height": "392px",
         "minHeight": "392px",

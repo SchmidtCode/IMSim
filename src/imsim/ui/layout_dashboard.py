@@ -308,6 +308,7 @@ def _graph_panel() -> html.Div:
                 figure={},
                 className="inventory-graph",
                 config=_GRAPH_CONFIG,
+                responsive=True,
             ),
         ],
     )

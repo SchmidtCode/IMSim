@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
+import dash
 from dash import Input, Output, State, html
 from dash import ctx as dash_ctx
 from dash.exceptions import PreventUpdate
@@ -47,6 +51,44 @@ def scroll_reset_view_key(state) -> str:
     if state.training.current_view == "simulator":
         return f"simulator:{dashboard_shell_class_name(state)}"
     return state.training.current_view
+
+
+def _dashboard_refresh_signature(state) -> str:
+    dashboard_state = state.to_dict()
+    dashboard_state.pop("revision", None)
+    dashboard_state.pop("is_initialized", None)
+    training_state = dashboard_state.get("training")
+    if isinstance(training_state, dict):
+        for transient_key in (
+            "lesson_status",
+            "lesson_intro_dismissed",
+            "last_result_title",
+            "last_result_message",
+        ):
+            training_state.pop(transient_key, None)
+    payload = {
+        "dashboard_class": dashboard_shell_class_name(state),
+        "state": dashboard_state,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha1(encoded).hexdigest()
+
+
+def _dashboard_layout_revision_update(state, current_data, ctx: CallbackRegistrarContext):
+    revision = 0
+    current_signature = None
+    if isinstance(current_data, dict):
+        revision = int(current_data.get("revision") or 0)
+        current_signature = current_data.get("signature")
+    elif current_data is not None:
+        revision = int(current_data or 0)
+    next_signature = _dashboard_refresh_signature(state)
+    if current_signature == next_signature:
+        return dash.no_update
+    return {
+        "revision": ctx.next_session_revision(revision),
+        "signature": next_signature,
+    }
 
 
 def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
@@ -387,12 +429,14 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("academy-simulator-button", "disabled"),
             Output("advanced-sandbox-copy", "children"),
             Output("interval-component", "disabled", allow_duplicate=True),
+            Output("dashboard-layout-revision", "data"),
         ],
         Input("user-data-store", "data"),
         Input("session-revision", "data"),
+        State("dashboard-layout-revision", "data"),
         prevent_initial_call="initial_duplicate",
     )
-    def render_training_shells(client_data, _session_revision):
+    def render_training_shells(client_data, _session_revision, dashboard_layout_revision):
         state = ctx.current_state(client_data)
         panels = visible_panels(state)
         level = active_level(state)
@@ -534,6 +578,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             not state.training.simulator_unlocked,
             sandbox_copy,
             interval_disabled,
+            _dashboard_layout_revision_update(state, dashboard_layout_revision, ctx),
         )
 
     @app.callback(

@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import dash
+from dash_ag_grid import AgGrid
+
 import imsim.ui.components as ui_components
-from imsim.callbacks.training import dashboard_shell_class_name
-from imsim.services.training import build_level_state
+from imsim.callbacks.simulation import _inventory_table_update, _lesson_tick_session_revision
+from imsim.callbacks.training import (
+    _dashboard_layout_revision_update,
+    dashboard_shell_class_name,
+)
+from imsim.services.training import build_level_state, build_simulator_state
 
 
 def _walk_components(component):
@@ -79,10 +86,11 @@ def test_layout_keeps_callback_target_ids(dash_app):
         "inventory-table-shell",
         "custom-order-grid",
         "po-overview-grid",
+        "dashboard-layout-revision",
     } <= component_ids
 
 
-def test_dashboard_render_listens_to_session_revision_and_theme(dash_app):
+def test_dashboard_render_waits_for_dashboard_layout_revision(dash_app):
     spec = _find_callback(
         dash_app,
         [
@@ -95,10 +103,50 @@ def test_dashboard_render_listens_to_session_revision_and_theme(dash_app):
     )
     assert _input_pairs(spec) == {
         ("user-data-store", "data"),
-        ("session-revision", "data"),
+        ("dashboard-layout-revision", "data"),
         ("dashboard-tick", "data"),
         ("theme-store", "data"),
     }
+
+
+def test_running_lesson_tick_does_not_rebuild_training_shell():
+    class RevisionContext:
+        def next_session_revision(self, revision):
+            return int(revision or 0) + 1
+
+    ctx = RevisionContext()
+
+    assert _lesson_tick_session_revision({"lesson_completed": 0}, 7, ctx) is dash.no_update
+    assert _lesson_tick_session_revision({"lesson_completed": 1}, 7, ctx) == 8
+
+
+def test_lesson_dashboard_tick_does_not_touch_inventory_grid():
+    state = build_level_state("level-3")
+    simulator_state = build_simulator_state()
+
+    initial_table = _inventory_table_update(state, "light", "dashboard-layout-revision")
+    lesson_tick = _inventory_table_update(state, "light", "dashboard-tick")
+    simulator_tick = _inventory_table_update(simulator_state, "light", "dashboard-tick")
+
+    assert isinstance(initial_table, AgGrid)
+    assert lesson_tick is dash.no_update
+    assert isinstance(simulator_tick, AgGrid)
+
+
+def test_interval_tick_updates_terminal_lesson_controls_immediately(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("day-display", "children"),
+            ("sim-status", "children"),
+            ("start-button", "children"),
+            ("start-button", "className"),
+            ("start-button", "disabled"),
+            ("lesson-compact-summary", "children"),
+            ("interval-component", "disabled"),
+        ],
+    )
+    assert _input_pairs(spec) == {("interval-component", "n_intervals")}
 
 
 def test_training_shell_render_listens_to_session_revision(dash_app):
@@ -109,12 +157,33 @@ def test_training_shell_render_listens_to_session_revision(dash_app):
             ("lesson-shell", "style"),
             ("dashboard-shell", "className"),
             ("interval-component", "disabled"),
+            ("dashboard-layout-revision", "data"),
         ],
     )
     assert _input_pairs(spec) == {
         ("user-data-store", "data"),
         ("session-revision", "data"),
     }
+
+
+def test_dashboard_layout_revision_ignores_start_only_changes():
+    class RevisionContext:
+        def next_session_revision(self, revision):
+            return int(revision or 0) + 1
+
+    ctx = RevisionContext()
+    state = build_level_state("level-3")
+    initial_revision = _dashboard_layout_revision_update(state, 0, ctx)
+
+    state.is_initialized = True
+    state.training.lesson_status = "running"
+
+    assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
+
+    state.day = 2
+
+    changed_revision = _dashboard_layout_revision_update(state, initial_revision, ctx)
+    assert changed_revision["revision"] == initial_revision["revision"] + 1
 
 
 def test_page_lifecycle_changes_refresh_session_state(dash_app):
