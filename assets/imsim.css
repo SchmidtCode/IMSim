@@ -2795,6 +2795,88 @@ body {
     flex-direction: column;
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    .dashboard-main-column {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "graph graph"
+      "costs sales"
+      "inventory inventory"
+      "service service";
+    gap: var(--imsim-lesson-gap);
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    .dashboard-detail-row {
+    display: contents;
+    margin: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #graph-panel {
+    grid-area: graph;
+    margin-bottom: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #costs-panel {
+    grid-area: costs;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #sales-panel {
+    grid-area: sales;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #inventory-panel {
+    grid-area: inventory;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #service-panel {
+    grid-area: service;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #service-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #costs-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #sales-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #inventory-panel {
+    padding: 0;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #graph-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #service-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #costs-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #sales-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #inventory-panel
+    > .card {
+    width: 100%;
+    max-width: none;
+    margin: 0 !important;
+  }
+
   .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-main-layout {
     display: grid;
     grid-template-columns:
@@ -2929,6 +3011,52 @@ body {
 
   .lesson-compact-chip {
     white-space: normal;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    .dashboard-main-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "graph"
+      "costs"
+      "sales"
+      "inventory"
+      "service";
+    gap: var(--imsim-lesson-gap);
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    .dashboard-detail-row {
+    display: contents;
+    margin: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #graph-panel {
+    grid-area: graph;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #costs-panel {
+    grid-area: costs;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #sales-panel {
+    grid-area: sales;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #inventory-panel {
+    grid-area: inventory;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-14.lesson-layout-workspace-advanced
+    #service-panel {
+    grid-area: service;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
