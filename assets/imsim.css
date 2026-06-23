@@ -3453,3 +3453,68 @@ body {
     margin-top: 1rem;
   }
 }
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-main-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-detail-row {
+  order: 2;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-insights-row {
+  margin-top: var(--imsim-lesson-gap) !important;
+  order: 3;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-main-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "graph"
+    "costs"
+    "sales"
+    "detail"
+    "snapshot";
+  gap: var(--imsim-lesson-gap);
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 #graph-panel {
+  grid-area: graph;
+  margin-bottom: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-insights-row {
+  display: contents;
+  margin: 0 !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-detail-row {
+  grid-area: detail;
+  margin: 0 !important;
+  width: 100%;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel {
+  grid-area: snapshot;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 #costs-panel {
+  grid-area: costs;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 #sales-panel {
+  grid-area: sales;
+}
+
+@media (min-width: 1200px) {
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-main-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "graph graph"
+      "costs sales"
+      "detail detail"
+      "snapshot snapshot";
+  }
+}
