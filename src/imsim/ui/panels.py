@@ -35,7 +35,10 @@ def _lesson_snapshot_disclosure(
     hint: str = "Status and goal details",
     open_by_default: bool = False,
 ) -> html.Details:
-    props: dict[str, object] = {"className": "lesson-snapshot-disclosure"}
+    props: dict[str, object] = {
+        "id": "lesson-snapshot-disclosure",
+        "className": "lesson-snapshot-disclosure",
+    }
     if open_by_default:
         props["open"] = True
     return html.Details(
@@ -182,7 +185,7 @@ def _lesson_position_snapshot_block(state: SimulationState) -> html.Div:
     )
 
 
-def service_card_children(state: SimulationState) -> list:
+def service_card_children(state: SimulationState, snapshot_open: bool = False) -> list:
     level = active_level(state)
     today = state.service_today
     totals = state.service_totals
@@ -268,6 +271,7 @@ def service_card_children(state: SimulationState) -> list:
             _lesson_snapshot_disclosure(
                 snapshot_body,
                 hint="PNA and goal status",
+                open_by_default=snapshot_open,
             )
         ]
     if level is not None and level.index == 3 and state.items:
@@ -300,6 +304,7 @@ def service_card_children(state: SimulationState) -> list:
             _lesson_snapshot_disclosure(
                 snapshot_body,
                 hint="Service and order-point status",
+                open_by_default=snapshot_open,
             )
         ]
     if level is not None and state.items:
@@ -329,6 +334,7 @@ def service_card_children(state: SimulationState) -> list:
                     className="lesson-snapshot-stack",
                 ),
                 hint="Service, position, and item status",
+                open_by_default=snapshot_open,
             )
         ]
 

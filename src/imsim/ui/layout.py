@@ -25,6 +25,7 @@ def _stores_and_intervals(config: IMSimConfig) -> list:
         dcc.Store(id="session-revision", data=0),
         dcc.Store(id="dashboard-layout-revision", data=0),
         dcc.Store(id="dashboard-tick", data=0),
+        dcc.Store(id="lesson-snapshot-open-store", data={"open": False}),
         dcc.Store(id="view-scroll-store"),
         dcc.Store(id="view-scroll-sink"),
         dcc.Store(id="page-lifecycle-store", data={"active": True, "reason": "initial"}),

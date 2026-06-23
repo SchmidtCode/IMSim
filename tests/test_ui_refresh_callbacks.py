@@ -9,6 +9,7 @@ from imsim.callbacks.training import (
     _dashboard_layout_revision_update,
     dashboard_shell_class_name,
 )
+from imsim.services.simulation import place_purchase_orders
 from imsim.services.training import build_level_state, build_simulator_state
 
 
@@ -54,6 +55,7 @@ def test_components_facade_exports_existing_ui_surface():
         "build_custom_order_grid",
         "build_exception_center",
         "build_inventory_figure",
+        "build_inventory_rows",
         "build_inventory_table",
         "build_kpi_strip",
         "build_po_overview_grid",
@@ -87,6 +89,7 @@ def test_layout_keeps_callback_target_ids(dash_app):
         "custom-order-grid",
         "po-overview-grid",
         "dashboard-layout-revision",
+        "lesson-snapshot-open-store",
     } <= component_ids
 
 
@@ -120,7 +123,7 @@ def test_running_lesson_tick_does_not_rebuild_training_shell():
     assert _lesson_tick_session_revision({"lesson_completed": 1}, 7, ctx) == 8
 
 
-def test_lesson_dashboard_tick_does_not_touch_inventory_grid():
+def test_lesson_dashboard_tick_does_not_remount_inventory_grid():
     state = build_level_state("level-3")
     simulator_state = build_simulator_state()
 
@@ -131,6 +134,12 @@ def test_lesson_dashboard_tick_does_not_touch_inventory_grid():
     assert isinstance(initial_table, AgGrid)
     assert lesson_tick is dash.no_update
     assert isinstance(simulator_tick, AgGrid)
+
+
+def test_lesson_inventory_grid_rows_refresh_on_dashboard_tick(dash_app):
+    spec = _find_callback(dash_app, [("inventory-table-grid", "rowData")])
+
+    assert _input_pairs(spec) == {("dashboard-tick", "data")}
 
 
 def test_interval_tick_updates_terminal_lesson_controls_immediately(dash_app):
@@ -181,9 +190,26 @@ def test_dashboard_layout_revision_ignores_start_only_changes():
     assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
 
     state.day = 2
+    assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
 
+    state.global_settings.r_cycle += 1
     changed_revision = _dashboard_layout_revision_update(state, initial_revision, ctx)
     assert changed_revision["revision"] == initial_revision["revision"] + 1
+
+
+def test_dashboard_layout_revision_ignores_guided_order_data_changes():
+    class RevisionContext:
+        def next_session_revision(self, revision):
+            return int(revision or 0) + 1
+
+    ctx = RevisionContext()
+    state = build_level_state("level-3")
+    initial_revision = _dashboard_layout_revision_update(state, 0, ctx)
+
+    place_purchase_orders(state)
+    state.training.guided_orders_placed += 1
+
+    assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
 
 
 def test_page_lifecycle_changes_refresh_session_state(dash_app):
@@ -201,13 +227,14 @@ def test_academy_navigation_wires_final_lesson_button(dash_app):
     )
 
 
-def test_academy_navigation_emits_scroll_reset_trigger(dash_app):
+def test_academy_navigation_resets_scroll_and_snapshot_state(dash_app):
     spec = _find_callback(
         dash_app,
         [
             ("session-revision", "data"),
             ("asq-apply-feedback", "children"),
             ("view-scroll-store", "data"),
+            ("lesson-snapshot-open-store", "data"),
         ],
     )
     assert ("academy-simulator-button", "n_clicks") in _input_pairs(spec)
@@ -300,6 +327,15 @@ def test_state_changes_emit_session_revision(dash_app):
             ("dashboard-tick", "data"),
             ("session-revision", "data"),
             ("asq-apply-feedback", "children"),
+        ],
+        [
+            ("session-revision", "data"),
+            ("asq-apply-feedback", "children"),
+            ("lesson-snapshot-open-store", "data"),
+        ],
+        [
+            ("session-revision", "data"),
+            ("inventory-table-grid", "rowData"),
         ],
         [
             ("session-revision", "data"),
