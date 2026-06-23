@@ -243,6 +243,8 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert isinstance(simulator_grid, AgGrid)
     assert simulator_grid.style["height"] == "28rem"
     assert simulator_grid.dashGridOptions["pagination"] is True
+    assert simulator_grid.dashGridOptions["paginationAutoPageSize"] is True
+    assert "paginationPageSize" not in simulator_grid.dashGridOptions
     assert simulator_grid.columnSize == "sizeToFit"
     assert simulator_grid.columnDefs[-1]["field"] == "soq"
     assert simulator_grid.columnDefs[-1]["minWidth"] == 96

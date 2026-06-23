@@ -1877,7 +1877,7 @@ body {
 }
 
 .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
 }
 
@@ -2048,6 +2048,73 @@ body {
   border-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 .dashboard-main-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 .dashboard-detail-row {
+  order: 2;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 .dashboard-insights-row {
+  order: 3;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #graph-panel .panel-label,
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel .panel-label {
+  display: none;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #graph-panel .panel-title,
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel .panel-title {
+  margin-bottom: 0.55rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel .card-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-table-shell,
+.dashboard-shell.lesson-dashboard.lesson-level-9 .table-scroll-shell {
+  min-height: 0;
+  overflow: visible;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #graph-panel > .card {
+  border-bottom-color: transparent;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel {
+  margin-top: calc(0rem - var(--imsim-lesson-signal-card-overlap));
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel > .card {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9
+  #inventory-table-grid
+  .ag-body-viewport.ag-layout-auto-height {
+  height: 4.75rem !important;
+  max-height: 4.75rem !important;
+  min-height: 4.75rem !important;
+}
+
+.dashboard-shell.lesson-dashboard:is(.lesson-level-13, .lesson-level-17)
+  #inventory-table-grid
+  .ag-body-viewport.ag-layout-auto-height {
+  height: 7.125rem !important;
+  max-height: 7.125rem !important;
+  min-height: 7.125rem !important;
 }
 
 /* Responsive adjustments */
@@ -2571,6 +2638,7 @@ body {
     grid-area: auto;
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel .session-card,
   .dashboard-shell.lesson-dashboard.lesson-level-11.lesson-layout-workspace-basic #session-panel .session-card,
   .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #session-panel .session-card {
     margin-top: 0 !important;
@@ -2586,13 +2654,82 @@ body {
     min-height: 21rem;
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-main-layout {
+    grid-template-columns: minmax(17rem, 23rem) minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: "rail main";
+    align-items: start;
+    align-content: start;
+    height: auto;
+    padding-bottom: 1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-main-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--imsim-lesson-gap);
+    min-width: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-rail-column {
+    grid-area: rail;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-main-column {
+    grid-area: main;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-detail-row {
+    display: flex;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-detail-row {
+    order: 2;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-insights-row {
+    order: 3;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #inventory-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #service-panel {
+    grid-area: auto;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel {
+    align-self: stretch;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel > .card {
+    height: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal #graph-panel {
+    align-self: stretch;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal #graph-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #graph-panel > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal #graph-panel > .card {
+    height: 100%;
+  }
+
   .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal .dashboard-main-layout {
     grid-template-columns: minmax(15rem, 16.5rem) minmax(0, 1fr);
     grid-template-rows: auto auto auto;
     grid-template-areas:
       "session graph"
-      "inventory inventory"
-      "service service";
+      ". inventory"
+      ". service";
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #graph-panel {
@@ -2604,8 +2741,8 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #service-panel {
-    width: min(100%, 24rem) !important;
-    max-width: 24rem !important;
+    width: 100% !important;
+    max-width: none !important;
     justify-self: start;
   }
 
@@ -2699,6 +2836,21 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-detail-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-detail-row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-rail-column {
+    display: grid;
+    align-content: start;
+    gap: var(--imsim-lesson-gap);
+  }
+
   .dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel,
   .dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel {
     grid-column: 1 / -1;
@@ -2764,6 +2916,184 @@ body {
   .dashboard-shell.lesson-layout-workspace-certification #inventory-panel .card-body {
     display: flex;
     flex-direction: column;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-15,
+      .lesson-level-16,
+      .lesson-level-18
+    )
+    #inventory-table-grid
+    .ag-body-horizontal-scroll {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-15,
+      .lesson-level-16,
+      .lesson-level-18
+    )
+    #inventory-table-grid
+    :is(.ag-horizontal-left-spacer, .ag-horizontal-right-spacer) {
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    .dashboard-main-column {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "graph graph"
+      "costs sales"
+      "inventory inventory"
+      "service service";
+    gap: var(--imsim-lesson-gap);
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    .dashboard-detail-row {
+    display: contents;
+    margin: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #graph-panel {
+    grid-area: graph;
+    margin-bottom: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #costs-panel {
+    grid-area: costs;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #sales-panel {
+    grid-area: sales;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #inventory-panel {
+    grid-area: inventory;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #service-panel {
+    grid-area: service;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #graph-panel,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #service-panel,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #costs-panel,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #sales-panel,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #inventory-panel {
+    padding: 0;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #graph-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #service-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #costs-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #sales-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #inventory-panel
+    > .card {
+    width: 100%;
+    max-width: none;
+    margin: 0 !important;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-main-layout {
@@ -2902,6 +3232,90 @@ body {
     white-space: normal;
   }
 
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-rail-column {
+    display: grid;
+    align-content: start;
+    gap: var(--imsim-lesson-gap);
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    .dashboard-main-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "graph"
+      "costs"
+      "sales"
+      "inventory"
+      "service";
+    gap: var(--imsim-lesson-gap);
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    .dashboard-detail-row {
+    display: contents;
+    margin: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #graph-panel {
+    grid-area: graph;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #costs-panel {
+    grid-area: costs;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #sales-panel {
+    grid-area: sales;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #inventory-panel {
+    grid-area: inventory;
+  }
+
+  .dashboard-shell.lesson-dashboard:is(
+      .lesson-level-14,
+      .lesson-level-15,
+      .lesson-level-16
+    ).lesson-layout-workspace-advanced
+    #service-panel {
+    grid-area: service;
+  }
+
   .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
     grid-template-columns: 1fr;
   }
@@ -3037,5 +3451,70 @@ body {
     position: static;
     width: auto;
     margin-top: 1rem;
+  }
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-main-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-detail-row {
+  order: 2;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-insights-row {
+  margin-top: var(--imsim-lesson-gap) !important;
+  order: 3;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-main-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "graph"
+    "costs"
+    "sales"
+    "detail"
+    "snapshot";
+  gap: var(--imsim-lesson-gap);
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 #graph-panel {
+  grid-area: graph;
+  margin-bottom: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-insights-row {
+  display: contents;
+  margin: 0 !important;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-detail-row {
+  grid-area: detail;
+  margin: 0 !important;
+  width: 100%;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel {
+  grid-area: snapshot;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 #costs-panel {
+  grid-area: costs;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-19 #sales-panel {
+  grid-area: sales;
+}
+
+@media (min-width: 1200px) {
+  .dashboard-shell.lesson-dashboard.lesson-level-19 .dashboard-main-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "graph graph"
+      "costs sales"
+      "detail detail"
+      "snapshot snapshot";
   }
 }
