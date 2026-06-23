@@ -139,7 +139,11 @@ def lesson_shell() -> html.Div:
                     dbc.ModalHeader(
                         html.Div(
                             [
-                                html.Div("Lesson Brief", className="hero-kicker"),
+                                html.Div(
+                                    "Lesson",
+                                    id="lesson-intro-kicker",
+                                    className="hero-kicker",
+                                ),
                                 html.H2(
                                     "Academy Lesson",
                                     id="lesson-title",

@@ -55,6 +55,14 @@ def scroll_reset_view_key(state) -> str:
     return state.training.current_view
 
 
+def experience_kicker_text(state, level) -> str:
+    if state.training.current_view == "simulator":
+        return "Simulator"
+    if level is not None:
+        return f"Lesson {level.index}"
+    return "Lesson"
+
+
 def _dashboard_item_signature(item) -> dict[str, float]:
     return {
         key: getattr(item, key)
@@ -409,6 +417,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("dashboard-shell", "style"),
             Output("academy-progress-summary", "children"),
             Output("academy-result-banner", "children"),
+            Output("lesson-intro-kicker", "children"),
             Output("lesson-title", "children"),
             Output("lesson-copy", "children"),
             Output("lesson-tutorial", "children"),
@@ -493,17 +502,9 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             "On-hand lesson trend"
             if level is not None and level.index == 1
             else (
-                "Basic reorder signal"
-                if level is not None and level.index == 2
-                else (
-                    "Fill-rate service view"
-                    if level is not None and level.index == 3
-                    else (
-                        "Critical-point and surplus map"
-                        if level is not None and level.index == 17
-                        else "Inventory signal map"
-                    )
-                )
+                "Fill-rate service view"
+                if level is not None and level.index == 3
+                else ("Inventory signal map")
             )
         )
         service_panel_title = "Lesson snapshot" if level is not None else "Service"
@@ -553,6 +554,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             ctx.panel_style(not is_menu),
             academy_progress_children(state),
             academy_result_children(state),
+            experience_kicker_text(state, level),
             lesson_title,
             lesson_copy,
             lesson_tutorial_children(state),
@@ -560,7 +562,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             lesson_locked_children(state),
             state.training.current_view == "lesson" and not state.training.lesson_intro_dismissed,
             simulator_copy,
-            "Simulator" if is_simulator else "Lesson",
+            experience_kicker_text(state, level),
             experience_title,
             experience_copy,
             lesson_compact_summary_children(state) if level is not None else [],
@@ -575,7 +577,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             graph_title,
             service_panel_title,
             "Planner grid"
-            if is_simulator or (level is not None and level.index >= 6)
+            if is_simulator or (level is not None and (level.index == 2 or level.index >= 6))
             else "Lesson items",
             ctx.panel_style("actions" in panels),
             ctx.panel_style("policy" in panels),

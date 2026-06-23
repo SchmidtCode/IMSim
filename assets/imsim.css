@@ -231,6 +231,7 @@ body {
   flex: 1 1 auto;
   gap: 0.55rem;
   min-height: 100%;
+  position: relative;
 }
 
 .academy-card-status-block {
@@ -239,8 +240,21 @@ body {
   gap: 0.55rem;
 }
 
-.academy-card .button-block {
+.academy-card-header {
+  display: block;
+  min-height: 1.45rem;
+  min-width: 0;
+  padding-right: 7.75rem;
+}
+
+.academy-card > .card-body > .button-block,
+.academy-card-status-block + .button-block {
   margin-top: auto !important;
+}
+
+.academy-card-content > .academy-card-formula {
+  margin-bottom: -0.275rem;
+  margin-top: auto;
 }
 
 .academy-card-kicker,
@@ -299,8 +313,18 @@ body {
 }
 
 .academy-status-badge {
-  justify-self: start;
-  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  line-height: 1;
+  max-width: 7rem;
+  min-width: 5.6rem;
+  overflow: hidden;
+  padding: 0.35rem 0.55rem;
+  position: absolute;
+  right: 0;
+  text-align: center;
+  text-overflow: ellipsis;
+  top: 0.05rem;
+  white-space: nowrap;
 }
 
 .academy-result-alert {
@@ -1837,12 +1861,6 @@ body {
   gap: 0.35rem;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel .panel-label,
-.dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel .panel-label,
-.dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .panel-label {
-  display: none;
-}
-
 .dashboard-shell.lesson-dashboard.lesson-level-2 #actions-panel .panel-title,
 .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel .panel-title,
 .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel .panel-title {
@@ -2061,11 +2079,6 @@ body {
 
 .dashboard-shell.lesson-dashboard.lesson-level-9 .dashboard-insights-row {
   order: 3;
-}
-
-.dashboard-shell.lesson-dashboard.lesson-level-9 #graph-panel .panel-label,
-.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel .panel-label {
-  display: none;
 }
 
 .dashboard-shell.lesson-dashboard.lesson-level-9 #graph-panel .panel-title,

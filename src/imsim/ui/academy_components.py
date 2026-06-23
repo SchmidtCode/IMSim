@@ -504,23 +504,28 @@ def academy_level_card_children(level_index: int, state: SimulationState) -> lis
     }[status]
     button_label = "Replay Lesson" if status == "completed" else "Start Lesson"
     return [
-        html.Div(f"Level {level.index}", className="academy-card-kicker"),
+        html.Div(
+            [
+                html.Div(f"Level {level.index}", className="academy-card-kicker"),
+                dbc.Badge(
+                    status_label,
+                    color="success"
+                    if status == "completed"
+                    else ("primary" if status == "unlocked" else "secondary"),
+                    pill=True,
+                    class_name="academy-status-badge",
+                ),
+            ],
+            className="academy-card-header",
+        ),
         html.Div(level.title, className="academy-card-title"),
         html.P(level.summary, className="academy-card-copy"),
-        dbc.Badge(
-            status_label,
-            color="success"
-            if status == "completed"
-            else ("primary" if status == "unlocked" else "secondary"),
-            pill=True,
-            class_name="academy-status-badge",
-        ),
         html.Div(level.formula, className="academy-card-formula"),
         html.Button(
             button_label,
             id=f"academy-level-{level.index}-button",
             n_clicks=0,
-            className="imsim-button button-primary button-block mt-3",
+            className="imsim-button button-primary button-block",
             disabled=status == "locked",
         ),
     ]
@@ -529,19 +534,24 @@ def academy_level_card_children(level_index: int, state: SimulationState) -> lis
 def simulator_unlock_children(state: SimulationState) -> list:
     unlocked = state.training.simulator_unlocked
     return [
-        html.Div("Simulator", className="academy-card-kicker"),
+        html.Div(
+            [
+                html.Div("Simulator", className="academy-card-kicker"),
+                dbc.Badge(
+                    "Unlocked" if unlocked else "Locked",
+                    color="primary" if unlocked else "secondary",
+                    pill=True,
+                    class_name="academy-status-badge",
+                ),
+            ],
+            className="academy-card-header",
+        ),
         html.Div("Simulator Mode", className="academy-card-title"),
         html.P(
             "The full IM dashboard with imports, ASQ, and the sandbox reward controls."
             if unlocked
             else "Pass certification to unlock the full simulator and the sandbox reward controls.",
             className="academy-card-copy",
-        ),
-        dbc.Badge(
-            "Unlocked" if unlocked else "Locked",
-            color="primary" if unlocked else "secondary",
-            pill=True,
-            class_name="academy-status-badge",
         ),
         html.Div("Free-play sandbox", className="academy-card-formula"),
     ]
