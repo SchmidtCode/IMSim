@@ -2109,6 +2109,14 @@ body {
   min-height: 4.75rem !important;
 }
 
+.dashboard-shell.lesson-dashboard:is(.lesson-level-13, .lesson-level-17)
+  #inventory-table-grid
+  .ag-body-viewport.ag-layout-auto-height {
+  height: 7.125rem !important;
+  max-height: 7.125rem !important;
+  min-height: 7.125rem !important;
+}
+
 /* Responsive adjustments */
 @media (min-width: 1200px) {
   .control-rail-column {
