@@ -2050,6 +2050,65 @@ body {
   border-top-right-radius: 0;
 }
 
+.dashboard-shell.lesson-dashboard.lesson-level-9 .dashboard-main-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 .dashboard-detail-row {
+  order: 2;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 .dashboard-insights-row {
+  order: 3;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #graph-panel .panel-label,
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel .panel-label {
+  display: none;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #graph-panel .panel-title,
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel .panel-title {
+  margin-bottom: 0.55rem;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel .card-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-table-shell,
+.dashboard-shell.lesson-dashboard.lesson-level-9 .table-scroll-shell {
+  min-height: 0;
+  overflow: visible;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #graph-panel > .card {
+  border-bottom-color: transparent;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel {
+  margin-top: calc(0rem - var(--imsim-lesson-signal-card-overlap));
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9 #inventory-panel > .card {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.dashboard-shell.lesson-dashboard.lesson-level-9
+  #inventory-table-grid
+  .ag-body-viewport.ag-layout-auto-height {
+  height: 4.75rem !important;
+  max-height: 4.75rem !important;
+  min-height: 4.75rem !important;
+}
+
 /* Responsive adjustments */
 @media (min-width: 1200px) {
   .control-rail-column {
@@ -2588,11 +2647,52 @@ body {
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-main-layout {
-    grid-template-rows: auto auto auto;
-    grid-template-areas:
-      "session graph"
-      "inventory inventory"
-      "service service";
+    grid-template-columns: minmax(17rem, 23rem) minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: "rail main";
+    align-items: start;
+    align-content: start;
+    height: auto;
+    padding-bottom: 1rem;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-main-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--imsim-lesson-gap);
+    min-width: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-rail-column {
+    grid-area: rail;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-main-column {
+    grid-area: main;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-detail-row {
+    display: flex;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100%;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-detail-row {
+    order: 2;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-insights-row {
+    order: 3;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #inventory-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #service-panel {
+    grid-area: auto;
   }
 
   .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel {
