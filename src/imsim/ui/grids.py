@@ -263,7 +263,7 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
     default_col_def = {"sortable": True, "filter": True, "resizable": True}
     dash_grid_options = {
         "pagination": True,
-        "paginationPageSize": min(12, max(1, len(rows))),
+        "paginationAutoPageSize": True,
         "paginationPageSizeSelector": False,
         "animateRows": False,
     }
