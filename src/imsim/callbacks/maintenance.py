@@ -70,9 +70,9 @@ def register_maintenance_callbacks(ctx: CallbackRegistrarContext) -> None:
                 else "imsim-modal-content"
             ),
             (
-                "imsim-modal-content theme-dark"
+                "imsim-modal-content custom-order-modal-content theme-dark"
                 if current_theme == "dark"
-                else "imsim-modal-content"
+                else "imsim-modal-content custom-order-modal-content"
             ),
             (
                 "imsim-modal-content theme-dark"

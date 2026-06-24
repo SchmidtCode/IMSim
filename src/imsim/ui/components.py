@@ -29,6 +29,7 @@ from .grids import (
     build_po_overview_grid,
     build_po_overview_rows,
     custom_order_grid_options,
+    custom_order_grid_style,
     po_overview_grid_options,
 )
 from .panels import (
@@ -59,6 +60,7 @@ __all__ = [
     "build_po_overview_grid",
     "build_po_overview_rows",
     "costs_card_children",
+    "custom_order_grid_style",
     "custom_order_grid_options",
     "github_footer_card",
     "inventory_graph_style",

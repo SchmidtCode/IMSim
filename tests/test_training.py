@@ -40,6 +40,7 @@ from imsim.ui.components import (
     build_inventory_table,
     build_po_overview_grid,
     custom_order_grid_options,
+    custom_order_grid_style,
     inventory_graph_style,
     lesson_compact_summary_children,
     lesson_objective_children,
@@ -581,7 +582,7 @@ def test_custom_order_and_po_overview_use_ag_grid():
     assert po_grid.dashGridOptions["rowSelection"]["enableSelectionWithoutKeys"] is True
     assert po_grid.dashGridOptions["rowSelection"]["checkboxes"] is True
     assert po_grid.dashGridOptions["rowSelection"]["headerCheckbox"] is True
-    assert custom_order_grid.style["height"] == "26rem"
+    assert custom_order_grid.style == custom_order_grid_style(len(custom_order_grid.rowData))
     assert po_grid.style["height"] == "26rem"
 
 

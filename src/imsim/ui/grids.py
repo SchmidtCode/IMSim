@@ -59,6 +59,21 @@ def custom_order_grid_options() -> dict[str, object]:
         "singleClickEdit": True,
         "stopEditingWhenCellsLoseFocus": True,
         "enterNavigatesVerticallyAfterEdit": True,
+        "suppressHorizontalScroll": True,
+    }
+
+
+def custom_order_grid_style(row_count: int = 0) -> dict[str, str]:
+    header_height = 42
+    row_height = 38
+    border_allowance = 2
+    min_height = header_height + (max(row_count, 1) * row_height) + border_allowance
+    capped_height = min(min_height, 520)
+    return {
+        "height": f"{capped_height}px",
+        "maxHeight": "min(520px, calc(100vh - 13rem))",
+        "maxWidth": "62rem",
+        "width": "100%",
     }
 
 
@@ -126,23 +141,54 @@ def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag
     rows = build_custom_order_rows(state)
     if not rows:
         return dbc.Alert("No items available.", color="warning")
+    compact_numeric_column = {"type": "numericColumn", "minWidth": 72, "maxWidth": 96}
     return dag.AgGrid(
         id="custom-order-grid",
         rowData=rows,
         columnDefs=[
-            {"field": "item", "headerName": "Item", "pinned": "left", "maxWidth": 90},
-            {"field": "on_hand", "headerName": "ATS (On Hand)", "type": "numericColumn"},
-            {"field": "on_order", "headerName": "On-Order", "type": "numericColumn"},
-            {"field": "backorder", "headerName": "Backorder", "type": "numericColumn"},
-            {"field": "usage_rate", "headerName": "Usage", "type": "numericColumn"},
-            {"field": "lead_time", "headerName": "Lead Time", "type": "numericColumn"},
-            {"field": "op", "headerName": "OP", "type": "numericColumn"},
-            {"field": "lp", "headerName": "LP", "type": "numericColumn"},
-            {"field": "oq", "headerName": "OQ", "type": "numericColumn"},
+            {
+                "field": "item",
+                "headerName": "Item",
+                "pinned": "left",
+                "minWidth": 64,
+                "maxWidth": 76,
+            },
+            {
+                "field": "on_hand",
+                "headerName": "ATS",
+                "headerTooltip": "Available to sell (on hand).",
+                **compact_numeric_column,
+            },
+            {
+                "field": "on_order",
+                "headerName": "On Order",
+                "minWidth": 86,
+                "maxWidth": 104,
+                "type": "numericColumn",
+            },
+            {
+                "field": "backorder",
+                "headerName": "Backorder",
+                "minWidth": 96,
+                "maxWidth": 112,
+                "type": "numericColumn",
+            },
+            {"field": "usage_rate", "headerName": "Usage", **compact_numeric_column},
+            {
+                "field": "lead_time",
+                "headerName": "Lead",
+                "headerTooltip": "Lead time.",
+                **compact_numeric_column,
+            },
+            {"field": "op", "headerName": "OP", **compact_numeric_column},
+            {"field": "lp", "headerName": "LP", **compact_numeric_column},
+            {"field": "oq", "headerName": "OQ", **compact_numeric_column},
             {
                 "field": "order_qty",
                 "headerName": "Order Qty",
                 "type": "numericColumn",
+                "minWidth": 104,
+                "maxWidth": 120,
                 "editable": True,
                 "cellClass": "custom-order-qty-cell",
                 "cellEditor": "agNumberCellEditor",
@@ -157,11 +203,16 @@ def build_custom_order_grid(state: SimulationState, theme: str = "light") -> dag
                 ),
             },
         ],
-        defaultColDef={"sortable": True, "filter": True, "resizable": True},
+        defaultColDef={
+            "sortable": True,
+            "filter": False,
+            "resizable": True,
+            "suppressSizeToFit": False,
+        },
         className=_grid_theme_class(theme),
-        columnSize="sizeToFit",
+        columnSize="responsiveSizeToFit",
         dashGridOptions=custom_order_grid_options(),
-        style={"height": _workspace_grid_height(state, surface="modal"), "width": "100%"},
+        style=custom_order_grid_style(len(rows)),
     )
 
 

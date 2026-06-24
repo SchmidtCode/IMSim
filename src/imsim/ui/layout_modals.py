@@ -4,7 +4,7 @@ import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
-from .components import custom_order_grid_options, po_overview_grid_options
+from .components import custom_order_grid_options, custom_order_grid_style, po_overview_grid_options
 from .primitives import action_button, modal_actions, number_field, shell_card, work_modal
 
 _MANUAL_ITEM_FIELDS = (
@@ -82,14 +82,27 @@ def _import_card() -> dbc.Card:
     )
 
 
-def _grid(grid_id: str, options: dict) -> dag.AgGrid:
+def _grid(
+    grid_id: str,
+    options: dict,
+    *,
+    style: dict[str, str] | None = None,
+    column_size: str | None = None,
+    default_col_def: dict[str, object] | None = None,
+) -> dag.AgGrid:
+    grid_props: dict[str, object] = {}
+    if column_size is not None:
+        grid_props["columnSize"] = column_size
+    if default_col_def is not None:
+        grid_props["defaultColDef"] = default_col_def
     return dag.AgGrid(
         id=grid_id,
         rowData=[],
         columnDefs=[],
         className="ag-theme-quartz imsim-ag-grid",
         dashGridOptions=options,
-        style={"height": "420px", "width": "100%"},
+        style=style or {"height": "420px", "width": "100%"},
+        **grid_props,
     )
 
 
@@ -126,15 +139,31 @@ def add_item_modal() -> dbc.Modal:
 
 
 def custom_order_modal() -> dbc.Modal:
-    return _grid_modal(
-        title="Place Custom Order",
-        component_id="place-custom-order-modal",
-        grid_id="custom-order-grid",
-        options=custom_order_grid_options(),
-        footer_buttons=[
-            action_button("Cancel", "cancel-custom-order-button", "secondary"),
-            action_button("Place Order", "place-order-button", "primary"),
-        ],
+    return work_modal(
+        "Place Custom Order",
+        "place-custom-order-modal",
+        _grid(
+            "custom-order-grid",
+            custom_order_grid_options(),
+            style=custom_order_grid_style(),
+            column_size="responsiveSizeToFit",
+            default_col_def={
+                "sortable": True,
+                "filter": False,
+                "resizable": True,
+                "suppressSizeToFit": False,
+            },
+        ),
+        footer=modal_actions(
+            [
+                action_button("Cancel", "cancel-custom-order-button", "secondary"),
+                action_button("Place Order", "place-order-button", "primary"),
+            ]
+        ),
+        size="xl",
+        body_class_name="custom-order-modal-body",
+        dialog_class_name="custom-order-modal-dialog",
+        content_class_name="imsim-modal-content custom-order-modal-content",
     )
 
 
