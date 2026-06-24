@@ -58,11 +58,14 @@
   --imsim-shadow-float: 0 0.9rem 2rem rgba(2, 8, 18, 0.22);
   --imsim-shadow-action-teal: none;
   --imsim-shadow-action-green: none;
-  --imsim-shadow-focus-soft: 0 0 0 var(--imsim-focus-ring-size) rgba(49, 95, 143, 0.12);
-  --imsim-shadow-focus-strong: 0 0 0 var(--imsim-focus-ring-size) rgba(49, 95, 143, 0.18);
-  --imsim-shadow-focus-slider: 0 0 0 var(--imsim-focus-ring-size) rgba(49, 95, 143, 0.14);
-  --imsim-shadow-focus-slider-dark:
-    0 0 0 var(--imsim-focus-ring-size) rgba(45, 212, 191, 0.16);
+  --imsim-shadow-focus-soft: 0 0 0 var(--imsim-focus-ring-size)
+    rgba(49, 95, 143, 0.12);
+  --imsim-shadow-focus-strong: 0 0 0 var(--imsim-focus-ring-size)
+    rgba(49, 95, 143, 0.18);
+  --imsim-shadow-focus-slider: 0 0 0 var(--imsim-focus-ring-size)
+    rgba(49, 95, 143, 0.14);
+  --imsim-shadow-focus-slider-dark: 0 0 0 var(--imsim-focus-ring-size)
+    rgba(45, 212, 191, 0.16);
   --imsim-bg-grid: rgba(21, 35, 31, 0.035);
   --imsim-bg-accent-a: rgba(22, 114, 100, 0.07);
   --imsim-bg-accent-b: rgba(185, 98, 30, 0.05);
@@ -373,7 +376,11 @@ body {
 }
 
 .lesson-intro-content {
-  background: linear-gradient(180deg, var(--imsim-surface-strong), var(--imsim-surface));
+  background: linear-gradient(
+    180deg,
+    var(--imsim-surface-strong),
+    var(--imsim-surface)
+  );
   border: 1px solid var(--imsim-line);
   border-radius: var(--imsim-radius-4xl);
   box-shadow: var(--imsim-shadow-modal);
@@ -659,7 +666,9 @@ body {
   padding: var(--imsim-space-panel-pad-compact);
 }
 
-@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+@supports not (
+  (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))
+) {
   .lesson-intro-backdrop {
     background: rgba(6, 12, 22, 0.82);
   }
@@ -966,13 +975,21 @@ body {
 }
 
 .button-light {
-  background: color-mix(in srgb, var(--imsim-blue) 8%, var(--imsim-surface-strong));
+  background: color-mix(
+    in srgb,
+    var(--imsim-blue) 8%,
+    var(--imsim-surface-strong)
+  );
   border-color: color-mix(in srgb, var(--imsim-blue) 20%, var(--imsim-line));
   color: var(--imsim-ink);
 }
 
 .button-light:hover {
-  background: color-mix(in srgb, var(--imsim-blue) 13%, var(--imsim-surface-strong));
+  background: color-mix(
+    in srgb,
+    var(--imsim-blue) 13%,
+    var(--imsim-surface-strong)
+  );
   border-color: color-mix(in srgb, var(--imsim-blue) 30%, var(--imsim-line));
 }
 
@@ -1059,7 +1076,8 @@ body {
 }
 
 .upload-shell {
-  border: 1px dashed color-mix(in srgb, var(--imsim-teal) 42%, var(--imsim-line));
+  border: 1px dashed
+    color-mix(in srgb, var(--imsim-teal) 42%, var(--imsim-line));
   border-radius: var(--imsim-radius-xl);
   padding: 1.45rem 1rem;
   text-align: center;
@@ -1179,7 +1197,8 @@ body {
   background: rgba(37, 99, 235, 0.09);
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.34);
   background: color-mix(in srgb, var(--imsim-blue) 9%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--imsim-blue) 34%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--imsim-blue) 34%, transparent);
   cursor: text;
 }
 
@@ -1287,7 +1306,10 @@ body {
 .input-group-text,
 .form-select,
 .form-check-input,
-.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table {
+.dash-table-container
+  .dash-spreadsheet-container
+  .dash-spreadsheet-inner
+  table {
   border-radius: var(--imsim-radius-lg);
 }
 
@@ -1613,7 +1635,11 @@ body {
 .dashboard-shell #actions-panel > .card,
 .dashboard-shell #policy-panel > .card,
 .dashboard-shell #session-panel > .card {
-  background: color-mix(in srgb, var(--imsim-surface-strong) 78%, var(--imsim-bg));
+  background: color-mix(
+    in srgb,
+    var(--imsim-surface-strong) 78%,
+    var(--imsim-bg)
+  );
 }
 
 .dashboard-shell #actions-panel .card-body,
@@ -1750,24 +1776,40 @@ body {
   font-size: 0.68rem;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel .lesson-disclosure-body,
-.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel .lesson-disclosure-body {
+.dashboard-shell.lesson-dashboard.lesson-level-18
+  #service-panel
+  .lesson-disclosure-body,
+.dashboard-shell.lesson-dashboard.lesson-level-19
+  #service-panel
+  .lesson-disclosure-body {
   overflow-x: auto;
   padding-bottom: 0.1rem;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel .lesson-snapshot-grid,
-.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel .lesson-snapshot-grid {
+.dashboard-shell.lesson-dashboard.lesson-level-18
+  #service-panel
+  .lesson-snapshot-grid,
+.dashboard-shell.lesson-dashboard.lesson-level-19
+  #service-panel
+  .lesson-snapshot-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel .lesson-snapshot-stack,
-.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel .lesson-snapshot-stack {
+.dashboard-shell.lesson-dashboard.lesson-level-18
+  #service-panel
+  .lesson-snapshot-stack,
+.dashboard-shell.lesson-dashboard.lesson-level-19
+  #service-panel
+  .lesson-snapshot-stack {
   gap: 0.6rem;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-18 #service-panel .lesson-snapshot-block,
-.dashboard-shell.lesson-dashboard.lesson-level-19 #service-panel .lesson-snapshot-block {
+.dashboard-shell.lesson-dashboard.lesson-level-18
+  #service-panel
+  .lesson-snapshot-block,
+.dashboard-shell.lesson-dashboard.lesson-level-19
+  #service-panel
+  .lesson-snapshot-block {
   min-width: 0;
 }
 
@@ -1830,7 +1872,9 @@ body {
   min-height: 26rem;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-2 .experience-banner-card .card-body {
+.dashboard-shell.lesson-dashboard.lesson-level-2
+  .experience-banner-card
+  .card-body {
   padding: 0.65rem 1rem 0.7rem;
 }
 
@@ -1873,16 +1917,24 @@ body {
   padding: 0.9rem 1rem;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel .lesson-service-table th {
+.dashboard-shell.lesson-dashboard.lesson-level-2
+  #service-panel
+  .lesson-service-table
+  th {
   font-size: 0.67rem;
   letter-spacing: 0.06em;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel .lesson-snapshot-grid {
+.dashboard-shell.lesson-dashboard.lesson-level-2
+  #service-panel
+  .lesson-snapshot-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-2 #service-panel .lesson-service-table td {
+.dashboard-shell.lesson-dashboard.lesson-level-2
+  #service-panel
+  .lesson-service-table
+  td {
   font-size: 0.82rem;
 }
 
@@ -1890,17 +1942,26 @@ body {
   margin-top: 0 !important;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel > .card > .card-body {
+.dashboard-shell.lesson-dashboard.lesson-level-2
+  #session-panel
+  > .card
+  > .card-body {
   padding: 0.9rem 1rem;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
+.dashboard-shell.lesson-dashboard.lesson-level-2
+  #session-panel
+  .session-metrics-grid {
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
 }
 
-.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-primary-block,
-.dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-speed-block {
+.dashboard-shell.lesson-dashboard.lesson-level-2
+  #session-panel
+  .session-primary-block,
+.dashboard-shell.lesson-dashboard.lesson-level-2
+  #session-panel
+  .session-speed-block {
   height: 100%;
 }
 
@@ -2192,7 +2253,8 @@ body {
   }
 
   .dashboard-shell.simulator-dashboard .dashboard-detail-row,
-  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-detail-row {
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification
+    .dashboard-detail-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--imsim-lesson-gap);
@@ -2200,7 +2262,8 @@ body {
   }
 
   .dashboard-shell.simulator-dashboard .dashboard-insights-row,
-  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-insights-row {
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification
+    .dashboard-insights-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--imsim-lesson-gap);
@@ -2218,8 +2281,12 @@ body {
 
   .dashboard-shell.simulator-dashboard .dashboard-insights-row > [id],
   .dashboard-shell.simulator-dashboard .dashboard-detail-row > [id],
-  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-insights-row > [id],
-  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification .dashboard-detail-row > [id] {
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification
+    .dashboard-insights-row
+    > [id],
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification
+    .dashboard-detail-row
+    > [id] {
     width: 100% !important;
     max-width: none !important;
     padding: 0;
@@ -2234,7 +2301,9 @@ body {
   }
 
   .dashboard-shell.simulator-dashboard #exceptions-panel > .card,
-  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification #exceptions-panel > .card {
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification
+    #exceptions-panel
+    > .card {
     height: auto;
   }
 
@@ -2248,7 +2317,9 @@ body {
   }
 
   .dashboard-shell.simulator-dashboard #exceptions-panel .card-body,
-  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification #exceptions-panel .card-body {
+  .dashboard-shell.lesson-dashboard.lesson-layout-workspace-certification
+    #exceptions-panel
+    .card-body {
     max-height: 14rem;
     overflow-y: auto;
   }
@@ -2352,7 +2423,10 @@ body {
     height: auto;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card > .card-body {
+  .dashboard-shell.lesson-dashboard.lesson-level-2
+    #graph-panel
+    > .card
+    > .card-body {
     padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 0.45rem;
   }
 
@@ -2405,12 +2479,14 @@ body {
     grid-area: auto;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) .dashboard-main-layout {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    .dashboard-main-layout {
     align-items: stretch;
     padding-bottom: 1rem;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) .dashboard-main-column {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    .dashboard-main-column {
     display: flex;
     flex-direction: column;
     gap: var(--imsim-lesson-gap);
@@ -2422,18 +2498,24 @@ body {
     padding: 0;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) .dashboard-detail-row {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    .dashboard-detail-row {
     order: 2;
     margin: 0 !important;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) .dashboard-insights-row {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    .dashboard-insights-row {
     order: 3;
     margin: 0 !important;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) .dashboard-detail-row > #inventory-panel,
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) .dashboard-insights-row > #service-panel {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    .dashboard-detail-row
+    > #inventory-panel,
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    .dashboard-insights-row
+    > #service-panel {
     display: flex;
     flex: 0 0 100%;
     max-width: 100%;
@@ -2441,36 +2523,58 @@ body {
     width: 100%;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #graph-panel > .card,
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #inventory-panel > .card,
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #service-panel > .card {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    #graph-panel
+    > .card,
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    #inventory-panel
+    > .card,
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    #service-panel
+    > .card {
     width: 100%;
     max-width: none;
     margin: 0 !important;
     height: auto;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #graph-panel > .card > .card-body {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    #graph-panel
+    > .card
+    > .card-body {
     padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 1.1rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-6 #graph-panel > .card > .card-body,
-  .dashboard-shell.lesson-dashboard.lesson-level-7 #graph-panel > .card > .card-body {
+  .dashboard-shell.lesson-dashboard.lesson-level-6
+    #graph-panel
+    > .card
+    > .card-body,
+  .dashboard-shell.lesson-dashboard.lesson-level-7
+    #graph-panel
+    > .card
+    > .card-body {
     padding: var(--imsim-lesson-card-pad) var(--imsim-lesson-card-pad) 0.45rem;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #inventory-graph {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    #inventory-graph {
     min-height: 18rem;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #inventory-panel .card-body,
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #service-panel .card-body {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    #inventory-panel
+    .card-body,
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    #service-panel
+    .card-body {
     max-height: none;
     overflow: visible;
   }
 
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) #inventory-table-shell,
-  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2) .table-scroll-shell {
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    #inventory-table-shell,
+  .dashboard-shell.lesson-layout-intro-pna:not(.lesson-level-2)
+    .table-scroll-shell {
     max-height: none;
     overflow-x: auto;
     overflow-y: visible;
@@ -2651,23 +2755,42 @@ body {
     grid-area: auto;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel .session-card,
-  .dashboard-shell.lesson-dashboard.lesson-level-11.lesson-layout-workspace-basic #session-panel .session-card,
-  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #session-panel .session-card {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    #session-panel
+    .session-card,
+  .dashboard-shell.lesson-dashboard.lesson-level-11.lesson-layout-workspace-basic
+    #session-panel
+    .session-card,
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal
+    #session-panel
+    .session-card {
     margin-top: 0 !important;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #graph-panel,
-  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal #graph-panel {
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal
+    #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal
+    #graph-panel {
     min-height: 21rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #inventory-graph,
-  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal #inventory-graph {
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal
+    #inventory-graph,
+  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal
+    #inventory-graph {
     min-height: 21rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-main-layout {
+  .dashboard-shell.lesson-dashboard.lesson-level-8.lesson-layout-workspace-basic
+    #inventory-table-grid
+    .ag-body.ag-layout-auto-height {
+    height: 7rem !important;
+    max-height: 7rem !important;
+    min-height: 7rem !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    .dashboard-main-layout {
     grid-template-columns: minmax(17rem, 23rem) minmax(0, 1fr);
     grid-template-rows: auto;
     grid-template-areas: "rail main";
@@ -2677,66 +2800,91 @@ body {
     padding-bottom: 1rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-rail-column,
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-main-column {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    .dashboard-main-column {
     display: flex;
     flex-direction: column;
     gap: var(--imsim-lesson-gap);
     min-width: 0;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-rail-column {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    .dashboard-rail-column {
     grid-area: rail;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-main-column {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    .dashboard-main-column {
     grid-area: main;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-insights-row,
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-detail-row {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    .dashboard-detail-row {
     display: flex;
     margin-left: 0 !important;
     margin-right: 0 !important;
     width: 100%;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-detail-row {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    .dashboard-detail-row {
     order: 2;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal .dashboard-insights-row {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    .dashboard-insights-row {
     order: 3;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel,
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #graph-panel,
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #inventory-panel,
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #service-panel {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    #session-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    #inventory-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    #service-panel {
     grid-area: auto;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    #session-panel {
     align-self: stretch;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal #session-panel > .card {
+  .dashboard-shell.lesson-dashboard.lesson-level-9.lesson-layout-workspace-signal
+    #session-panel
+    > .card {
     height: 100%;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal #graph-panel,
-  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #graph-panel,
-  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal #graph-panel {
+  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal
+    #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal
+    #graph-panel,
+  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal
+    #graph-panel {
     align-self: stretch;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal #graph-panel > .card,
-  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal #graph-panel > .card,
-  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal #graph-panel > .card {
+  .dashboard-shell.lesson-dashboard.lesson-level-10.lesson-layout-workspace-signal
+    #graph-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-12.lesson-layout-workspace-signal
+    #graph-panel
+    > .card,
+  .dashboard-shell.lesson-dashboard.lesson-level-13.lesson-layout-workspace-signal
+    #graph-panel
+    > .card {
     height: 100%;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal .dashboard-main-layout {
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal
+    .dashboard-main-layout {
     grid-template-columns: minmax(15rem, 16.5rem) minmax(0, 1fr);
     grid-template-rows: auto auto auto;
     grid-template-areas:
@@ -2745,15 +2893,18 @@ body {
       ". service";
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #graph-panel {
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal
+    #graph-panel {
     min-height: 22rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #inventory-graph {
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal
+    #inventory-graph {
     min-height: 22rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal #service-panel {
+  .dashboard-shell.lesson-dashboard.lesson-level-17.lesson-layout-workspace-signal
+    #service-panel {
     width: 100% !important;
     max-width: none !important;
     justify-self: start;
@@ -2784,7 +2935,9 @@ body {
     display: flex;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-3 #session-panel .session-card {
+  .dashboard-shell.lesson-dashboard.lesson-level-3
+    #session-panel
+    .session-card {
     margin-top: 0 !important;
   }
 
@@ -2802,7 +2955,10 @@ body {
     height: 100%;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-3 #graph-panel > .card > .card-body {
+  .dashboard-shell.lesson-dashboard.lesson-level-3
+    #graph-panel
+    > .card
+    > .card-body {
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -2826,18 +2982,20 @@ body {
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced .dashboard-rail-column,
-  .dashboard-shell.lesson-layout-workspace-certification .dashboard-rail-column {
+  .dashboard-shell.lesson-layout-workspace-certification
+    .dashboard-rail-column {
     max-width: 19rem;
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced #graph-panel,
   .dashboard-shell.lesson-layout-workspace-certification #graph-panel {
     min-height: 20rem;
-    margin-bottom: var(--imsim-lesson-gap)
+    margin-bottom: var(--imsim-lesson-gap);
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced .dashboard-insights-row,
-  .dashboard-shell.lesson-layout-workspace-certification .dashboard-insights-row {
+  .dashboard-shell.lesson-layout-workspace-certification
+    .dashboard-insights-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--imsim-lesson-gap);
@@ -2908,25 +3066,35 @@ body {
   .dashboard-shell.lesson-layout-workspace-certification #service-panel > .card,
   .dashboard-shell.lesson-layout-workspace-certification #costs-panel > .card,
   .dashboard-shell.lesson-layout-workspace-certification #sales-panel > .card,
-  .dashboard-shell.lesson-layout-workspace-certification #inventory-panel > .card,
-  .dashboard-shell.lesson-layout-workspace-certification #exceptions-panel > .card {
+  .dashboard-shell.lesson-layout-workspace-certification
+    #inventory-panel
+    > .card,
+  .dashboard-shell.lesson-layout-workspace-certification
+    #exceptions-panel
+    > .card {
     width: 100%;
     max-width: none;
     margin: 0 !important;
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced #inventory-panel .card-body,
-  .dashboard-shell.lesson-layout-workspace-certification #inventory-panel .card-body {
+  .dashboard-shell.lesson-layout-workspace-certification
+    #inventory-panel
+    .card-body {
     min-height: 0;
     max-height: none;
   }
 
-  .dashboard-shell.lesson-layout-workspace-certification #exceptions-panel .card-body {
+  .dashboard-shell.lesson-layout-workspace-certification
+    #exceptions-panel
+    .card-body {
     min-height: 0;
   }
 
   .dashboard-shell.lesson-layout-workspace-advanced #inventory-panel .card-body,
-  .dashboard-shell.lesson-layout-workspace-certification #inventory-panel .card-body {
+  .dashboard-shell.lesson-layout-workspace-certification
+    #inventory-panel
+    .card-body {
     display: flex;
     flex-direction: column;
   }
@@ -3112,7 +3280,10 @@ body {
   .dashboard-shell.lesson-dashboard.lesson-level-1 .dashboard-main-layout {
     display: grid;
     grid-template-columns:
-      minmax(var(--imsim-size-lesson-grid-min), var(--imsim-size-lesson-grid-max))
+      minmax(
+        var(--imsim-size-lesson-grid-min),
+        var(--imsim-size-lesson-grid-max)
+      )
       minmax(0, 1fr);
     grid-template-rows: auto auto;
     grid-template-areas:
@@ -3174,7 +3345,10 @@ body {
     height: 100%;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 #graph-panel > .card > .card-body {
+  .dashboard-shell.lesson-dashboard.lesson-level-1
+    #graph-panel
+    > .card
+    > .card-body {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -3185,7 +3359,9 @@ body {
     min-height: var(--imsim-size-lesson-trend-graph-min);
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .session-card {
+  .dashboard-shell.lesson-dashboard.lesson-level-1
+    #session-panel
+    .session-card {
     margin-top: 0 !important;
   }
 
@@ -3194,12 +3370,17 @@ body {
     padding: 0.8rem 0.85rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 #service-panel .panel-title-small,
+  .dashboard-shell.lesson-dashboard.lesson-level-1
+    #service-panel
+    .panel-title-small,
   .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .panel-label {
     margin-bottom: 0.35rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel > .card > .card-body {
+  .dashboard-shell.lesson-dashboard.lesson-level-1
+    #session-panel
+    > .card
+    > .card-body {
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
@@ -3207,7 +3388,9 @@ body {
     overflow: visible;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .status-value {
+  .dashboard-shell.lesson-dashboard.lesson-level-1
+    #session-panel
+    .status-value {
     font-size: 1.6rem;
     margin-bottom: 0.1rem;
   }
@@ -3216,22 +3399,30 @@ body {
     margin-bottom: 0.15rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .speed-readout {
+  .dashboard-shell.lesson-dashboard.lesson-level-1
+    #session-panel
+    .speed-readout {
     margin-bottom: 0.25rem;
     min-height: 2.2rem;
     padding: 0.4rem 0.7rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .control-label.mt-3 {
+  .dashboard-shell.lesson-dashboard.lesson-level-1
+    #session-panel
+    .control-label.mt-3 {
     margin-top: 0.45rem !important;
     margin-bottom: 0.1rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel .sim-speed-slider {
+  .dashboard-shell.lesson-dashboard.lesson-level-1
+    #session-panel
+    .sim-speed-slider {
     margin: 0 0 0.15rem;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-1 #session-panel #asq-apply-feedback {
+  .dashboard-shell.lesson-dashboard.lesson-level-1
+    #session-panel
+    #asq-apply-feedback {
     margin-top: 0.25rem !important;
   }
 }
@@ -3329,7 +3520,9 @@ body {
     grid-area: service;
   }
 
-  .dashboard-shell.lesson-dashboard.lesson-level-2 #session-panel .session-metrics-grid {
+  .dashboard-shell.lesson-dashboard.lesson-level-2
+    #session-panel
+    .session-metrics-grid {
     grid-template-columns: 1fr;
   }
 }
