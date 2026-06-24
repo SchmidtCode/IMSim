@@ -33,7 +33,6 @@ def register_maintenance_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("academy-theme-toggle", "children"),
             Output("academy-theme-toggle", "className"),
             Output("lesson-intro-modal", "content_class_name"),
-            Output("academy-cheat-code-modal", "content_class_name"),
             Output("reference-modal", "content_class_name"),
             Output("add-item-modal", "content_class_name"),
             Output("place-custom-order-modal", "content_class_name"),
@@ -71,14 +70,9 @@ def register_maintenance_callbacks(ctx: CallbackRegistrarContext) -> None:
                 else "imsim-modal-content"
             ),
             (
-                "imsim-modal-content theme-dark"
+                "imsim-modal-content custom-order-modal-content theme-dark"
                 if current_theme == "dark"
-                else "imsim-modal-content"
-            ),
-            (
-                "imsim-modal-content theme-dark"
-                if current_theme == "dark"
-                else "imsim-modal-content"
+                else "imsim-modal-content custom-order-modal-content"
             ),
             (
                 "imsim-modal-content theme-dark"

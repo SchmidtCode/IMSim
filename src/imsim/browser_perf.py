@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import statistics
 import sys
 import time
@@ -17,7 +16,6 @@ class BrowserPerfOptions:
     contexts: tuple[int, ...]
     duration_seconds: float
     headless: bool
-    password: str
     json_output: Path | None
     progress: bool
     progress_interval_seconds: float
@@ -213,9 +211,6 @@ def _count_http_error(index: int, counts: dict[int, int], samples: list[str]):
 def _prepare_simulator_page(page, options: BrowserPerfOptions, timeout_error) -> None:
     page.goto(options.url, wait_until="networkidle", timeout=30000)
     page.locator("#academy-cheat-code-button").click(force=True, timeout=10000)
-    page.locator("#academy-cheat-code-input").fill(options.password, timeout=10000)
-    page.locator("#academy-cheat-code-submit").click(timeout=10000)
-    _wait_for_modal_to_close(page, timeout_error)
     page.wait_for_function(
         "() => document.querySelector('#academy-simulator-button')"
         " && !document.querySelector('#academy-simulator-button').disabled",
@@ -510,10 +505,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--duration", type=float, default=300.0)
     parser.add_argument("--headed", action="store_true", help="Show the browser window.")
-    parser.add_argument(
-        "--password",
-        default=os.environ.get("IMSIM_CHEAT_UNLOCK_PASSWORD", "spreadsheets rule"),
-    )
     parser.add_argument("--json-output", type=Path)
     parser.add_argument(
         "--progress-interval",
@@ -533,7 +524,6 @@ def main(argv: list[str] | None = None) -> None:
         contexts=tuple(max(1, count) for count in args.contexts),
         duration_seconds=max(1.0, float(args.duration)),
         headless=not args.headed,
-        password=str(args.password),
         json_output=args.json_output,
         progress=not args.quiet,
         progress_interval_seconds=max(1.0, float(args.progress_interval)),

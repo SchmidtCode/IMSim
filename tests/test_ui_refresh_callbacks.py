@@ -1,7 +1,28 @@
 from __future__ import annotations
 
-from imsim.callbacks.training import dashboard_shell_class_name
-from imsim.services.training import build_level_state
+import dash
+from dash_ag_grid import AgGrid
+
+import imsim.ui.components as ui_components
+from imsim.callbacks.simulation import _inventory_table_update, _lesson_tick_session_revision
+from imsim.callbacks.training import (
+    _dashboard_layout_revision_update,
+    dashboard_shell_class_name,
+)
+from imsim.services.simulation import place_purchase_orders
+from imsim.services.training import build_level_state, build_simulator_state
+
+
+def _walk_components(component):
+    yield component
+    children = getattr(component, "children", None)
+    if children is None or isinstance(children, str):
+        return
+    if isinstance(children, (list, tuple)):
+        for child in children:
+            yield from _walk_components(child)
+        return
+    yield from _walk_components(children)
 
 
 def _output_pairs(spec):
@@ -23,7 +44,56 @@ def _find_callback(dash_app, required_outputs):
     raise AssertionError(f"Callback with outputs {sorted(required)} not found")
 
 
-def test_dashboard_render_listens_to_session_revision_and_theme(dash_app):
+def test_components_facade_exports_existing_ui_surface():
+    expected = {
+        "_grid_theme_class",
+        "_plot_base_layout",
+        "_plot_line",
+        "_plot_marker",
+        "_plot_marker_outline",
+        "academy_level_card_children",
+        "build_custom_order_grid",
+        "build_exception_center",
+        "build_inventory_figure",
+        "build_inventory_rows",
+        "build_inventory_table",
+        "build_kpi_strip",
+        "build_po_overview_grid",
+        "github_footer_card",
+        "inventory_graph_style",
+        "refresh_inventory_figure",
+        "service_card_children",
+    }
+    assert expected <= set(ui_components.__all__)
+    assert all(hasattr(ui_components, name) for name in expected)
+
+
+def test_layout_keeps_callback_target_ids(dash_app):
+    component_ids = {
+        getattr(component, "id", None)
+        for component in _walk_components(dash_app.layout)
+        if getattr(component, "id", None)
+    }
+    assert {
+        "academy-menu-shell",
+        "lesson-shell",
+        "simulator-shell",
+        "dashboard-shell",
+        "academy-cheat-code-button",
+        "reference-modal",
+        "add-item-modal",
+        "place-custom-order-modal",
+        "po-overview-modal",
+        "inventory-graph",
+        "inventory-table-shell",
+        "custom-order-grid",
+        "po-overview-grid",
+        "dashboard-layout-revision",
+        "lesson-snapshot-open-store",
+    } <= component_ids
+
+
+def test_dashboard_render_waits_for_dashboard_layout_revision(dash_app):
     spec = _find_callback(
         dash_app,
         [
@@ -36,10 +106,56 @@ def test_dashboard_render_listens_to_session_revision_and_theme(dash_app):
     )
     assert _input_pairs(spec) == {
         ("user-data-store", "data"),
-        ("session-revision", "data"),
+        ("dashboard-layout-revision", "data"),
         ("dashboard-tick", "data"),
         ("theme-store", "data"),
     }
+
+
+def test_running_lesson_tick_does_not_rebuild_training_shell():
+    class RevisionContext:
+        def next_session_revision(self, revision):
+            return int(revision or 0) + 1
+
+    ctx = RevisionContext()
+
+    assert _lesson_tick_session_revision({"lesson_completed": 0}, 7, ctx) is dash.no_update
+    assert _lesson_tick_session_revision({"lesson_completed": 1}, 7, ctx) == 8
+
+
+def test_lesson_dashboard_tick_does_not_remount_inventory_grid():
+    state = build_level_state("level-3")
+    simulator_state = build_simulator_state()
+
+    initial_table = _inventory_table_update(state, "light", "dashboard-layout-revision")
+    lesson_tick = _inventory_table_update(state, "light", "dashboard-tick")
+    simulator_tick = _inventory_table_update(simulator_state, "light", "dashboard-tick")
+
+    assert isinstance(initial_table, AgGrid)
+    assert lesson_tick is dash.no_update
+    assert isinstance(simulator_tick, AgGrid)
+
+
+def test_lesson_inventory_grid_rows_refresh_on_dashboard_tick(dash_app):
+    spec = _find_callback(dash_app, [("inventory-table-grid", "rowData")])
+
+    assert _input_pairs(spec) == {("dashboard-tick", "data")}
+
+
+def test_interval_tick_updates_terminal_lesson_controls_immediately(dash_app):
+    spec = _find_callback(
+        dash_app,
+        [
+            ("day-display", "children"),
+            ("sim-status", "children"),
+            ("start-button", "children"),
+            ("start-button", "className"),
+            ("start-button", "disabled"),
+            ("lesson-compact-summary", "children"),
+            ("interval-component", "disabled"),
+        ],
+    )
+    assert _input_pairs(spec) == {("interval-component", "n_intervals")}
 
 
 def test_training_shell_render_listens_to_session_revision(dash_app):
@@ -50,12 +166,50 @@ def test_training_shell_render_listens_to_session_revision(dash_app):
             ("lesson-shell", "style"),
             ("dashboard-shell", "className"),
             ("interval-component", "disabled"),
+            ("dashboard-layout-revision", "data"),
         ],
     )
     assert _input_pairs(spec) == {
         ("user-data-store", "data"),
         ("session-revision", "data"),
     }
+
+
+def test_dashboard_layout_revision_ignores_start_only_changes():
+    class RevisionContext:
+        def next_session_revision(self, revision):
+            return int(revision or 0) + 1
+
+    ctx = RevisionContext()
+    state = build_level_state("level-3")
+    initial_revision = _dashboard_layout_revision_update(state, 0, ctx)
+
+    state.is_initialized = True
+    state.training.lesson_status = "running"
+
+    assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
+
+    state.day = 2
+    assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
+
+    state.global_settings.r_cycle += 1
+    changed_revision = _dashboard_layout_revision_update(state, initial_revision, ctx)
+    assert changed_revision["revision"] == initial_revision["revision"] + 1
+
+
+def test_dashboard_layout_revision_ignores_guided_order_data_changes():
+    class RevisionContext:
+        def next_session_revision(self, revision):
+            return int(revision or 0) + 1
+
+    ctx = RevisionContext()
+    state = build_level_state("level-3")
+    initial_revision = _dashboard_layout_revision_update(state, 0, ctx)
+
+    place_purchase_orders(state)
+    state.training.guided_orders_placed += 1
+
+    assert _dashboard_layout_revision_update(state, initial_revision, ctx) is dash.no_update
 
 
 def test_page_lifecycle_changes_refresh_session_state(dash_app):
@@ -73,13 +227,14 @@ def test_academy_navigation_wires_final_lesson_button(dash_app):
     )
 
 
-def test_academy_navigation_emits_scroll_reset_trigger(dash_app):
+def test_academy_navigation_resets_scroll_and_snapshot_state(dash_app):
     spec = _find_callback(
         dash_app,
         [
             ("session-revision", "data"),
             ("asq-apply-feedback", "children"),
             ("view-scroll-store", "data"),
+            ("lesson-snapshot-open-store", "data"),
         ],
     )
     assert ("academy-simulator-button", "n_clicks") in _input_pairs(spec)
@@ -116,7 +271,6 @@ def test_theme_callback_updates_control_modal_content_classes(dash_app):
         dash_app,
         [
             ("lesson-intro-modal", "content_class_name"),
-            ("academy-cheat-code-modal", "content_class_name"),
             ("reference-modal", "content_class_name"),
             ("add-item-modal", "content_class_name"),
             ("place-custom-order-modal", "content_class_name"),
@@ -141,20 +295,14 @@ def test_reference_modal_toggle_is_wired(dash_app):
     }
 
 
-def test_academy_cheat_code_modal_updates_progress(dash_app):
-    spec = _find_callback(
-        dash_app,
-        [
-            ("academy-cheat-code-modal", "is_open"),
-            ("academy-cheat-code-feedback", "children"),
-            ("session-revision", "data"),
-        ],
-    )
-    assert _input_pairs(spec) == {
-        ("academy-cheat-code-button", "n_clicks"),
-        ("academy-cheat-code-cancel", "n_clicks"),
-        ("academy-cheat-code-submit", "n_clicks"),
-    }
+def test_unlock_all_button_updates_progress(dash_app):
+    matches = [
+        spec
+        for spec in dash_app.callback_map.values()
+        if ("session-revision", "data") in _output_pairs(spec)
+        and _input_pairs(spec) == {("academy-cheat-code-button", "n_clicks")}
+    ]
+    assert matches
 
 
 def test_randomize_button_populates_manual_item_fields(dash_app):
@@ -179,6 +327,15 @@ def test_state_changes_emit_session_revision(dash_app):
             ("dashboard-tick", "data"),
             ("session-revision", "data"),
             ("asq-apply-feedback", "children"),
+        ],
+        [
+            ("session-revision", "data"),
+            ("asq-apply-feedback", "children"),
+            ("lesson-snapshot-open-store", "data"),
+        ],
+        [
+            ("session-revision", "data"),
+            ("inventory-table-grid", "rowData"),
         ],
         [
             ("session-revision", "data"),

@@ -445,9 +445,7 @@ def test_config_from_env_loads_repo_dotenv_without_overriding_process_env(monkey
     (repo_root / "assets").mkdir()
     (repo_root / "examples").mkdir()
     (repo_root / ".env").write_text(
-        "IMSIM_ADMIN_TOKEN=from-dotenv\n"
-        "IMSIM_CHEAT_UNLOCK_PASSWORD='TUG rocks'\n"
-        "IMSIM_MAX_UPLOAD_BYTES=12345\n",
+        "IMSIM_ADMIN_TOKEN=from-dotenv\nIMSIM_MAX_UPLOAD_BYTES=12345\n",
         encoding="utf-8",
     )
     fake_file = package_dir / "config.py"
@@ -458,12 +456,10 @@ def test_config_from_env_loads_repo_dotenv_without_overriding_process_env(monkey
     monkeypatch.delenv("IMSIM_DATABASE_URL", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("IMSIM_ADMIN_TOKEN", raising=False)
-    monkeypatch.setenv("IMSIM_CHEAT_UNLOCK_PASSWORD", "from-env")
 
     config = IMSimConfig.from_env()
 
     assert config.admin_token == "from-dotenv"
-    assert config.cheat_unlock_password == "from-env"
     assert config.max_upload_bytes == 12345
 
 

@@ -13,7 +13,7 @@ Published tags include:
 - `latest` on the default branch
 - `sha-<commit>`
 - branch names for `main` and `master`
-- version tags such as `v0.2.0`
+- version tags such as `v1.0.0`
 
 ## Deploy with Docker Compose
 

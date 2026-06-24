@@ -3,22 +3,71 @@ from __future__ import annotations
 import dash
 import dash_bootstrap_components as dbc
 from dash import Input, Output, State
+from dash import ctx as dash_ctx
 from dash.exceptions import PreventUpdate
 
 from ..models import default_state
 from ..services.simulation import tick_state
-from ..services.training import build_level_state, build_simulator_state
+from ..services.training import active_level, build_level_state, build_simulator_state
 from ..ui.components import (
     build_exception_center,
     build_inventory_table,
     build_kpi_strip,
     costs_card_children,
     inventory_graph_style,
+    lesson_compact_summary_children,
     refresh_inventory_figure,
     sales_card_children,
     service_card_children,
 )
+from ..ui.grids import build_inventory_rows
 from .common import CallbackRegistrarContext
+
+
+def _status_label(state) -> str:
+    if state.is_initialized:
+        return "Status: Running"
+    if state.training.lesson_status == "passed":
+        return "Status: Lesson complete"
+    if state.training.lesson_status == "failed":
+        return "Status: Lesson failed"
+    return "Status: Ready" if state.training.current_view != "main_menu" else "Status: Academy menu"
+
+
+def _start_button_view(state, ctx: CallbackRegistrarContext) -> tuple[str, str, bool]:
+    terminal = ctx.lesson_terminal(state)
+    label, class_name = ctx.start_button_state(
+        state,
+        running=state.is_initialized,
+        disabled=terminal,
+        resumable=(
+            not state.is_initialized
+            and state.day > 1
+            and state.training.current_view != "main_menu"
+            and not terminal
+        ),
+    )
+    return label, class_name, terminal
+
+
+def _lesson_tick_session_revision(summary: dict[str, int], session_revision, ctx):
+    if summary.get("lesson_completed"):
+        return ctx.next_session_revision(session_revision)
+    return dash.no_update
+
+
+def _inventory_table_update(state, theme_name: str, triggered_id):
+    if triggered_id == "dashboard-tick" and active_level(state) is not None:
+        return dash.no_update
+    return build_inventory_table(state, theme_name)
+
+
+def _snapshot_open_state(snapshot_open_data) -> bool:
+    return bool(
+        snapshot_open_data.get("open")
+        if isinstance(snapshot_open_data, dict)
+        else snapshot_open_data
+    )
 
 
 def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
@@ -37,13 +86,21 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("exception-center-shell", "children"),
         ],
         Input("user-data-store", "data"),
-        Input("session-revision", "data"),
+        Input("dashboard-layout-revision", "data"),
         Input("dashboard-tick", "data"),
         Input("theme-store", "data"),
         State("inventory-graph", "figure"),
+        State("lesson-snapshot-open-store", "data"),
         prevent_initial_call="initial_duplicate",
     )
-    def render_dashboard(client_data, _session_revision, _dashboard_tick, theme, current_figure):
+    def render_dashboard(
+        client_data,
+        _dashboard_layout_revision,
+        _dashboard_tick,
+        theme,
+        current_figure,
+        snapshot_open_data,
+    ):
         session_id = (client_data or {}).get("uuid")
         state = ctx.repository.get_or_create(session_id) if session_id else default_state()
         theme_name = ctx.theme_name(theme)
@@ -51,16 +108,34 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
             f"Day: {state.day}",
             refresh_inventory_figure(state, theme_name, current_figure),
             inventory_graph_style(state),
-            service_card_children(state),
+            service_card_children(state, _snapshot_open_state(snapshot_open_data)),
             costs_card_children(state),
             sales_card_children(state),
             build_kpi_strip(state),
-            build_inventory_table(state, theme_name),
+            _inventory_table_update(state, theme_name, dash_ctx.triggered_id),
             build_exception_center(state),
         )
 
     @app.callback(
+        Output("inventory-table-grid", "rowData"),
+        Input("dashboard-tick", "data"),
+        State("user-data-store", "data"),
+        prevent_initial_call=True,
+    )
+    def refresh_lesson_inventory_rows(_dashboard_tick, client_data):
+        state = ctx.current_state(client_data)
+        if active_level(state) is None:
+            raise PreventUpdate
+        return build_inventory_rows(state)
+
+    @app.callback(
         [
+            Output("day-display", "children", allow_duplicate=True),
+            Output("sim-status", "children", allow_duplicate=True),
+            Output("start-button", "children", allow_duplicate=True),
+            Output("start-button", "className", allow_duplicate=True),
+            Output("start-button", "disabled", allow_duplicate=True),
+            Output("lesson-compact-summary", "children", allow_duplicate=True),
             Output("dashboard-tick", "data", allow_duplicate=True),
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
@@ -91,9 +166,36 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
             )
         next_tick = ctx.next_session_revision(dashboard_tick)
         interval_disabled = not state.is_initialized
+        start_label, start_class, start_disabled = _start_button_view(state, ctx)
+        immediate_ui = (
+            f"Day: {state.day}",
+            _status_label(state),
+            start_label,
+            start_class,
+            start_disabled,
+        )
+        compact_summary = (
+            dash.no_update
+            if state.training.current_view == "simulator"
+            else lesson_compact_summary_children(state)
+        )
         if state.training.current_view == "simulator":
-            return next_tick, dash.no_update, feedback, interval_disabled
-        return next_tick, ctx.next_session_revision(session_revision), feedback, interval_disabled
+            return (
+                *immediate_ui,
+                compact_summary,
+                next_tick,
+                dash.no_update,
+                feedback,
+                interval_disabled,
+            )
+        return (
+            *immediate_ui,
+            compact_summary,
+            next_tick,
+            _lesson_tick_session_revision(summary, session_revision, ctx),
+            feedback,
+            interval_disabled,
+        )
 
     @app.callback(
         Output("session-revision", "data", allow_duplicate=True),
@@ -122,13 +224,16 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         [
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
+            Output("lesson-snapshot-open-store", "data", allow_duplicate=True),
+            Output("dashboard-tick", "data", allow_duplicate=True),
         ],
         Input("reset-button", "n_clicks"),
         State("user-data-store", "data"),
         State("session-revision", "data"),
+        State("dashboard-tick", "data"),
         prevent_initial_call=True,
     )
-    def reset_simulation(n_clicks, client_data, session_revision):
+    def reset_simulation(n_clicks, client_data, session_revision, dashboard_tick):
         if not n_clicks:
             raise PreventUpdate
         session_id = (client_data or {}).get("uuid", "__bootstrap__")
@@ -148,7 +253,12 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         ctx.carry_revision(state, current)
         if session_id != "__bootstrap__":
             ctx.persist_state(session_id, state)
-        return ctx.next_session_revision(session_revision), dash.no_update
+        return (
+            ctx.next_session_revision(session_revision),
+            dash.no_update,
+            {"open": False},
+            ctx.next_session_revision(dashboard_tick),
+        )
 
     @app.callback(
         [

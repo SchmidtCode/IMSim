@@ -32,7 +32,9 @@ from ..services.training import (
 from ..services.uploads import coerce_uploaded, parse_contents, read_uploaded_table
 from ..ui.components import (
     build_custom_order_grid,
+    build_inventory_rows,
     build_po_overview_grid,
+    custom_order_grid_style,
 )
 from .common import CallbackRegistrarContext
 
@@ -318,7 +320,10 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
     )
     def handle_review_cycle_override(override_days, client_data, session_revision):
         session_id, state = ctx.require_session(client_data)
-        if not is_action_allowed(state, "update_parameters"):
+        if not (
+            is_action_allowed(state, "review_cycle_override")
+            or is_action_allowed(state, "update_parameters")
+        ):
             return dash.no_update, dbc.Alert(
                 "Review Cycle Override unlocks in later lessons.",
                 color="warning",
@@ -398,7 +403,10 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
         )
 
     @app.callback(
-        Output("session-revision", "data", allow_duplicate=True),
+        [
+            Output("session-revision", "data", allow_duplicate=True),
+            Output("inventory-table-grid", "rowData", allow_duplicate=True),
+        ],
         Input("po-button", "n_clicks"),
         State("user-data-store", "data"),
         State("session-revision", "data"),
@@ -425,12 +433,13 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             )
             clear_review_cycle_override_after_order(state)
         ctx.persist_state(session_id, state)
-        return ctx.next_session_revision(session_revision)
+        return ctx.next_session_revision(session_revision), build_inventory_rows(state)
 
     @app.callback(
         [
             Output("custom-order-grid", "rowData"),
             Output("custom-order-grid", "columnDefs"),
+            Output("custom-order-grid", "style"),
             Output("session-revision", "data", allow_duplicate=True),
         ],
         [
@@ -464,12 +473,22 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             ctx.persist_state(session_id, state)
             grid = build_custom_order_grid(state, theme_name)
             if isinstance(grid, dbc.Alert):
-                return [], [], ctx.next_session_revision(session_revision)
+                return (
+                    [],
+                    [],
+                    custom_order_grid_style(),
+                    ctx.next_session_revision(session_revision),
+                )
             set_props("place-custom-order-modal", {"is_open": True})
-            return grid.rowData, grid.columnDefs, ctx.next_session_revision(session_revision)
+            return (
+                grid.rowData,
+                grid.columnDefs,
+                custom_order_grid_style(len(grid.rowData or [])),
+                ctx.next_session_revision(session_revision),
+            )
         if dash_ctx.triggered_id == "cancel-custom-order-button":
             set_props("place-custom-order-modal", {"is_open": False})
-            return dash.no_update, dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update
         if dash_ctx.triggered_id != "place-order-button":
             raise PreventUpdate
         if not is_action_allowed(state, "custom_order"):
@@ -485,8 +504,13 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
         grid = build_custom_order_grid(state, theme_name)
         set_props("place-custom-order-modal", {"is_open": False})
         if isinstance(grid, dbc.Alert):
-            return [], [], ctx.next_session_revision(session_revision)
-        return grid.rowData, grid.columnDefs, ctx.next_session_revision(session_revision)
+            return [], [], custom_order_grid_style(), ctx.next_session_revision(session_revision)
+        return (
+            grid.rowData,
+            grid.columnDefs,
+            custom_order_grid_style(len(grid.rowData or [])),
+            ctx.next_session_revision(session_revision),
+        )
 
     @app.callback(
         [

@@ -20,7 +20,6 @@ from imsim.services.training import (
     apply_lesson_evaluation,
     build_level_state,
     build_simulator_state,
-    cheat_unlock_password_matches,
     evaluate_active_lesson,
     final_academy_level,
     is_action_allowed,
@@ -41,6 +40,7 @@ from imsim.ui.components import (
     build_inventory_table,
     build_po_overview_grid,
     custom_order_grid_options,
+    custom_order_grid_style,
     inventory_graph_style,
     lesson_compact_summary_children,
     lesson_objective_children,
@@ -208,6 +208,8 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert isinstance(basic_grid, AgGrid)
     assert basic_grid.style["height"] == "auto"
     assert basic_grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert basic_grid.columnSize == "responsiveSizeToFit"
+    assert "lesson-inventory-grid" in basic_grid.className
     assert isinstance(intro_pna_grid, AgGrid)
     assert intro_pna_grid.style["height"] == "auto"
     assert intro_pna_grid.dashGridOptions["domLayout"] == "autoHeight"
@@ -242,6 +244,9 @@ def test_workspace_variants_drive_figure_and_grid_sizes():
     assert isinstance(simulator_grid, AgGrid)
     assert simulator_grid.style["height"] == "28rem"
     assert simulator_grid.dashGridOptions["pagination"] is True
+    assert simulator_grid.dashGridOptions["paginationAutoPageSize"] is True
+    assert "paginationPageSize" not in simulator_grid.dashGridOptions
+    assert simulator_grid.columnSize == "sizeToFit"
     assert simulator_grid.columnDefs[-1]["field"] == "soq"
     assert simulator_grid.columnDefs[-1]["minWidth"] == 96
     assert simulator_figure.layout.height == 460
@@ -278,9 +283,16 @@ def test_level_seventeen_uses_exception_boundary_figure():
 
 
 def test_inventory_graph_style_tracks_figure_height():
+    intro_state = build_level_state("level-1")
     lesson_state = build_level_state("level-2")
     simulator_state = build_simulator_state()
 
+    assert inventory_graph_style(intro_state) == {
+        "flex": "1 1 auto",
+        "height": "100%",
+        "minHeight": "340px",
+        "width": "100%",
+    }
     assert inventory_graph_style(lesson_state) == {
         "height": "392px",
         "minHeight": "392px",
@@ -410,6 +422,16 @@ def test_early_ordering_snapshots_are_collapsed_by_default():
         assert snapshot_json["type"] == "Details"
         assert snapshot_json["props"]["className"] == "lesson-snapshot-disclosure"
         assert "open" not in snapshot_json["props"]
+
+
+def test_lesson_snapshot_can_preserve_expanded_state():
+    state = build_level_state("level-5")
+
+    snapshot = service_card_children(state, snapshot_open=True)[0]
+    snapshot_json = snapshot.to_plotly_json()
+
+    assert snapshot_json["props"]["id"] == "lesson-snapshot-disclosure"
+    assert snapshot_json["props"]["open"] is True
 
 
 def test_level_seven_uses_full_pna_formula_wording():
@@ -560,7 +582,7 @@ def test_custom_order_and_po_overview_use_ag_grid():
     assert po_grid.dashGridOptions["rowSelection"]["enableSelectionWithoutKeys"] is True
     assert po_grid.dashGridOptions["rowSelection"]["checkboxes"] is True
     assert po_grid.dashGridOptions["rowSelection"]["headerCheckbox"] is True
-    assert custom_order_grid.style["height"] == "26rem"
+    assert custom_order_grid.style == custom_order_grid_style(len(custom_order_grid.rowData))
     assert po_grid.style["height"] == "26rem"
 
 
@@ -822,7 +844,8 @@ def test_emergency_bridge_lesson_tracks_temporary_review_cycle_workflow():
     level = academy_level("level-18")
     assert level is not None
     assert state.global_settings.r_cycle == 7
-    assert is_action_allowed(state, "update_parameters") is True
+    assert is_action_allowed(state, "review_cycle_override") is True
+    assert is_action_allowed(state, "update_parameters") is False
     assert is_action_allowed(state, "po_overview") is True
 
     state.global_settings.review_cycle_override_days = 11
@@ -974,7 +997,7 @@ def test_training_profile_migrates_legacy_certification_progress():
     assert legacy.auto_po_reward_unlocked is True
 
 
-def test_cheat_unlock_opens_all_levels_without_completing_lessons():
+def test_unlock_all_opens_all_levels_without_completing_lessons():
     profile = TrainingProfile(completed_levels=["level-1"])
 
     unlock_all_academy_levels(profile)
@@ -984,8 +1007,6 @@ def test_cheat_unlock_opens_all_levels_without_completing_lessons():
     assert profile.simulator_unlocked is True
     assert profile.auto_po_reward_unlocked is True
     assert profile.last_result_title == "Academy unlocked"
-    assert cheat_unlock_password_matches("  spreadsheets   rule  ") is True
-    assert cheat_unlock_password_matches("spreadsheet vibes") is False
 
 
 def test_active_layout_variant_tracks_bridge_and_certification():

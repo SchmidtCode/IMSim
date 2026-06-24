@@ -61,7 +61,6 @@ class IMSimConfig:
     host: str
     port: int
     debug: bool
-    cheat_unlock_password: str = "spreadsheets rule"
     max_upload_bytes: int = 5 * 1024 * 1024
 
     @classmethod
@@ -89,9 +88,6 @@ class IMSimConfig:
             host=os.environ.get("IMSIM_HOST") or os.environ.get("HOST", "127.0.0.1"),
             port=int(os.environ.get("IMSIM_PORT") or os.environ.get("PORT", "8050")),
             debug=os.environ.get("IMSIM_DEBUG", "0").lower() in {"1", "true", "yes"},
-            cheat_unlock_password=os.environ.get(
-                "IMSIM_CHEAT_UNLOCK_PASSWORD", "spreadsheets rule"
-            ),
             max_upload_bytes=max(
                 1024,
                 int(os.environ.get("IMSIM_MAX_UPLOAD_BYTES", str(5 * 1024 * 1024))),

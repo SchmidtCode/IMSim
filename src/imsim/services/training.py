@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from dataclasses import asdict, dataclass
 
 from ..models import GlobalSettings, SimulationState, TrainingProfile
@@ -783,10 +782,10 @@ LESSON_DEFINITIONS: tuple[LevelDefinition, ...] = (
             _item(30, 30, 120, 45, safety_allowance_pct=20, standard_pack=1, hits_per_month=5),
             _item(45, 10, 22, 15, safety_allowance_pct=30, standard_pack=4, hits_per_month=18),
         ),
-        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions", "policy"}),
+        visible_panels=frozenset({"graph", "service", "inventory", "session", "actions"}),
         visible_columns=("item", "pna", "op", "lp", "usage_rate", "soq", "on_order", "backorder"),
         allowed_actions=frozenset(
-            {"guided_po", "custom_order", "po_overview", "update_parameters"}
+            {"guided_po", "custom_order", "po_overview", "review_cycle_override"}
         ),
         win_conditions={
             "emergency_review_cycle_min": 11,
@@ -874,15 +873,6 @@ def clone_training_profile(profile: TrainingProfile) -> TrainingProfile:
 
 def academy_levels() -> tuple[LevelDefinition, ...]:
     return LESSON_DEFINITIONS
-
-
-def cheat_unlock_password() -> str:
-    return os.environ.get("IMSIM_CHEAT_UNLOCK_PASSWORD", "spreadsheets rule")
-
-
-def cheat_unlock_password_matches(password: str | None) -> bool:
-    normalized = " ".join(str(password or "").strip().casefold().split())
-    return normalized == " ".join(cheat_unlock_password().strip().casefold().split())
 
 
 def unlock_all_academy_levels(profile: TrainingProfile) -> TrainingProfile:

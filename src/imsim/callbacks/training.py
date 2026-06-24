@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-import dash_bootstrap_components as dbc
-from dash import Input, Output, State, html, no_update
+import hashlib
+import json
+from dataclasses import asdict
+
+import dash
+from dash import Input, Output, State, html
 from dash import ctx as dash_ctx
 from dash.exceptions import PreventUpdate
 
@@ -11,11 +15,11 @@ from ..services.training import (
     active_level,
     build_level_state,
     build_simulator_state,
-    cheat_unlock_password_matches,
     is_action_allowed,
     reset_progress_state,
     simulator_view_allowed,
     unlock_all_academy_levels,
+    visible_columns,
     visible_panels,
 )
 from ..ui.components import (
@@ -49,6 +53,74 @@ def scroll_reset_view_key(state) -> str:
     if state.training.current_view == "simulator":
         return f"simulator:{dashboard_shell_class_name(state)}"
     return state.training.current_view
+
+
+def experience_kicker_text(state, level) -> str:
+    if state.training.current_view == "simulator":
+        return "Simulator"
+    if level is not None:
+        return f"Lesson {level.index}"
+    return "Lesson"
+
+
+def _dashboard_item_signature(item) -> dict[str, float]:
+    return {
+        key: getattr(item, key)
+        for key in (
+            "usage_rate",
+            "lead_time",
+            "item_cost",
+            "safety_allowance",
+            "standard_pack",
+            "hits_per_month",
+            "daily_ur",
+            "op",
+            "lp",
+            "eoq",
+            "oq",
+            "surplus_line",
+            "cp",
+            "op_base_raw",
+        )
+    }
+
+
+def _dashboard_refresh_signature(state) -> str:
+    training = state.training
+    payload = {
+        "dashboard_class": dashboard_shell_class_name(state),
+        "global_settings": asdict(state.global_settings),
+        "items": [_dashboard_item_signature(item) for item in state.items],
+        "training": {
+            "current_view": training.current_view,
+            "active_level_id": training.active_level_id,
+            "highest_unlocked_level": training.highest_unlocked_level,
+            "completed_levels": training.completed_levels,
+            "simulator_unlocked": training.simulator_unlocked,
+            "auto_po_reward_unlocked": training.auto_po_reward_unlocked,
+        },
+        "visible_columns": visible_columns(state),
+        "visible_panels": sorted(visible_panels(state)),
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha1(encoded).hexdigest()
+
+
+def _dashboard_layout_revision_update(state, current_data, ctx: CallbackRegistrarContext):
+    revision = 0
+    current_signature = None
+    if isinstance(current_data, dict):
+        revision = int(current_data.get("revision") or 0)
+        current_signature = current_data.get("signature")
+    elif current_data is not None:
+        revision = int(current_data or 0)
+    next_signature = _dashboard_refresh_signature(state)
+    if current_signature == next_signature:
+        return dash.no_update
+    return {
+        "revision": ctx.next_session_revision(revision),
+        "signature": next_signature,
+    }
 
 
 def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
@@ -145,6 +217,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("session-revision", "data", allow_duplicate=True),
             Output("asq-apply-feedback", "children", allow_duplicate=True),
             Output("view-scroll-store", "data", allow_duplicate=True),
+            Output("lesson-snapshot-open-store", "data", allow_duplicate=True),
         ],
         [
             *level_button_inputs,
@@ -217,7 +290,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             "revision": next_revision,
             "view_key": scroll_reset_view_key(next_state),
         }
-        return next_revision, html.Div(), scroll_payload
+        return next_revision, html.Div(), scroll_payload, {"open": False}
 
     app.clientside_callback(
         """
@@ -314,67 +387,27 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
     )
 
     @app.callback(
+        Output("session-revision", "data", allow_duplicate=True),
+        Input("academy-cheat-code-button", "n_clicks"),
         [
-            Output("academy-cheat-code-modal", "is_open"),
-            Output("academy-cheat-code-feedback", "children"),
-            Output("academy-cheat-code-input", "value"),
-            Output("session-revision", "data", allow_duplicate=True),
-        ],
-        [
-            Input("academy-cheat-code-button", "n_clicks"),
-            Input("academy-cheat-code-cancel", "n_clicks"),
-            Input("academy-cheat-code-submit", "n_clicks"),
-        ],
-        [
-            State("academy-cheat-code-input", "value"),
             State("user-data-store", "data"),
             State("session-revision", "data"),
         ],
         prevent_initial_call=True,
     )
-    def handle_academy_cheat_code(
-        open_clicks,
-        cancel_clicks,
-        submit_clicks,
-        password,
-        client_data,
-        session_revision,
-    ):
+    def unlock_all_academy_progress(clicks, client_data, session_revision):
         trig = dash_ctx.triggered_id
-        click_count = _triggered_click_count(
-            trig,
-            {
-                "academy-cheat-code-button": open_clicks,
-                "academy-cheat-code-cancel": cancel_clicks,
-                "academy-cheat-code-submit": submit_clicks,
-            },
-        )
+        click_count = _triggered_click_count(trig, {"academy-cheat-code-button": clicks})
         if click_count <= 0:
             raise PreventUpdate
-        if trig == "academy-cheat-code-button":
-            return True, html.Div(), "", no_update
-        if trig == "academy-cheat-code-cancel":
-            return False, html.Div(), "", no_update
-        if trig != "academy-cheat-code-submit":
+        if trig != "academy-cheat-code-button":
             raise PreventUpdate
-        if not cheat_unlock_password_matches(password):
-            return (
-                True,
-                dbc.Alert("Nope. The magic words are not magic enough.", color="warning"),
-                no_update,
-                no_update,
-            )
 
         session_id, state = ctx.require_session(client_data)
         unlock_all_academy_levels(state.training)
         state.is_initialized = False
         ctx.persist_state(session_id, state)
-        return (
-            False,
-            html.Div(),
-            "",
-            ctx.next_session_revision(session_revision),
-        )
+        return ctx.next_session_revision(session_revision)
 
     @app.callback(
         [
@@ -384,6 +417,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("dashboard-shell", "style"),
             Output("academy-progress-summary", "children"),
             Output("academy-result-banner", "children"),
+            Output("lesson-intro-kicker", "children"),
             Output("lesson-title", "children"),
             Output("lesson-copy", "children"),
             Output("lesson-tutorial", "children"),
@@ -429,12 +463,14 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("academy-simulator-button", "disabled"),
             Output("advanced-sandbox-copy", "children"),
             Output("interval-component", "disabled", allow_duplicate=True),
+            Output("dashboard-layout-revision", "data"),
         ],
         Input("user-data-store", "data"),
         Input("session-revision", "data"),
+        State("dashboard-layout-revision", "data"),
         prevent_initial_call="initial_duplicate",
     )
-    def render_training_shells(client_data, _session_revision):
+    def render_training_shells(client_data, _session_revision, dashboard_layout_revision):
         state = ctx.current_state(client_data)
         panels = visible_panels(state)
         level = active_level(state)
@@ -466,17 +502,9 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             "On-hand lesson trend"
             if level is not None and level.index == 1
             else (
-                "Basic reorder signal"
-                if level is not None and level.index == 2
-                else (
-                    "Fill-rate service view"
-                    if level is not None and level.index == 3
-                    else (
-                        "Critical-point and surplus map"
-                        if level is not None and level.index == 17
-                        else "Inventory signal map"
-                    )
-                )
+                "Fill-rate service view"
+                if level is not None and level.index == 3
+                else ("Inventory signal map")
             )
         )
         service_panel_title = "Lesson snapshot" if level is not None else "Service"
@@ -526,6 +554,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             ctx.panel_style(not is_menu),
             academy_progress_children(state),
             academy_result_children(state),
+            experience_kicker_text(state, level),
             lesson_title,
             lesson_copy,
             lesson_tutorial_children(state),
@@ -533,7 +562,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             lesson_locked_children(state),
             state.training.current_view == "lesson" and not state.training.lesson_intro_dismissed,
             simulator_copy,
-            "Simulator" if is_simulator else "Lesson",
+            experience_kicker_text(state, level),
             experience_title,
             experience_copy,
             lesson_compact_summary_children(state) if level is not None else [],
@@ -548,7 +577,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             graph_title,
             service_panel_title,
             "Planner grid"
-            if is_simulator or (level is not None and level.index >= 6)
+            if is_simulator or (level is not None and (level.index == 2 or level.index >= 6))
             else "Lesson items",
             ctx.panel_style("actions" in panels),
             ctx.panel_style("policy" in panels),
@@ -564,7 +593,10 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             ctx.panel_style(is_action_allowed(state, "custom_order")),
             ctx.panel_style(is_action_allowed(state, "po_overview")),
             ctx.panel_style(is_action_allowed(state, "add_items")),
-            ctx.panel_style(is_action_allowed(state, "update_parameters")),
+            ctx.panel_style(
+                is_action_allowed(state, "review_cycle_override")
+                or is_action_allowed(state, "update_parameters")
+            ),
             ctx.panel_style(is_simulator and state.training.auto_po_reward_unlocked),
             ctx.panel_style(is_action_allowed(state, "apply_asq")),
             not (is_simulator and state.training.auto_po_reward_unlocked),
@@ -573,6 +605,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             not state.training.simulator_unlocked,
             sandbox_copy,
             interval_disabled,
+            _dashboard_layout_revision_update(state, dashboard_layout_revision, ctx),
         )
 
     @app.callback(
