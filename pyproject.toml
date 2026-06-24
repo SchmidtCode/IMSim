@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "imsim"
-version = "0.2.0"
+version = "1.0.0"
 description = "Inventory management simulator and operations console built with Dash"
 readme = "README.md"
 license = { file = "LICENSE" }
