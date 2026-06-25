@@ -6,7 +6,7 @@ step, then unlocks a full simulator for practicing inventory decisions with live
 [![CI](https://github.com/SchmidtCode/IMSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SchmidtCode/IMSim/actions/workflows/ci.yml)
 [![GHCR](https://img.shields.io/badge/container-ghcr-blue)](https://github.com/SchmidtCode/IMSim/pkgs/container/imsim)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://www.schmidtcode.com/)
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://www.schmidtcode.com/imsim)
 
 ![IMSim simulator preview](assets/readme/IMSim.gif)
 
