@@ -13,7 +13,7 @@ Published tags include:
 - `latest` on the default branch
 - `sha-<commit>`
 - branch names for `main` and `master`
-- version tags such as `v1.0.0`
+- version tags such as `v1.1.0`
 
 ## Deploy with Docker Compose
 
@@ -65,6 +65,19 @@ docker compose up -d
 The Compose stack still provides the bundled PostgreSQL service and injects
 `IMSIM_DATABASE_URL` for the containerized app.
 
+### PostgreSQL 18 upgrade
+
+The v1.1.0 Compose files use `postgres:18-alpine` and mount `postgres_data18` at
+`/var/lib/postgresql`, the data path used by the PostgreSQL 18 image. A fresh deployment creates
+this volume automatically.
+
+Existing PostgreSQL 17 data does not upgrade when the image tag changes. Before replacing an
+existing stack, make and verify a database backup, restore it into a new PostgreSQL 18 volume,
+then confirm the app can read the restored data. Keep the PostgreSQL 17 volume until the new
+deployment is verified. Do not attach a PostgreSQL 17 data volume directly to the PostgreSQL 18
+container. See the [PostgreSQL upgrade documentation](https://www.postgresql.org/docs/current/upgrading.html)
+and [official container notes](https://github.com/docker-library/docs/blob/master/postgres/README.md#pgdata).
+
 For checked-out source work, use the contributor stack under [`deploy/source/`](../deploy/source).
 
 ## Homelab Checklist
@@ -75,7 +88,7 @@ Before exposing IMSim outside your LAN or sharing it with conference attendees:
 - Change the default `IMSIM_POSTGRES_*` values if you do not want the bundled defaults.
 - Prefer a pinned `IMSIM_IMAGE` tag over `latest` for demo stability.
 - Put the app behind a reverse proxy that terminates TLS.
-- Back up the `postgres_data` volume if you care about persistent session state.
+- Back up the `postgres_data18` volume if you care about persistent session state.
 
 ## Container Publishing
 

@@ -11,7 +11,7 @@ folder with:
 The default deployment stack starts:
 
 - `app` from `ghcr.io/schmidtcode/imsim:latest`
-- `db` from `postgres:17-alpine` for PostgreSQL-backed session persistence
+- `db` from `postgres:18-alpine` for PostgreSQL-backed session persistence
 
 Prerequisites:
 
@@ -53,8 +53,10 @@ Notes:
 - Compose reads `.env` for variable interpolation and app runtime settings.
 - The Compose app service injects its own PostgreSQL connection string for the containerized
   stack.
-- Session data is stored in the named `postgres_data` volume unless you remove it with
+- Session data is stored in the named `postgres_data18` volume unless you remove it with
   `docker compose down -v`.
+- If you have an existing PostgreSQL 17 volume, follow the migration note in
+  [Deployment](deployment.md) before using this Compose file.
 - For any shared deployment, set `IMSIM_ADMIN_TOKEN` in `.env` before starting the stack.
 - `IMSIM_POSTGRES_DB`, `IMSIM_POSTGRES_USER`, and `IMSIM_POSTGRES_PASSWORD` let you override the
   bundled database credentials used by Compose.

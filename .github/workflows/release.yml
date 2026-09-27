@@ -43,8 +43,14 @@ jobs:
 
       - name: Write release notes
         run: |
-          cat > release-notes.md <<'EOF'
-          IMSim release artifacts are attached below.
+          if [ -f "docs/releases/${GITHUB_REF_NAME}.md" ]; then
+            cp "docs/releases/${GITHUB_REF_NAME}.md" release-notes.md
+          else
+            printf '# IMSim %s\n' "${GITHUB_REF_NAME}" > release-notes.md
+          fi
+          cat >> release-notes.md <<'EOF'
+
+          Release artifacts are attached below.
 
           Container image:
           `ghcr.io/schmidtcode/imsim:${{ github.ref_name }}`
