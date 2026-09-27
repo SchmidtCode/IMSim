@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${IMSIM_POSTGRES_DB:-imsim}
@@ -12,7 +12,7 @@ services:
       timeout: 5s
       retries: 12
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data18:/var/lib/postgresql
 
   app:
     image: ${IMSIM_IMAGE:-ghcr.io/schmidtcode/imsim:latest}
@@ -49,4 +49,4 @@ services:
       - "127.0.0.1:8050:8050"
 
 volumes:
-  postgres_data:
+  postgres_data18:
