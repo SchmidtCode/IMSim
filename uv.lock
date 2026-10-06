@@ -181,7 +181,7 @@ wheels = [
 
 [[package]]
 name = "dash-bootstrap-templates"
-version = "2.1.0"
+version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dash" },
@@ -189,9 +189,9 @@ dependencies = [
     { name = "numpy" },
     { name = "plotly" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/09/2a/5b109ee6aea69deef649a038147dc1696f6d4152de912315a946ee243640/dash_bootstrap_templates-2.1.0.tar.gz", hash = "sha256:ca9da1060ee2b2c74dc1c26119056f37051a838a58ea07b5d325f9df7fde17fe", size = 114447, upload-time = "2025-02-13T13:59:41.967Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/8e/b45a0fde643e2a5122a23d070004784686e353409c5a04c8ae6d40874532/dash_bootstrap_templates-3.0.1.tar.gz", hash = "sha256:46c182f724d1e69851e619cf5c686572432a48d78fb475b6fb530c3cbd1977a7", size = 115575, upload-time = "2026-09-30T19:52:08.56Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/f7/94fff8c10b57d47311c9d9e9a6b98618f1dcad77ae3fbd7e0659230c04ae/dash_bootstrap_templates-2.1.0-py3-none-any.whl", hash = "sha256:d7a89ce5d1cfec205bff2ec621a8a6382f287eea064917909475477fb32c09d6", size = 100293, upload-time = "2025-02-13T13:59:40.09Z" },
+    { url = "https://files.pythonhosted.org/packages/43/91/0d74e8a7622585ebfb3232d269272eb8148184919e652766868cb2323771/dash_bootstrap_templates-3.0.1-py3-none-any.whl", hash = "sha256:205d27119e96bd7bd082dc3ee8f8f62a798ef1a7fedb3b8f4c4b17bff8c5d33e", size = 99279, upload-time = "2026-09-30T19:52:06.346Z" },
 ]
 
 [[package]]
@@ -337,7 +337,7 @@ requires-dist = [
     { name = "dash", specifier = ">=4.1.0,<5" },
     { name = "dash-ag-grid", specifier = ">=35.2.0,<36" },
     { name = "dash-bootstrap-components", specifier = ">=2.0.4,<3" },
-    { name = "dash-bootstrap-templates", specifier = ">=2.1.0,<3" },
+    { name = "dash-bootstrap-templates", specifier = ">=2.1.0,<4" },
     { name = "flask", specifier = ">=3.1.3,<4" },
     { name = "gunicorn", specifier = ">=26.0.0,<27" },
     { name = "numpy", specifier = ">=2.4.6,<3" },
