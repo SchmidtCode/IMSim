@@ -29,6 +29,7 @@
   --imsim-size-metric-card-min: 8.5rem;
   --imsim-size-table-min: 53.75rem;
   --imsim-size-footer-width: 20rem;
+  --imsim-space-footer-inset: 1rem;
   --imsim-size-dashboard-graph-min: 18rem;
   --imsim-size-lesson-trend-graph-min: 21.25rem;
   --imsim-size-control-rail-max: 25rem;
@@ -1300,10 +1301,21 @@ body {
 
 .footer-card {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  width: var(--imsim-size-footer-width);
+  right: calc(var(--imsim-space-footer-inset) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--imsim-space-footer-inset) + env(safe-area-inset-bottom, 0px));
+  width: min(
+    var(--imsim-size-footer-width),
+    calc(100vw - 2 * var(--imsim-space-footer-inset))
+  );
+  max-height: calc(100dvh - 2 * var(--imsim-space-footer-inset));
+  overflow-y: auto;
+  pointer-events: none;
   z-index: 1050;
+}
+
+.footer-card a,
+.footer-card .footer-hide {
+  pointer-events: auto;
 }
 
 .footer-hide {
@@ -3459,6 +3471,49 @@ body {
 }
 
 @media (max-width: 1199.98px) {
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-layout,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--imsim-lesson-gap);
+    --bs-gutter-x: 0;
+    --bs-gutter-y: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-layout,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-insights-row,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-detail-row {
+    margin: 0 !important;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-rail-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-main-column,
+  .dashboard-shell.lesson-dashboard.lesson-level-2 .dashboard-panel {
+    width: 100%;
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #graph-panel > .card {
+    border-bottom-color: var(--imsim-line);
+    border-bottom-left-radius: var(--imsim-radius-3xl);
+    border-bottom-right-radius: var(--imsim-radius-3xl);
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel {
+    margin-top: 0;
+  }
+
+  .dashboard-shell.lesson-dashboard.lesson-level-2 #inventory-panel > .card {
+    border-top: 1px solid var(--imsim-line);
+    border-top-left-radius: var(--imsim-radius-3xl);
+    border-top-right-radius: var(--imsim-radius-3xl);
+  }
+
   .lesson-compact-summary {
     align-items: flex-start;
   }
@@ -3574,11 +3629,6 @@ body {
   .lesson-intro-title {
     font-size: 1.9rem;
   }
-  .footer-card {
-    position: static;
-    width: auto;
-    margin-top: 1rem;
-  }
 
   .hero-title {
     max-width: none;
@@ -3683,14 +3733,6 @@ body {
   }
 }
 
-@media (max-height: 900px) {
-  .footer-card {
-    position: static;
-    width: auto;
-    margin-top: 1rem;
-  }
-}
-
 .dashboard-shell.lesson-dashboard.lesson-level-18 .dashboard-main-column {
   display: flex;
   flex-direction: column;
@@ -3753,5 +3795,95 @@ body {
       "costs sales"
       "detail detail"
       "snapshot snapshot";
+  }
+}
+
+/* Lessons stack below the desktop workspace breakpoint. Override the shared
+   Bootstrap columns only in this range; phone and simulator layouts stay separate. */
+@media (min-width: 576px) and (max-width: 1199.98px) {
+  #dashboard-shell.lesson-dashboard .dashboard-main-layout,
+  #dashboard-shell.lesson-dashboard .dashboard-rail-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--imsim-lesson-gap);
+    --bs-gutter-x: 0;
+    --bs-gutter-y: 0;
+  }
+
+  #dashboard-shell.lesson-dashboard .dashboard-main-column {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--imsim-lesson-gap);
+  }
+
+  #dashboard-shell.lesson-dashboard .dashboard-insights-row,
+  #dashboard-shell.lesson-dashboard .dashboard-detail-row {
+    display: contents;
+  }
+
+  #dashboard-shell.lesson-dashboard .dashboard-rail-column,
+  #dashboard-shell.lesson-dashboard .dashboard-main-column,
+  #dashboard-shell.lesson-dashboard .dashboard-panel {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  #dashboard-shell.lesson-dashboard .dashboard-panel > .card {
+    width: 100%;
+    height: auto;
+  }
+
+  #dashboard-shell.lesson-dashboard #service-panel .lesson-snapshot-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #dashboard-shell.lesson-dashboard #service-panel .lesson-service-table th {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #dashboard-shell.lesson-dashboard #graph-panel {
+    order: 0;
+  }
+  #dashboard-shell.lesson-dashboard #costs-panel,
+  #dashboard-shell.lesson-dashboard #sales-panel {
+    order: 1;
+  }
+  #dashboard-shell.lesson-dashboard #inventory-panel {
+    order: 2;
+  }
+  #dashboard-shell.lesson-dashboard #exceptions-panel {
+    order: 3;
+  }
+  #dashboard-shell.lesson-dashboard #service-panel {
+    order: 4;
+  }
+
+  #dashboard-shell.lesson-dashboard #inventory-panel {
+    margin-top: 0;
+  }
+
+  #dashboard-shell.lesson-dashboard #graph-panel > .card {
+    border-bottom-color: var(--imsim-line);
+    border-bottom-left-radius: var(--imsim-radius-3xl);
+    border-bottom-right-radius: var(--imsim-radius-3xl);
+  }
+
+  #dashboard-shell.lesson-dashboard #inventory-panel > .card {
+    border-top: 1px solid var(--imsim-line);
+    border-top-left-radius: var(--imsim-radius-3xl);
+    border-top-right-radius: var(--imsim-radius-3xl);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  #dashboard-shell.lesson-dashboard #costs-panel,
+  #dashboard-shell.lesson-dashboard #sales-panel {
+    width: calc((100% - var(--imsim-lesson-gap)) / 2);
   }
 }

@@ -8,6 +8,10 @@ from imsim.app import create_app
 from imsim.config import IMSimConfig
 
 
+def pytest_addoption(parser):
+    parser.addoption("--run-browser", action="store_true", help="Run Chromium UI regression tests.")
+
+
 @pytest.fixture
 def test_config(tmp_path: Path) -> IMSimConfig:
     repo_root = Path.cwd()

@@ -35,6 +35,22 @@ docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 git .
 CI also runs `gitleaks` across full git history on every push and pull request.
 The installed pre-commit hooks run Ruff before commits and pytest before pushes.
 
+## Browser regression tests
+
+The browser checks cover initial callback validation and planner-grid rendering at desktop and
+mobile widths, including theme changes, simulation ticks, and lesson navigation. They also check
+the floating GitHub card, all 19 lessons at medium widths, snapshot ordering and heading wrapping,
+and responsive Costs/Sales placement. Install Chromium once, then run them with the full suite:
+
+```bash
+uv run playwright install chromium
+uv run pytest --run-browser
+```
+
+For just the browser checks, run `uv run pytest tests/test_browser_layout.py --run-browser`.
+Each check starts its own local server and uses temporary session data. The default
+`uv run pytest` skips the browser checks; CI installs Chromium and runs them.
+
 ## Repo Layout
 
 ```text

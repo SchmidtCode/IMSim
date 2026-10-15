@@ -34,8 +34,10 @@ jobs:
         run: |
           uv run ruff check .
           uv run ruff format --check .
+      - name: Install browser for UI regression tests
+        run: uv run playwright install --with-deps chromium
       - name: Pytest
-        run: uv run pytest
+        run: uv run pytest --run-browser
       - name: Build package
         run: uv build
       - name: Build container

@@ -5,7 +5,9 @@ import signal
 import time
 
 import dash
+import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
+from dash import html
 from flask import Flask, abort, jsonify, request
 
 from .callbacks import register_callbacks
@@ -40,6 +42,8 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
     )
     app.title = "IMSim"
     app.layout = build_layout(config)
+    # The inventory grid is created by a callback after a lesson or simulator opens.
+    app.validation_layout = html.Div([app.layout, dag.AgGrid(id="inventory-table-grid")])
 
     server.extensions["imsim_config"] = config
     server.extensions["imsim_repository"] = repository
