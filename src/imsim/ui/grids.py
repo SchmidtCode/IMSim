@@ -7,6 +7,10 @@ from ..models import SimulationState
 from ..services.planning import item_on_order
 from ..services.training import active_layout_variant, active_level, visible_columns
 
+# Grids mount inside hidden shells; CSS size measurement can otherwise return zero.
+_GRID_ROW_HEIGHT = 38
+_GRID_HEADER_HEIGHT = 42
+
 
 def _workspace_grid_height(state: SimulationState, *, surface: str) -> str:
     variant = active_layout_variant(state)
@@ -35,6 +39,8 @@ def _grid_theme_class(theme: str) -> str:
 
 def po_overview_grid_options() -> dict[str, object]:
     return {
+        "rowHeight": _GRID_ROW_HEIGHT,
+        "headerHeight": _GRID_HEADER_HEIGHT,
         "animateRows": False,
         "rowSelection": {
             "mode": "multiRow",
@@ -55,6 +61,8 @@ def po_overview_grid_options() -> dict[str, object]:
 
 def custom_order_grid_options() -> dict[str, object]:
     return {
+        "rowHeight": _GRID_ROW_HEIGHT,
+        "headerHeight": _GRID_HEADER_HEIGHT,
         "animateRows": False,
         "singleClickEdit": True,
         "stopEditingWhenCellsLoseFocus": True,
@@ -64,10 +72,8 @@ def custom_order_grid_options() -> dict[str, object]:
 
 
 def custom_order_grid_style(row_count: int = 0) -> dict[str, str]:
-    header_height = 42
-    row_height = 38
     border_allowance = 2
-    min_height = header_height + (max(row_count, 1) * row_height) + border_allowance
+    min_height = _GRID_HEADER_HEIGHT + (max(row_count, 1) * _GRID_ROW_HEIGHT) + border_allowance
     capped_height = min(min_height, 520)
     return {
         "height": f"{capped_height}px",
@@ -313,6 +319,8 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
         column_defs.append(column_def)
     default_col_def = {"sortable": True, "filter": True, "resizable": True}
     dash_grid_options = {
+        "rowHeight": _GRID_ROW_HEIGHT,
+        "headerHeight": _GRID_HEADER_HEIGHT,
         "pagination": True,
         "paginationAutoPageSize": True,
         "paginationPageSizeSelector": False,
@@ -322,6 +330,8 @@ def build_inventory_table(state: SimulationState, theme: str = "light"):
     if compact_lesson_items:
         default_col_def.update({"sortable": False, "filter": False})
         dash_grid_options = {
+            "rowHeight": _GRID_ROW_HEIGHT,
+            "headerHeight": _GRID_HEADER_HEIGHT,
             "animateRows": False,
             "domLayout": "autoHeight",
             "pagination": False,
