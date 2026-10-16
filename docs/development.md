@@ -39,7 +39,8 @@ The installed pre-commit hooks run Ruff before commits and pytest before pushes.
 
 The browser checks cover initial callback validation and planner-grid rendering at desktop and
 mobile widths, including theme changes, simulation ticks, and lesson navigation. They also check
-the floating GitHub card, all 19 lessons at medium widths, snapshot ordering and heading wrapping,
+the floating GitHub card and its saved visibility, all 19 lessons at phone and medium widths,
+snapshot ordering and heading wrapping, Academy card containment, simulator badge wrapping,
 and responsive Costs/Sales placement. Install Chromium once, then run them with the full suite:
 
 ```bash

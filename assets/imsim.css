@@ -1299,10 +1299,15 @@ body {
   border-bottom: 1px solid var(--imsim-line);
 }
 
-.footer-card {
+.footer-card,
+.footer-restore {
   position: fixed;
   right: calc(var(--imsim-space-footer-inset) + env(safe-area-inset-right, 0px));
   bottom: calc(var(--imsim-space-footer-inset) + env(safe-area-inset-bottom, 0px));
+  z-index: 1050;
+}
+
+.footer-card {
   width: min(
     var(--imsim-size-footer-width),
     calc(100vw - 2 * var(--imsim-space-footer-inset))
@@ -3798,9 +3803,9 @@ body {
   }
 }
 
-/* Lessons stack below the desktop workspace breakpoint. Override the shared
-   Bootstrap columns only in this range; phone and simulator layouts stay separate. */
-@media (min-width: 576px) and (max-width: 1199.98px) {
+/* Keep stacked lesson panels spaced and in reading order on phones and tablets.
+   Desktop workspaces and simulator columns use their own layout rules. */
+@media (max-width: 1199.98px) {
   #dashboard-shell.lesson-dashboard .dashboard-main-layout,
   #dashboard-shell.lesson-dashboard .dashboard-rail-column {
     display: flex;
@@ -3885,5 +3890,23 @@ body {
   #dashboard-shell.lesson-dashboard #costs-panel,
   #dashboard-shell.lesson-dashboard #sales-panel {
     width: calc((100% - var(--imsim-lesson-gap)) / 2);
+  }
+}
+
+.dashboard-shell.simulator-dashboard #service-panel .badge {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+@media (max-width: 575.98px) {
+  .academy-shell .metric-card,
+  .academy-shell .academy-card,
+  .academy-shell .academy-card .imsim-button,
+  .academy-shell .academy-card-copy,
+  .academy-shell .academy-card-formula {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }

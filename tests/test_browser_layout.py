@@ -125,7 +125,7 @@ def test_github_card_stays_in_viewport_when_scrolling(browser_page, width, heigh
     page.locator("#gh-footer-hide").click()
     from playwright.sync_api import expect
 
-    expect(page.locator("#gh-footer")).not_to_be_visible()
+    expect(page.locator("#gh-footer .footer-card")).not_to_be_visible()
     assert errors == []
 
 
@@ -160,7 +160,7 @@ def test_lesson_two_cards_have_space_when_stacked(browser_page, width):
     assert errors == []
 
 
-@pytest.mark.parametrize("width", [576, 820, 1100, 1199])
+@pytest.mark.parametrize("width", [390, 570, 590, 820, 1100, 1199])
 def test_lessons_use_available_width_and_keep_snapshot_below_inventory(browser_page, width):
     from playwright.sync_api import expect
 
@@ -221,6 +221,60 @@ def test_expanded_lesson_snapshot_headers_fit(browser_page, width):
     overflowing = page.locator("#service-panel th").evaluate_all(
         """headers => headers.filter(h => h.scrollWidth > h.clientWidth + 1)
             .map(h => h.textContent)"""
+    )
+    assert overflowing == []
+    assert errors == []
+
+
+def test_hidden_github_card_can_be_restored_after_reload(browser_page):
+    from playwright.sync_api import expect
+
+    page, url, errors = browser_page
+    page.goto(url, wait_until="networkidle")
+    page.locator("#gh-footer-hide").click()
+    expect(page.locator("#gh-footer .footer-card")).not_to_be_visible()
+    page.reload(wait_until="networkidle")
+    expect(page.locator("#gh-footer .footer-card")).not_to_be_visible()
+    page.get_by_role("button", name="Show GitHub card").click(timeout=3000)
+    expect(page.locator("#gh-footer .footer-card")).to_be_visible()
+    page.reload(wait_until="networkidle")
+    expect(page.locator("#gh-footer .footer-card")).to_be_visible()
+    assert errors == []
+
+
+@pytest.mark.parametrize("width", [590, 768, 800, 990, 1440])
+def test_simulator_service_badge_stays_inside_card(browser_page, width):
+    page, url, errors = browser_page
+    page.set_viewport_size({"width": width, "height": 900})
+    page.goto(url, wait_until="networkidle")
+    page.locator("#gh-footer-hide").click()
+    page.locator("#academy-cheat-code-button").click()
+    page.locator("#academy-simulator-button").click()
+    badge = page.locator("#service-panel .badge")
+    badge.wait_for(state="visible")
+    bounds = badge.evaluate("""e => ({badge: e.getBoundingClientRect().toJSON(),
+        card: e.closest('.card').getBoundingClientRect().toJSON(),
+        overflow: e.scrollWidth - e.clientWidth})""")
+    assert bounds["badge"]["right"] <= bounds["card"]["right"], bounds
+    assert bounds["overflow"] <= 1, bounds
+    assert errors == []
+
+
+@pytest.mark.parametrize("width", [390, 570, 575, 590])
+def test_academy_cards_and_actions_fit_their_containers(browser_page, width):
+    page, url, errors = browser_page
+    page.set_viewport_size({"width": width, "height": 900})
+    page.goto(url, wait_until="networkidle")
+    overflowing = page.locator(
+        "#academy-menu-shell .metric-card, "
+        "#academy-menu-shell .academy-card .imsim-button, "
+        "#academy-menu-shell .academy-card-formula"
+    ).evaluate_all(
+        """elements => elements.filter(e => {
+            const bounds = e.getBoundingClientRect();
+            const parent = e.parentElement.getBoundingClientRect();
+            return bounds.right > parent.right + 1 || bounds.left < parent.left - 1;
+        }).map(e => e.textContent)"""
     )
     assert overflowing == []
     assert errors == []
