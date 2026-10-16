@@ -250,11 +250,20 @@ def test_simulator_service_badge_stays_inside_card(browser_page, width):
     page.locator("#gh-footer-hide").click()
     page.locator("#academy-cheat-code-button").click()
     page.locator("#academy-simulator-button").click()
-    badge = page.locator("#service-panel .badge")
-    badge.wait_for(state="visible")
-    bounds = badge.evaluate("""e => ({badge: e.getBoundingClientRect().toJSON(),
-        card: e.closest('.card').getBoundingClientRect().toJSON(),
-        overflow: e.scrollWidth - e.clientWidth})""")
+    # Dash may replace service-card children after the simulator becomes visible.
+    # Query and measure the current nodes in one browser turn, without a stale handle.
+    bounds = page.wait_for_function(
+        """() => {
+            const card = document.querySelector('#service-panel > .card');
+            const badge = card?.querySelector('.badge');
+            if (!badge || !badge.checkVisibility()) return false;
+            return {
+                badge: badge.getBoundingClientRect().toJSON(),
+                card: card.getBoundingClientRect().toJSON(),
+                overflow: badge.scrollWidth - badge.clientWidth
+            };
+        }"""
+    ).json_value()
     assert bounds["badge"]["right"] <= bounds["card"]["right"], bounds
     assert bounds["overflow"] <= 1, bounds
     assert errors == []
