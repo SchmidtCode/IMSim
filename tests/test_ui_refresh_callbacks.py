@@ -93,6 +93,23 @@ def test_layout_keeps_callback_target_ids(dash_app):
     } <= component_ids
 
 
+def test_validation_layout_covers_all_callback_outputs(dash_app):
+    validation_layout = dash_app.validation_layout or dash_app.layout
+    component_ids = {
+        getattr(component, "id", None)
+        for component in _walk_components(validation_layout)
+        if isinstance(getattr(component, "id", None), str)
+    }
+    output_ids = {
+        component_id
+        for spec in dash_app.callback_map.values()
+        for component_id, _property in _output_pairs(spec)
+        if isinstance(component_id, str)
+    }
+
+    assert output_ids - component_ids == set()
+
+
 def test_dashboard_render_waits_for_dashboard_layout_revision(dash_app):
     spec = _find_callback(
         dash_app,
