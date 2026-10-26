@@ -29,7 +29,7 @@ dependencies = [
     "numpy>=2.4.6,<3",
     "openpyxl>=3.1.5,<4",
     "pandas>=3.0.3,<4",
-    "plotly>=6.6.0,<7",
+    "plotly>=6.6.0,<8",
     "psycopg[binary]>=3.2.9,<4",
     "sqlalchemy>=2.0.43,<3",
 ]
