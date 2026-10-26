@@ -18,6 +18,7 @@ from .primitives import (
 _GRAPH_CONFIG = {
     "responsive": True,
     "displaylogo": False,
+    "showSendToCloud": False,
     "modeBarButtonsToRemove": ["lasso2d", "select2d", "toggleSpikelines"],
 }
 
