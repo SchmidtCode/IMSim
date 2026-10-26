@@ -113,21 +113,25 @@ def register_maintenance_callbacks(ctx: CallbackRegistrarContext) -> None:
     @app.callback(
         Output("gh-footer-store", "data"),
         Input("gh-footer-hide", "n_clicks"),
+        Input("gh-footer-show", "n_clicks"),
         prevent_initial_call=True,
     )
-    def hide_footer(n_clicks):
-        if not n_clicks:
-            raise PreventUpdate
-        return False
+    def toggle_footer(hide_clicks, show_clicks):
+        if dash.ctx.triggered_id == "gh-footer-show" and show_clicks:
+            return True
+        if dash.ctx.triggered_id == "gh-footer-hide" and hide_clicks:
+            return False
+        raise PreventUpdate
 
     @app.callback(
         Output("gh-footer", "style"),
+        Output("gh-footer-show", "style"),
         Input("gh-footer-store", "data"),
     )
     def set_footer_visibility(is_visible):
         if is_visible is False:
-            return {"display": "none"}
-        return {}
+            return {"display": "none"}, {}
+        return {}, {"display": "none"}
 
     @app.callback(
         [
