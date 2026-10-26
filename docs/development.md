@@ -41,7 +41,10 @@ The browser checks cover initial callback validation and planner-grid rendering 
 mobile widths, including theme changes, simulation ticks, and lesson navigation. They also check
 the floating GitHub card and its saved visibility, all 19 lessons at phone and medium widths,
 snapshot ordering and heading wrapping, Academy card containment, simulator badge wrapping,
-and responsive Costs/Sales placement. Install Chromium once, then run them with the full suite:
+and responsive Costs/Sales placement. Lesson introduction formulas are checked in all 19
+lessons at 320, 390, 575, 576, 820, and 1440 pixels. Mobile footer checks ensure the restore
+button follows the Academy, lesson, and simulator content without covering controls, and
+that visibility still persists across reloads. Install Chromium once, then run the full suite:
 
 ```bash
 uv run playwright install chromium

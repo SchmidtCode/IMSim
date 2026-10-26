@@ -10,6 +10,7 @@
 - Restore the GitHub project card to the bottom-right of the viewport while scrolling,
   including mobile and shorter desktop windows. Its link and Hide control remain interactive.
   A Show GitHub card button restores the card after hiding it, including across reloads.
+  Below 768 pixels, the restore button follows page content instead of covering dashboard controls.
 - Separate stacked Lesson 2 cards below the desktop breakpoint.
 - Fix narrow inventory and snapshot cards, overlapping card edges, and snapshot ordering
   in lesson layouts below 1200 pixels, including phone widths. Lesson snapshots now
@@ -18,6 +19,8 @@
   at smaller widths. Full desktop lesson layouts retain their existing arrangement.
 - Keep Academy summary cards, lesson buttons, and formula labels inside their containers
   at phone widths instead of clipping their right edges.
+- Keep lesson introduction formulas inside their tutorial card at phone widths by sizing
+  them to their parent container instead of the viewport.
 - Allow the simulator Service card's availability pill to wrap inside its column at
   intermediate widths.
 

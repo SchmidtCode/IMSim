@@ -287,3 +287,82 @@ def test_academy_cards_and_actions_fit_their_containers(browser_page, width):
     )
     assert overflowing == []
     assert errors == []
+
+
+@pytest.mark.parametrize("width", [320, 390, 575, 576, 820, 1440])
+def test_lesson_intro_formulas_fit_the_tutorial_card(browser_page, width):
+    from playwright.sync_api import expect
+
+    page, url, errors = browser_page
+    page.set_viewport_size({"width": width, "height": 844})
+    page.goto(url, wait_until="networkidle")
+    page.locator("#gh-footer-hide").click()
+    page.locator("#academy-cheat-code-button").click()
+    expect(page.locator("#academy-simulator-button")).to_be_enabled()
+    for level in range(1, 20):
+        page.locator(f"#academy-level-{level}-button").click()
+        modal = page.locator("#lesson-intro-modal")
+        expect(modal, f"Lesson {level} at {width}px").to_be_visible()
+        formulas = modal.locator(".lesson-formula-chip")
+        expect(formulas.first).to_be_visible()
+        overflowing = formulas.evaluate_all(
+            """elements => elements.filter(e => {
+                const bounds = e.getBoundingClientRect();
+                const parent = e.parentElement.getBoundingClientRect();
+                const style = getComputedStyle(e.parentElement);
+                return bounds.right > parent.right - parseFloat(style.paddingRight) + 1
+                    || bounds.left < parent.left + parseFloat(style.paddingLeft) - 1
+                    || e.scrollWidth > e.clientWidth + 1;
+            }).map(e => ({text: e.textContent, width: e.getBoundingClientRect().width}))"""
+        )
+        assert overflowing == [], (level, width, overflowing)
+        page.locator("#lesson-intro-dismiss-button").click()
+        expect(modal).not_to_be_visible()
+        page.locator("#return-to-menu-button").click()
+        expect(page.locator("#academy-menu-shell")).to_be_visible()
+    assert errors == []
+
+
+@pytest.mark.parametrize("width", [320, 390, 767])
+def test_mobile_github_restore_button_follows_page_content(browser_page, width):
+    from playwright.sync_api import expect
+
+    page, url, errors = browser_page
+    page.set_viewport_size({"width": width, "height": 844})
+    page.goto(url, wait_until="networkidle")
+    page.locator("#gh-footer-hide").click()
+    page.locator("#academy-cheat-code-button").click()
+    expect(page.locator("#academy-simulator-button")).to_be_enabled()
+    restore = page.get_by_role("button", name="Show GitHub card")
+    expect(restore).to_be_visible()
+
+    for view in ["academy", "lesson", "simulator"]:
+        if view == "lesson":
+            page.locator("#academy-level-14-button").click()
+            page.locator("#lesson-intro-dismiss-button").click()
+            expect(page.locator("#lesson-intro-modal")).not_to_be_visible()
+        elif view == "simulator":
+            page.locator("#return-to-menu-button").click()
+            page.locator("#academy-simulator-button").click()
+        shell_id = "academy-menu-shell" if view == "academy" else "dashboard-shell"
+        bounds = page.evaluate(
+            """shellId => ({
+                content: document.getElementById(shellId).getBoundingClientRect().toJSON(),
+                button: document.getElementById('gh-footer-show')
+                    .getBoundingClientRect().toJSON()
+            })""",
+            shell_id,
+        )
+        assert bounds["button"]["top"] >= bounds["content"]["bottom"], (view, bounds)
+        assert 0 <= bounds["button"]["left"] < bounds["button"]["right"] <= width, bounds
+        restore.scroll_into_view_if_needed()
+        restore.click(trial=True)
+
+    page.reload(wait_until="networkidle")
+    expect(page.locator("#gh-footer .footer-card")).not_to_be_visible()
+    restore.click()
+    expect(page.locator("#gh-footer .footer-card")).to_be_visible()
+    expect(restore).not_to_be_visible()
+    page.reload(wait_until="networkidle")
+    expect(page.locator("#gh-footer .footer-card")).to_be_visible()
+    assert errors == []
