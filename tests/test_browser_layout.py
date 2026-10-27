@@ -60,6 +60,46 @@ def test_initial_layout_has_no_missing_callback_targets(browser_page):
     assert errors == []
 
 
+def _unlock_academy(page):
+    from playwright.sync_api import expect
+
+    page.locator("#academy-cheat-code-button").click()
+    # Unlocking replaces the lesson buttons. Wait for that render before clicking one.
+    expect(page.locator("#academy-simulator-button")).to_be_enabled()
+
+
+def test_first_lesson_opens_after_academy_unlock_refresh(browser_page, dash_app):
+    from time import sleep
+
+    from flask import request
+    from playwright.sync_api import expect
+
+    page, url, errors = browser_page
+    delayed_responses = []
+
+    @dash_app.server.after_request
+    def delay_unlocked_menu(response):
+        if request.path == "/_dash-update-component" and response.is_json:
+            data = response.get_json().get("response", {})
+            if (
+                data.get("academy-simulator-button", {}).get("disabled") is False
+                and data.get("academy-menu-shell", {}).get("style") == {}
+            ):
+                # Keep the unlock refresh in flight during a slower mouse click.
+                sleep(0.15)
+                delayed_responses.append(True)
+        return response
+
+    page.set_viewport_size({"width": 820, "height": 900})
+    page.goto(url, wait_until="networkidle")
+    page.locator("#gh-footer-hide").click()
+    _unlock_academy(page)
+    page.locator("#academy-level-1-button").click(delay=500)
+    expect(page.locator("#lesson-intro-dismiss-button")).to_be_visible()
+    assert delayed_responses
+    assert errors == []
+
+
 def _assert_grid_readable(page):
     from playwright.sync_api import expect
 
@@ -83,7 +123,7 @@ def test_planner_grid_has_readable_rows_and_headers(browser_page, width):
     page, url, errors = browser_page
     page.set_viewport_size({"width": width, "height": 844})
     page.goto(url, wait_until="networkidle")
-    page.locator("#academy-cheat-code-button").click()
+    _unlock_academy(page)
     page.locator("#academy-simulator-button").click()
     _assert_grid_readable(page)
 
@@ -135,7 +175,7 @@ def test_lesson_two_cards_have_space_when_stacked(browser_page, width):
     page.set_viewport_size({"width": width, "height": 844})
     page.goto(url, wait_until="networkidle")
     page.locator("#gh-footer-hide").click()
-    page.locator("#academy-cheat-code-button").click()
+    _unlock_academy(page)
     page.locator("#academy-level-2-button").click()
     page.locator("#lesson-intro-dismiss-button").click()
     _assert_grid_readable(page)
@@ -168,7 +208,7 @@ def test_lessons_use_available_width_and_keep_snapshot_below_inventory(browser_p
     page.set_viewport_size({"width": width, "height": 900})
     page.goto(url, wait_until="networkidle")
     page.locator("#gh-footer-hide").click()
-    page.locator("#academy-cheat-code-button").click()
+    _unlock_academy(page)
     for level in range(1, 20):
         page.locator(f"#academy-level-{level}-button").click()
         page.locator("#lesson-intro-dismiss-button").click()
@@ -213,7 +253,7 @@ def test_expanded_lesson_snapshot_headers_fit(browser_page, width):
     page.set_viewport_size({"width": width, "height": 900})
     page.goto(url, wait_until="networkidle")
     page.locator("#gh-footer-hide").click()
-    page.locator("#academy-cheat-code-button").click()
+    _unlock_academy(page)
     page.locator("#academy-level-14-button").click()
     page.locator("#lesson-intro-dismiss-button").click()
     page.locator("#lesson-snapshot-disclosure summary").click()
@@ -248,7 +288,7 @@ def test_simulator_service_badge_stays_inside_card(browser_page, width):
     page.set_viewport_size({"width": width, "height": 900})
     page.goto(url, wait_until="networkidle")
     page.locator("#gh-footer-hide").click()
-    page.locator("#academy-cheat-code-button").click()
+    _unlock_academy(page)
     page.locator("#academy-simulator-button").click()
     # Dash may replace service-card children after the simulator becomes visible.
     # Query and measure the current nodes in one browser turn, without a stale handle.
@@ -297,8 +337,7 @@ def test_lesson_intro_formulas_fit_the_tutorial_card(browser_page, width):
     page.set_viewport_size({"width": width, "height": 844})
     page.goto(url, wait_until="networkidle")
     page.locator("#gh-footer-hide").click()
-    page.locator("#academy-cheat-code-button").click()
-    expect(page.locator("#academy-simulator-button")).to_be_enabled()
+    _unlock_academy(page)
     for level in range(1, 20):
         page.locator(f"#academy-level-{level}-button").click()
         modal = page.locator("#lesson-intro-modal")
@@ -331,8 +370,7 @@ def test_mobile_github_restore_button_follows_page_content(browser_page, width):
     page.set_viewport_size({"width": width, "height": 844})
     page.goto(url, wait_until="networkidle")
     page.locator("#gh-footer-hide").click()
-    page.locator("#academy-cheat-code-button").click()
-    expect(page.locator("#academy-simulator-button")).to_be_enabled()
+    _unlock_academy(page)
     restore = page.get_by_role("button", name="Show GitHub card")
     expect(restore).to_be_visible()
 
