@@ -94,7 +94,7 @@ Prerequisites:
 
 ```bash
 cp deploy/source/.env.example .env
-uv python install 3.14.5
+uv python install 3.15.0
 uv sync --group dev
 uv run imsim
 ```
