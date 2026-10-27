@@ -12,7 +12,7 @@ COPY src ./src
 COPY assets ./assets
 COPY examples ./examples
 
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-python-downloads
 RUN groupadd --system imsim && useradd --system --gid imsim --home-dir /app imsim && chown -R imsim:imsim /app
 
 ENV PATH="/app/.venv/bin:$PATH"

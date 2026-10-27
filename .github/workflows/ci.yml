@@ -41,4 +41,8 @@ jobs:
       - name: Build package
         run: uv build
       - name: Build container
-        run: docker build .
+        run: docker build -t imsim-ci .
+      - name: Smoke test container runtime
+        run: >-
+          docker run --rm --entrypoint /app/.venv/bin/python imsim-ci
+          -c 'from imsim.wsgi import server; assert server.test_client().get("/health").status_code == 200'
