@@ -24,6 +24,11 @@ from ..ui.grids import build_inventory_rows
 from .common import CallbackRegistrarContext
 
 
+def _day_label(state) -> str:
+    level = active_level(state)
+    return f"Day {state.day} / {level.day_window + 1}" if level else f"Day {state.day}"
+
+
 def _status_label(state) -> str:
     if state.is_initialized:
         return "Status: Running"
@@ -105,7 +110,7 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         state = ctx.repository.get_or_create(session_id) if session_id else default_state()
         theme_name = ctx.theme_name(theme)
         return (
-            f"Day: {state.day}",
+            _day_label(state),
             refresh_inventory_figure(state, theme_name, current_figure),
             inventory_graph_style(state),
             service_card_children(state, _snapshot_open_state(snapshot_open_data)),
@@ -168,7 +173,7 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
         interval_disabled = not state.is_initialized
         start_label, start_class, start_disabled = _start_button_view(state, ctx)
         immediate_ui = (
-            f"Day: {state.day}",
+            _day_label(state),
             _status_label(state),
             start_label,
             start_class,

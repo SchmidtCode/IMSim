@@ -15,7 +15,7 @@ from ..services.training import (
     fill_rate,
     lesson_days_remaining,
 )
-from .panels import _kpi_card, _lesson_snapshot_disclosure, _lesson_snapshot_table
+from .panels import _lesson_snapshot_disclosure, _lesson_snapshot_table
 
 _GLOSSARY_ENTRIES = (
     (
@@ -233,8 +233,6 @@ def _reference_definition_block(term: str, definition: str) -> html.Div:
 def reference_modal_children() -> list:
     glossary = html.Div(
         [
-            html.Div("Glossary", className="panel-label"),
-            html.H3("Simulator terms", className="panel-title-small"),
             html.Div(
                 [
                     _reference_definition_block(term, definition)
@@ -247,8 +245,6 @@ def reference_modal_children() -> list:
     )
     csd_mapping = html.Div(
         [
-            html.Div("CSD mapping", className="panel-label"),
-            html.H3("General context", className="panel-title-small"),
             html.Div(
                 (
                     "IMSim is an independent inventory management training project. It is "
@@ -295,51 +291,30 @@ def academy_progress_children(state: SimulationState) -> list:
     levels = academy_levels()
     total_levels = len(levels)
     completed = len(state.training.completed_levels)
-    completed_level_ids = set(state.training.completed_levels)
-    certification_level_id = levels[-1].level_id if levels else None
-    certified = certification_level_id in completed_level_ids
-    progress_title = "Certificate Complete" if certified else "Next Unlock"
-    progress_value = (
-        "Complete"
-        if certified
-        else f"Level {min(total_levels, state.training.highest_unlocked_level)}"
+    certified = levels[-1].level_id in state.training.completed_levels
+    playable = levels[: max(1, state.training.highest_unlocked_level)]
+    current = next(
+        (level for level in playable if level.level_id not in state.training.completed_levels),
+        playable[-1],
     )
-    progress_tone = "good" if (certified or completed) else "neutral"
-    progress_subtitle = "Academy complete" if certified else "Highest playable lesson"
-    simulator = "Unlocked" if state.training.simulator_unlocked else "Locked"
     return [
-        dbc.Row(
+        html.Div(
+            html.Strong(f"{completed}/{total_levels}"),
+            className="academy-progress-ring",
+            style={"--progress": f"{100 * completed / total_levels}%"},
+            role="img",
+            **{"aria-label": f"{completed} of {total_levels} lessons complete"},
+        ),
+        html.Div(
             [
-                dbc.Col(
-                    _kpi_card(
-                        "Lessons Complete",
-                        f"{completed}/{total_levels}",
-                        "neutral",
-                        "Academy progress",
-                    ),
-                    md=4,
+                html.Div(
+                    "Certificate Complete" if certified else "Up next", className="panel-label"
                 ),
-                dbc.Col(
-                    _kpi_card(
-                        progress_title,
-                        progress_value,
-                        progress_tone,
-                        progress_subtitle,
-                    ),
-                    md=4,
-                ),
-                dbc.Col(
-                    _kpi_card(
-                        "Simulator",
-                        simulator,
-                        "good" if state.training.simulator_unlocked else "warn",
-                        "Free-play sandbox",
-                    ),
-                    md=4,
-                ),
+                html.Strong("Complete" if certified else f"Lesson {current.index}"),
+                html.Div("Academy complete" if certified else current.title),
             ],
-            className="g-3",
-        )
+            className="academy-next",
+        ),
     ]
 
 
@@ -483,13 +458,14 @@ def lesson_compact_summary_children(state: SimulationState) -> list:
         for row in list(evaluation.metric_rows if evaluation is not None else ())
     ]
     return [
-        html.Div(level.formula, className="lesson-compact-chip"),
+        html.Strong("Objectives"),
         html.Div(
             [
                 html.Span(headline, className="lesson-compact-pill lesson-compact-pill-strong"),
                 *[html.Span(row, className="lesson-compact-pill") for row in objective_rows],
             ],
-            className="lesson-compact-inline",
+            className="lesson-compact-inline"
+            + (" goals-met" if evaluation and evaluation.passed else ""),
         ),
     ]
 
@@ -497,28 +473,17 @@ def lesson_compact_summary_children(state: SimulationState) -> list:
 def academy_level_card_children(level_index: int, state: SimulationState) -> list:
     level = academy_levels()[level_index - 1]
     status = academy_level_status(state.training, level)
-    status_label = {
-        "completed": "Completed",
-        "unlocked": "Unlocked",
-        "locked": "Locked",
-    }[status]
-    button_label = "Replay Lesson" if status == "completed" else "Start Lesson"
+    button_label = {"locked": "Locked", "completed": "Replay Lesson", "unlocked": "Start Lesson"}[
+        status
+    ]
     return [
         html.Div(
             [
-                html.Div(f"Level {level.index}", className="academy-card-kicker"),
-                dbc.Badge(
-                    status_label,
-                    color="success"
-                    if status == "completed"
-                    else ("primary" if status == "unlocked" else "secondary"),
-                    pill=True,
-                    class_name="academy-status-badge",
-                ),
+                html.H2(f"{level.index}. {level.title}", className="academy-card-title"),
+                _status_icon(status),
             ],
             className="academy-card-header",
         ),
-        html.Div(level.title, className="academy-card-title"),
         html.P(level.summary, className="academy-card-copy"),
         html.Div(level.formula, className="academy-card-formula"),
         html.Button(
@@ -531,27 +496,31 @@ def academy_level_card_children(level_index: int, state: SimulationState) -> lis
     ]
 
 
+def _status_icon(status: str):
+    if status == "unlocked":
+        return None
+    return html.Span(
+        "✓" if status == "completed" else "",
+        className=f"academy-icon icon-{status}",
+        role="img",
+        **{"aria-label": status.capitalize()},
+    )
+
+
 def simulator_unlock_children(state: SimulationState) -> list:
     unlocked = state.training.simulator_unlocked
     return [
         html.Div(
             [
-                html.Div("Simulator", className="academy-card-kicker"),
-                dbc.Badge(
-                    "Unlocked" if unlocked else "Locked",
-                    color="primary" if unlocked else "secondary",
-                    pill=True,
-                    class_name="academy-status-badge",
-                ),
+                html.H2("Simulator", className="academy-card-title"),
+                _status_icon("unlocked" if unlocked else "locked"),
             ],
             className="academy-card-header",
         ),
-        html.Div("Simulator Mode", className="academy-card-title"),
         html.P(
-            "The full IM dashboard with imports, ASQ, and the sandbox reward controls."
+            "Run a free-play simulation with imports and policy controls."
             if unlocked
-            else "Pass certification to unlock the full simulator and the sandbox reward controls.",
+            else "Complete all lessons to unlock the free-play simulator.",
             className="academy-card-copy",
         ),
-        html.Div("Free-play sandbox", className="academy-card-formula"),
     ]

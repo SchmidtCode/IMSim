@@ -2,7 +2,16 @@
 
 /* Tokens and theme */
 :root {
-  --imsim-bg-top: #f7f8f5;
+  --imsim-track: #c3d0db;
+  --imsim-progress: #3978af;
+  --imsim-goal-bg: #fff1c7;
+  --imsim-goal-text: #704900;
+  --imsim-passed-bg: #cef4dc;
+  --imsim-passed-text: #205936;
+  --imsim-secondary: #244e62;
+  --imsim-goal-track: #e8d2d5;
+  --imsim-goal-pass: #cfe3dd;
+  --imsim-bg-top: #fcfcf9;
   --imsim-bg: #eef1ec;
   --imsim-surface: rgba(255, 255, 255, 0.92);
   --imsim-surface-strong: #fcfdf9;
@@ -92,21 +101,23 @@ body {
   min-height: 100dvh;
   color: var(--imsim-ink);
   overflow-x: clip;
-  background:
-    linear-gradient(90deg, var(--imsim-bg-grid) 1px, transparent 1px),
-    linear-gradient(180deg, var(--imsim-bg-grid) 1px, transparent 1px),
-    linear-gradient(180deg, var(--imsim-bg-top) 0%, var(--imsim-bg) 100%);
-  background-size:
-    3rem 3rem,
-    3rem 3rem,
-    auto;
+  background: linear-gradient(var(--imsim-bg-top), var(--imsim-bg));
 }
 
 .theme-dark {
+  --imsim-track: #425a6c;
+  --imsim-progress: #60a5e2;
+  --imsim-goal-bg: #473a20;
+  --imsim-goal-text: #ffe2a0;
+  --imsim-passed-bg: #234c43;
+  --imsim-passed-text: #d0efda;
+  --imsim-secondary: #305778;
+  --imsim-goal-track: #543c47;
+  --imsim-goal-pass: #28524b;
   --imsim-bg-top: #08111d;
   --imsim-bg: #0c1523;
-  --imsim-surface: rgba(13, 24, 38, 0.9);
-  --imsim-surface-strong: rgba(18, 31, 49, 0.94);
+  --imsim-surface: #132033;
+  --imsim-surface-strong: #1a2a3e;
   --imsim-ink: #e6eefc;
   --imsim-muted: #9aabc6;
   --imsim-line: rgba(214, 228, 255, 0.14);
@@ -136,14 +147,6 @@ body {
 .imsim-shell .card-body,
 .shell-card {
   min-width: 0;
-}
-
-.session-card-header {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: var(--imsim-lesson-card-gap);
 }
 
 .theme-toggle-button {
@@ -261,7 +264,6 @@ body {
   margin-top: auto;
 }
 
-.academy-card-kicker,
 .academy-card-formula,
 .helper-copy,
 .lesson-formula-chip {
@@ -314,21 +316,6 @@ body {
 .review-override-control {
   border-top: 1px solid var(--imsim-line);
   padding-top: 0.9rem;
-}
-
-.academy-status-badge {
-  font-size: 0.72rem;
-  line-height: 1;
-  max-width: 7rem;
-  min-width: 5.6rem;
-  overflow: hidden;
-  padding: 0.35rem 0.55rem;
-  position: absolute;
-  right: 0;
-  text-align: center;
-  text-overflow: ellipsis;
-  top: 0.05rem;
-  white-space: nowrap;
 }
 
 .academy-result-alert {
@@ -669,7 +656,7 @@ body {
 .footer-card {
   background: var(--imsim-surface);
   border: 1px solid var(--imsim-line);
-  border-radius: var(--imsim-radius-3xl);
+  border-radius: var(--imsim-radius-lg);
   box-shadow: var(--imsim-shadow);
 }
 
@@ -947,8 +934,8 @@ body {
 }
 
 .button-success {
-  background: #287848;
-  border-color: #287848;
+  background: var(--imsim-teal);
+  border-color: var(--imsim-teal);
   box-shadow: var(--imsim-shadow-action-green);
 }
 
@@ -958,8 +945,8 @@ body {
 }
 
 .button-secondary {
-  background: #354743;
-  border-color: #354743;
+  background: var(--imsim-secondary);
+  border-color: var(--imsim-secondary);
   color: #f4f7fb;
 }
 
@@ -3335,8 +3322,8 @@ body {
       minmax(0, 1fr);
     grid-template-rows: auto auto;
     grid-template-areas:
-      "service graph"
-      "session graph";
+      "session graph"
+      "service graph";
     gap: var(--imsim-lesson-gap);
     align-items: start;
     padding-bottom: 1rem;
@@ -3917,4 +3904,438 @@ body {
     width: 100% !important;
     max-width: 100% !important;
   }
+}
+
+/* Academy overview and lesson catalog */
+.academy-overview {
+  margin-block: 0.75rem;
+}
+
+.academy-progress {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.5rem;
+}
+
+.academy-progress-ring {
+  width: clamp(8rem, 14vw, 14rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(var(--imsim-progress) var(--progress), var(--imsim-track) 0);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.academy-progress-ring strong {
+  display: grid;
+  place-items: center;
+  width: 79%;
+  aspect-ratio: 1;
+  border-radius: inherit;
+  color: var(--imsim-ink);
+  background: var(--imsim-surface-strong);
+  font: 700 clamp(2rem, 3.8vw, 4rem)/1 "Space Grotesk", sans-serif;
+}
+.academy-next {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 1.15rem;
+}
+
+.academy-card-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0;
+}
+
+.academy-card-title {
+  margin: 0;
+}
+
+.academy-icon {
+  color: var(--imsim-progress);
+  flex: none;
+}
+
+.icon-completed {
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  text-align: center;
+  width: 1.4rem;
+  line-height: 1.15rem;
+  color: var(--imsim-teal);
+}
+
+.icon-locked {
+  position: relative;
+  width: 1.25rem;
+  height: 1rem;
+  margin-top: 0.55rem;
+  border: 2px solid var(--imsim-track);
+  border-radius: 0.2rem;
+}
+
+.icon-locked::before {
+  content: "";
+  position: absolute;
+  width: 70%;
+  height: 0.65rem;
+  left: 15%;
+  bottom: 100%;
+  border: 2px solid var(--imsim-track);
+  border-bottom: 0;
+  border-radius: 1rem 1rem 0 0;
+}
+
+.academy-card-content > .academy-card-formula {
+  margin: 0.3rem 0;
+  background: transparent;
+}
+
+.academy-card-content > button {
+  margin-top: auto;
+}
+
+.academy-shell .hero-actions-compact {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 0.45rem;
+}
+
+.workspace-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.hero-formula {
+  display: table;
+  margin-top: 0.4rem;
+}
+
+.next-lesson:not([hidden]) {
+  display: block;
+  margin: 0.75rem 0 0 auto;
+}
+
+.reference-close {
+  float: right;
+  margin: 0.65rem 0.5rem;
+}
+
+.reference-tabs {
+  margin-right: 3.5rem;
+}
+
+.reference-tabs .nav-item {
+  flex: 1;
+}
+
+.reference-tabs .nav-link {
+  width: 100%;
+  color: var(--imsim-ink);
+}
+
+.reference-tabs .nav-link.active {
+  font-weight: 700;
+}
+
+.reference-panel {
+  padding: 1rem;
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-sm);
+}
+
+.reference-entry {
+  border: 0;
+  padding: 0;
+}
+
+.lesson-intro-header {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.theme-dark .btn-close {
+  filter: invert(1) grayscale(1);
+}
+
+.simulator-metrics {
+  display: grid;
+  grid-template-columns: 1.5fr repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.simulator-metrics .metric-card {
+  min-height: 0;
+  height: auto;
+  box-shadow: none;
+}
+
+.fill-card {
+  grid-row: span 2;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.fill-gauge {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2;
+  overflow: hidden;
+  border-radius: 100vw 100vw 0 0;
+  background: conic-gradient(from 270deg at 50% 100%, var(--imsim-teal) var(--fill-angle), var(--imsim-goal-track) 0 171deg, var(--imsim-goal-pass) 0);
+}
+.fill-gauge strong {
+  position: absolute;
+  inset: 25% 12.5% 0;
+  display: grid;
+  align-items: end;
+  text-align: center;
+  border-radius: inherit;
+  background: var(--imsim-surface-strong);
+  font-size: clamp(1.5rem, 3vw, 3.5rem);
+}
+.simulator-dashboard #experience-kicker,
+.dashboard-shell #graph-panel .panel-label,
+.simulator-dashboard .dashboard-panel .panel-label {
+  display: none;
+}
+
+.simulator-dashboard #session-panel .session-card {
+  margin-top: 0 !important;
+}
+
+.simulator-dashboard #actions-panel .imsim-button:not(.button-primary) {
+  background: var(--imsim-secondary);
+  color: white;
+}
+
+.lesson-compact-inline .lesson-compact-pill {
+  background: var(--imsim-goal-bg);
+  color: var(--imsim-goal-text);
+}
+
+.lesson-compact-inline.goals-met .lesson-compact-pill {
+  background: var(--imsim-passed-bg);
+  color: var(--imsim-passed-text);
+}
+
+
+@media (min-width: 1200px) {
+  .simulator-dashboard #session-panel {
+    order: -1;
+  }
+
+  .simulator-dashboard:has(.simulator-metrics) {
+    display: grid;
+    grid-template-columns: minmax(17rem, var(--imsim-size-dashboard-rail-max)) minmax(0, 1fr);
+    gap: var(--imsim-lesson-gap);
+  }
+
+  .simulator-dashboard .experience-banner-card {
+    grid-column: 1 / -1;
+  }
+
+  .simulator-dashboard:has(.simulator-metrics) .dashboard-main-layout {
+    display: contents;
+  }
+
+  .simulator-dashboard .dashboard-kpi-strip {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .simulator-dashboard .dashboard-rail-column {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+  }
+
+  .simulator-dashboard .dashboard-main-column {
+    grid-column: 2;
+  }
+
+}
+@media (max-width: 767.98px) {
+  .academy-overview {
+    justify-content: center;
+  }
+
+  .academy-progress {
+    flex-direction: column;
+    gap: 0.8rem;
+    text-align: center;
+  }
+
+  .academy-shell .hero-actions-wrap {
+    justify-content: center;
+  }
+
+  .hero-actions.hero-actions-compact {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-actions.hero-actions-compact .imsim-button {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .workspace-tools, #lesson-return-wrap, #simulator-shell {
+    grid-column: 1 / -1;
+  }
+
+  .simulator-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .simulator-metrics .metric-card {
+    width: 100% !important;
+  }
+
+  .fill-gauge {
+    max-width: 20rem;
+    align-self: center;
+  }
+
+}
+
+.simulator-dashboard .session-primary-block,
+.simulator-dashboard .session-speed-block {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.simulator-dashboard .session-card .card-body {
+  padding: var(--imsim-space-panel-pad);
+}
+
+.simulator-dashboard .status-value {
+  font-size: 1.5rem;
+}
+
+.fill-toggle {
+  color: var(--imsim-muted);
+  font-size: 0.85rem;
+}
+
+.fill-toggle input {
+  margin-right: 0.4rem;
+  accent-color: var(--imsim-teal);
+}
+
+.fill-card .fill-gauge {
+  margin-top: 0.5rem;
+  color: var(--imsim-ink);
+}
+
+.fill-card:has(input:checked) .fill-gauge, .fill-card:not(:has(input:checked)) .fill-comparison {
+  display: none;
+}
+
+.fill-comparison {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.fill-comparison meter {
+  width: 100%;
+  height: 2rem;
+}
+
+.policy-settings > summary {
+  background: var(--imsim-secondary);
+  padding: 0.55rem;
+  border-radius: var(--imsim-radius-sm);
+  color: white;
+  font-weight: 600;
+}
+
+.policy-settings[open] > summary, .policy-settings + #asq-controls-shell {
+  margin-bottom: 0.75rem;
+}
+
+.policy-settings + #asq-controls-shell {
+  margin-top: 1rem;
+}
+
+.theme-toggle-button::before {
+  content: "☾";
+  margin-right: 0.35em;
+}
+
+.theme-dark .theme-toggle-button::before {
+  content: "☼";
+}
+
+.theme-dark .academy-shell, .theme-dark .experience-banner-card {
+  background: var(--imsim-surface);
+}
+
+.theme-dark .academy-card {
+  background: var(--imsim-surface-strong);
+}
+
+@media (max-width: 767.98px) {
+  .academy-overview > .d-flex {
+    width: 100%;
+  }
+
+}
+
+.imsim-shell:has(.next-lesson:not([hidden])) .footer-restore {
+  position: static;
+  display: block;
+  margin: 1rem 0 0 auto;
+}
+.lesson-level-1 #session-panel .session-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+#dashboard-shell.lesson-level-1 #session-panel > .card > .card-body {
+  padding: 0;
+}
+
+.lesson-level-1 .session-metrics-grid {
+  grid-template-columns: 1fr;
+}
+
+.lesson-level-1 :is(.session-primary-block, .session-speed-block) {
+  background: var(--imsim-surface);
+}
+
+.lesson-level-1 #service-panel-title {
+  display: none;
+}
+
+.lesson-level-1 .lesson-snapshot-label, .lesson-detail-card .panel-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+}
+#lesson-objectives .lesson-copy-list {
+  display: grid;
+  justify-items: start;
+  list-style: none;
+  padding: 0;
+  gap: 0.45rem;
+}
+#lesson-objectives li {
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--imsim-radius-pill);
+  background: var(--imsim-goal-bg);
+  color: var(--imsim-goal-text);
+}
+.sim-speed-slider {
+  --Dash-Fill-Interactive-Strong: var(--imsim-progress);
+  --Dash-Fill-Primary-Active: var(--imsim-progress);
 }

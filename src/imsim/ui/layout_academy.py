@@ -10,7 +10,7 @@ from .academy_components import (
     reference_modal_children,
     simulator_unlock_children,
 )
-from .primitives import action_button, hero_row, modal_actions, shell_card, work_modal
+from .primitives import action_button, hero_row, shell_card
 
 
 def _academy_card_col(children: object) -> dbc.Col:
@@ -45,10 +45,10 @@ def _simulator_col(initial_state: SimulationState) -> dbc.Col:
                     className="academy-card-status-block",
                 ),
                 action_button(
-                    "Open Simulator",
+                    "Open Simulator" if initial_state.training.simulator_unlocked else "Locked",
                     "academy-simulator-button",
                     "primary",
-                    disabled=True,
+                    disabled=not initial_state.training.simulator_unlocked,
                     class_name="button-block mt-3",
                 ),
             ],
@@ -84,18 +84,6 @@ def academy_menu_shell(initial_state: SimulationState) -> html.Div:
                         ),
                         actions=[
                             action_button(
-                                "Dark mode",
-                                "academy-theme-toggle",
-                                "ghost",
-                                class_name="theme-toggle-button button-sm",
-                            ),
-                            action_button(
-                                "Reference",
-                                "academy-reference-button",
-                                "ghost",
-                                class_name="button-pill",
-                            ),
-                            action_button(
                                 "Reset Progress",
                                 "academy-reset-progress-button",
                                 "secondary",
@@ -107,19 +95,40 @@ def academy_menu_shell(initial_state: SimulationState) -> html.Div:
                                 "secondary",
                                 class_name="button-pill",
                             ),
+                            action_button(
+                                "Dark mode",
+                                "academy-theme-toggle",
+                                "ghost",
+                                class_name="theme-toggle-button button-sm",
+                            ),
+                            action_button(
+                                "Reference",
+                                "academy-reference-button",
+                                "ghost",
+                                class_name="button-pill",
+                            ),
                         ],
                         left_lg=6,
                         actions_lg=6,
                     ),
-                    html.Div(id="academy-result-banner", className="mt-3"),
-                    html.Div(id="academy-progress-summary", className="mt-4"),
+                    html.Div(id="academy-result-banner"),
                     dbc.Row(
                         [
-                            *(
-                                _academy_level_col(level.index, initial_state)
-                                for level in academy_levels()
+                            dbc.Col(
+                                html.Div(
+                                    id="academy-progress-summary", className="academy-progress"
+                                ),
+                                md=6,
+                                lg=8,
                             ),
                             _simulator_col(initial_state),
+                        ],
+                        className="g-3 align-items-center academy-overview",
+                    ),
+                    dbc.Row(
+                        [
+                            _academy_level_col(level.index, initial_state)
+                            for level in academy_levels()
                         ],
                         className="g-3 mt-2",
                     ),
@@ -137,25 +146,32 @@ def lesson_shell() -> html.Div:
             dbc.Modal(
                 [
                     dbc.ModalHeader(
-                        html.Div(
-                            [
-                                html.Div(
-                                    "Lesson",
-                                    id="lesson-intro-kicker",
-                                    className="hero-kicker",
-                                ),
-                                html.H2(
-                                    "Academy Lesson",
-                                    id="lesson-title",
-                                    className="lesson-intro-title",
-                                ),
-                                html.P(
-                                    "Start a lesson from the academy menu.",
-                                    id="lesson-copy",
-                                    className="lesson-intro-copy",
-                                ),
-                            ]
-                        ),
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        "Lesson",
+                                        id="lesson-intro-kicker",
+                                        className="hero-kicker",
+                                    ),
+                                    html.H2(
+                                        "Academy Lesson",
+                                        id="lesson-title",
+                                        className="lesson-intro-title",
+                                    ),
+                                    html.P(
+                                        "Start a lesson from the academy menu.",
+                                        id="lesson-copy",
+                                        className="lesson-intro-copy",
+                                    ),
+                                ]
+                            ),
+                            html.Button(
+                                id="lesson-intro-dismiss-button",
+                                className="btn-close",
+                                **{"aria-label": "Enter lesson"},
+                            ),
+                        ],
                         close_button=False,
                         class_name="lesson-intro-header",
                     ),
@@ -183,17 +199,9 @@ def lesson_shell() -> html.Div:
                         ],
                         class_name="lesson-intro-body",
                     ),
-                    dbc.ModalFooter(
-                        action_button(
-                            "Enter Lesson",
-                            "lesson-intro-dismiss-button",
-                            "primary",
-                            class_name="button-pill",
-                        ),
-                        className="lesson-intro-footer",
-                    ),
                 ],
                 id="lesson-intro-modal",
+                labelledby="lesson-title",
                 is_open=False,
                 centered=True,
                 scrollable=True,
@@ -210,12 +218,23 @@ def lesson_shell() -> html.Div:
 
 
 def reference_modal() -> dbc.Modal:
-    return work_modal(
-        "Reference",
-        "reference-modal",
-        reference_modal_children(),
-        footer=modal_actions(action_button("Close", "reference-modal-close", "secondary")),
+    return dbc.Modal(
+        dbc.ModalBody(
+            [
+                html.H2("Reference", id="reference-title", className="visually-hidden"),
+                html.Button(
+                    id="reference-modal-close",
+                    className="btn-close reference-close",
+                    **{"aria-label": "Close reference"},
+                ),
+                *reference_modal_children(),
+            ]
+        ),
+        id="reference-modal",
+        is_open=False,
         centered=True,
         scrollable=True,
         size="xl",
+        labelledby="reference-title",
+        content_class_name="imsim-modal-content",
     )

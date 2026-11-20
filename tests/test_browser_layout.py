@@ -92,7 +92,6 @@ def test_first_lesson_opens_after_academy_unlock_refresh(browser_page, dash_app)
 
     page.set_viewport_size({"width": 820, "height": 900})
     page.goto(url, wait_until="networkidle")
-    page.locator("#gh-footer-hide").click()
     _unlock_academy(page)
     page.locator("#academy-level-1-button").click(delay=500)
     expect(page.locator("#lesson-intro-dismiss-button")).to_be_visible()
@@ -133,11 +132,13 @@ def test_planner_grid_has_readable_rows_and_headers(browser_page, width):
     expect(page.locator("#inventory-table-grid")).to_have_class(re.compile("ag-theme-quartz-dark"))
     _assert_grid_readable(page)
 
+    page.get_by_role("checkbox", name="Compare today").check()
     initial_day = page.locator("#day-display").inner_text()
     page.locator("#start-button").click()
     expect(page.locator("#day-display")).not_to_have_text(initial_day, timeout=10000)
     page.locator("#start-button").click()
     expect(page.locator("#start-button")).to_have_text("Resume Simulation")
+    expect(page.locator(".fill-comparison")).to_be_visible()
 
     page.locator("#simulator-return-button").click()
     expect(page.locator("#academy-menu-shell")).to_be_visible()
@@ -153,6 +154,7 @@ def test_github_card_stays_in_viewport_when_scrolling(browser_page, width, heigh
     page.set_viewport_size({"width": width, "height": height})
     page.goto(url, wait_until="networkidle")
     card = page.locator("#gh-footer .footer-card")
+    page.locator("#gh-footer-show").click()
     card.wait_for(state="visible")
     before = card.bounding_box()
     assert before["x"] >= 0, before
@@ -174,7 +176,6 @@ def test_lesson_two_cards_have_space_when_stacked(browser_page, width):
     page, url, errors = browser_page
     page.set_viewport_size({"width": width, "height": 844})
     page.goto(url, wait_until="networkidle")
-    page.locator("#gh-footer-hide").click()
     _unlock_academy(page)
     page.locator("#academy-level-2-button").click()
     page.locator("#lesson-intro-dismiss-button").click()
@@ -207,7 +208,6 @@ def test_lessons_use_available_width_and_keep_snapshot_below_inventory(browser_p
     page, url, errors = browser_page
     page.set_viewport_size({"width": width, "height": 900})
     page.goto(url, wait_until="networkidle")
-    page.locator("#gh-footer-hide").click()
     _unlock_academy(page)
     for level in range(1, 20):
         page.locator(f"#academy-level-{level}-button").click()
@@ -252,7 +252,6 @@ def test_expanded_lesson_snapshot_headers_fit(browser_page, width):
     page, url, errors = browser_page
     page.set_viewport_size({"width": width, "height": 900})
     page.goto(url, wait_until="networkidle")
-    page.locator("#gh-footer-hide").click()
     _unlock_academy(page)
     page.locator("#academy-level-14-button").click()
     page.locator("#lesson-intro-dismiss-button").click()
@@ -271,6 +270,7 @@ def test_hidden_github_card_can_be_restored_after_reload(browser_page):
 
     page, url, errors = browser_page
     page.goto(url, wait_until="networkidle")
+    page.locator("#gh-footer-show").click()
     page.locator("#gh-footer-hide").click()
     expect(page.locator("#gh-footer .footer-card")).not_to_be_visible()
     page.reload(wait_until="networkidle")
@@ -287,7 +287,6 @@ def test_simulator_service_badge_stays_inside_card(browser_page, width):
     page, url, errors = browser_page
     page.set_viewport_size({"width": width, "height": 900})
     page.goto(url, wait_until="networkidle")
-    page.locator("#gh-footer-hide").click()
     _unlock_academy(page)
     page.locator("#academy-simulator-button").click()
     # Dash may replace service-card children after the simulator becomes visible.
@@ -336,7 +335,6 @@ def test_lesson_intro_formulas_fit_the_tutorial_card(browser_page, width):
     page, url, errors = browser_page
     page.set_viewport_size({"width": width, "height": 844})
     page.goto(url, wait_until="networkidle")
-    page.locator("#gh-footer-hide").click()
     _unlock_academy(page)
     for level in range(1, 20):
         page.locator(f"#academy-level-{level}-button").click()
@@ -369,7 +367,6 @@ def test_mobile_github_restore_button_follows_page_content(browser_page, width):
     page, url, errors = browser_page
     page.set_viewport_size({"width": width, "height": 844})
     page.goto(url, wait_until="networkidle")
-    page.locator("#gh-footer-hide").click()
     _unlock_academy(page)
     restore = page.get_by_role("button", name="Show GitHub card")
     expect(restore).to_be_visible()
@@ -403,4 +400,22 @@ def test_mobile_github_restore_button_follows_page_content(browser_page, width):
     expect(restore).not_to_be_visible()
     page.reload(wait_until="networkidle")
     expect(page.locator("#gh-footer .footer-card")).to_be_visible()
+    assert errors == []
+
+
+@pytest.mark.parametrize("width", [390, 1440])
+def test_completed_lesson_opens_next_lesson(browser_page, width):
+    from playwright.sync_api import expect
+
+    page, url, errors = browser_page
+    page.set_viewport_size({"width": width, "height": 900})
+    page.goto(url, wait_until="networkidle")
+    page.locator("#academy-level-1-button").click()
+    page.locator("#lesson-intro-dismiss-button").click()
+    page.locator("#sim-speed-slider [role=slider]").press("End")
+    page.locator("#start-button").click()
+    next_lesson = page.get_by_role("button", name="Next: Lesson 2 Basic Ordering and PNA")
+    expect(next_lesson).to_be_visible(timeout=45000)
+    next_lesson.click(timeout=5000)
+    expect(page.locator("#lesson-title")).to_have_text("Basic Ordering and PNA")
     assert errors == []

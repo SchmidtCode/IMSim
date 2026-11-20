@@ -948,8 +948,8 @@ def test_academy_progress_shows_next_unlock_before_completion():
 
     text = " ".join(_component_text(academy_progress_children(state)))
 
-    assert "Next Unlock" in text
-    assert "Level 2" in text
+    assert "Up next" in text
+    assert "Lesson 2" in text
     assert "Certificate Complete" not in text
 
 
@@ -964,7 +964,7 @@ def test_academy_progress_shows_certificate_complete_after_final_lesson_complete
 
     assert "Certificate Complete" in text
     assert "Complete" in text
-    assert "Next Unlock" not in text
+    assert "Up next" not in text
     assert "Highest playable lesson" not in text
 
 

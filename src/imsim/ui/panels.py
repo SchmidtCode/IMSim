@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import dash_bootstrap_components as dbc
-from dash import html
+from dash import dcc, html
 
 from ..models import InventoryItem, SimulationState
 from ..services.planning import format_money, item_on_order
@@ -468,6 +468,51 @@ def build_kpi_strip(state: SimulationState) -> list:
         ("Turns", fmt_ratio(turns), "neutral", "COGS / avg inventory"),
         ("GMROI", fmt_ratio(gmroi), "neutral", "Gross margin return"),
     )
+    if state.training.current_view == "simulator":
+        today = state.service_today
+        daily_fill = 1 - today.orders_stockout / today.orders if today.orders else None
+        return [
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Div("Cumulative fill rate", className="metric-label"),
+                            dcc.Checklist(
+                                id="fill-comparison-toggle",
+                                options=[{"label": "Compare today", "value": "daily"}],
+                                value=[],
+                                persistence=True,
+                                persistence_type="session",
+                                className="fill-toggle",
+                            ),
+                            html.Div(
+                                html.Strong(fmt_pct(fill_rate)),
+                                className="fill-gauge",
+                                style={"--fill-angle": f"{180 * (fill_rate or 0)}deg"},
+                            ),
+                            html.Div(
+                                [
+                                    html.Meter(
+                                        value=fill_rate or 0,
+                                        min=0,
+                                        max=1,
+                                        high=0.95,
+                                        optimum=1,
+                                        **{"aria-label": "Cumulative fill rate"},
+                                    ),
+                                    html.Div(f"Cumulative: {fmt_pct(fill_rate)}"),
+                                    html.Div(f"Today: {fmt_pct(daily_fill)}"),
+                                ],
+                                className="fill-comparison",
+                            ),
+                        ],
+                        className="metric-card fill-card",
+                    ),
+                    *[_kpi_card(*kpi) for kpi in kpis[2:]],
+                ],
+                className="simulator-metrics",
+            )
+        ]
     return [
         dbc.Row(
             [dbc.Col(_kpi_card(*kpi), md=6, xl=2) for kpi in kpis],

@@ -307,7 +307,6 @@ def test_reference_modal_toggle_is_wired(dash_app):
     assert _input_pairs(spec) == {
         ("academy-reference-button", "n_clicks"),
         ("experience-reference-button", "n_clicks"),
-        ("simulator-reference-button", "n_clicks"),
         ("reference-modal-close", "n_clicks"),
     }
 

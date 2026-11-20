@@ -32,7 +32,6 @@ def _button_row(*buttons: html.Button) -> dbc.Row:
 def _manual_item_card() -> dbc.Card:
     return shell_card(
         [
-            html.Div("Manual item", className="panel-label"),
             *_number_fields(),
             html.Div(id="add-item-error", className="mb-2"),
             _button_row(
@@ -57,7 +56,7 @@ def _manual_item_card() -> dbc.Card:
 def _import_card() -> dbc.Card:
     return shell_card(
         [
-            html.Div("Import", className="panel-label"),
+            html.H3("Import items", className="panel-title-small"),
             dbc.Alert(
                 "Upload .csv or .xlsx files using the canonical 7-column item format.",
                 color="light",
@@ -174,7 +173,7 @@ def po_overview_modal() -> dbc.Modal:
         grid_id="po-overview-grid",
         options=po_overview_grid_options(),
         footer_buttons=[
-            action_button("Expedite Selected", "po-expedite-button", "warning"),
+            action_button("Expedite Selected", "po-expedite-button", "secondary"),
             action_button("Cancel Selected", "po-cancel-button", "danger"),
             action_button("Close", "po-overview-close", "secondary"),
         ],

@@ -232,7 +232,7 @@ def test_dash_layout_and_admin_status(client):
     assert "reference-modal" in payload
     assert "academy-reference-button" in payload
     assert "experience-reference-button" in payload
-    assert "simulator-reference-button" in payload
+    assert "next-lesson-button" in payload
     assert "view-scroll-store" in payload
     assert "review-cycle-override-input" in payload
     assert "review-cycle-override-indicator" in payload

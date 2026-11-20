@@ -11,7 +11,7 @@ from .layout_academy import (
     lesson_shell,
     reference_modal,
 )
-from .layout_dashboard import dashboard_shell, simulator_shell
+from .layout_dashboard import dashboard_shell
 from .layout_modals import add_item_modal, custom_order_modal, po_overview_modal
 
 
@@ -19,7 +19,7 @@ def _stores_and_intervals(config: IMSimConfig) -> list:
     return [
         dcc.Store(id="user-data-store", storage_type="local", data={}),
         dcc.Store(id="page-load", data=0),
-        dcc.Store(id="gh-footer-store", storage_type="local", data=True),
+        dcc.Store(id="gh-footer-store", storage_type="local", data=False),
         dcc.Store(id="upload-preview-data"),
         dcc.Store(id="theme-store", storage_type="local", data="light"),
         dcc.Store(id="session-revision", data=0),
@@ -49,7 +49,6 @@ def build_layout(config: IMSimConfig):
                 academy_menu_shell(initial_state),
                 lesson_shell(),
                 reference_modal(),
-                simulator_shell(),
                 dashboard_shell(),
                 add_item_modal(),
                 custom_order_modal(),

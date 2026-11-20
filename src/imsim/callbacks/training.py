@@ -221,6 +221,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         ],
         [
             *level_button_inputs,
+            Input("next-lesson-button", "n_clicks"),
             Input("academy-simulator-button", "n_clicks"),
             Input("return-to-menu-button", "n_clicks"),
             Input("simulator-return-button", "n_clicks"),
@@ -234,6 +235,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         *input_values, client_data, session_revision = callback_args
         level_clicks = input_values[: len(levels)]
         (
+            next_lesson_clicks,
             open_simulator_clicks,
             lesson_return_clicks,
             simulator_return_clicks,
@@ -249,6 +251,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
                     f"academy-level-{level.index}-button": click_count
                     for level, click_count in zip(levels, level_clicks, strict=True)
                 },
+                "next-lesson-button": next_lesson_clicks,
                 "academy-simulator-button": open_simulator_clicks,
                 "return-to-menu-button": lesson_return_clicks,
                 "simulator-return-button": simulator_return_clicks,
@@ -260,6 +263,11 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         session_id, state = ctx.require_session(client_data)
         if trig == "academy-reset-progress-button":
             next_state = reset_progress_state()
+        elif trig == "next-lesson-button":
+            level = active_level(state)
+            if not level or state.training.lesson_status != "passed" or level.index >= len(levels):
+                raise PreventUpdate
+            next_state = build_level_state(levels[level.index].level_id, state.training)
         elif trig == "academy-simulator-button":
             if not simulator_view_allowed(state.training):
                 raise PreventUpdate
@@ -424,7 +432,6 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             Output("lesson-objectives", "children"),
             Output("lesson-locked", "children"),
             Output("lesson-intro-modal", "is_open"),
-            Output("simulator-copy", "children"),
             Output("experience-kicker", "children"),
             Output("experience-title", "children"),
             Output("experience-copy", "children"),
@@ -461,6 +468,9 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             *level_card_outputs,
             Output("academy-simulator-card", "children"),
             Output("academy-simulator-button", "disabled"),
+            Output("next-lesson-button", "hidden"),
+            Output("next-lesson-button", "children"),
+            Output("academy-simulator-button", "children"),
             Output("advanced-sandbox-copy", "children"),
             Output("interval-component", "disabled", allow_duplicate=True),
             Output("dashboard-layout-revision", "data"),
@@ -481,13 +491,16 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             level.summary if level is not None else "Start a lesson from the academy menu."
         )
         if is_simulator:
-            experience_title = "Simulator control deck"
+            experience_title = "Simulator"
             experience_copy = (
                 "Free play, imports, and the sandbox reward controls are now available."
             )
         elif level is not None:
             experience_title = level.title
-            experience_copy = level.summary
+            experience_copy = [
+                level.summary,
+                html.Span(level.formula, className="lesson-compact-chip hero-formula"),
+            ]
         else:
             experience_title = "Lesson control deck"
             experience_copy = "Use the academy menu to start a lesson."
@@ -515,17 +528,6 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             resumable=(
                 not state.is_initialized and state.day > 1 and not is_menu and not lesson_terminal
             ),
-        )
-        simulator_copy = (
-            (
-                "The full IM dashboard is unlocked. Auto purchase orders remain off by "
-                "default and live in the sandbox section."
-            )
-            if state.training.auto_po_reward_unlocked
-            else (
-                "The full IM dashboard is unlocked. Auto purchase orders stay hidden "
-                "until certification is completed."
-            )
         )
         sandbox_copy = (
             "Sandbox reward: auto purchase orders are unlocked here, but they still default to off."
@@ -561,7 +563,6 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             lesson_objective_children(state),
             lesson_locked_children(state),
             state.training.current_view == "lesson" and not state.training.lesson_intro_dismissed,
-            simulator_copy,
             experience_kicker_text(state, level),
             experience_title,
             experience_copy,
@@ -603,6 +604,11 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
             *[academy_level_card_children(level.index, state) for level in levels],
             simulator_unlock_children(state),
             not state.training.simulator_unlocked,
+            not (level and level.index < len(levels) and state.training.lesson_status == "passed"),
+            f"Next: Lesson {level.index + 1} {levels[level.index].title}"
+            if level and level.index < len(levels)
+            else "Next lesson",
+            "Open Simulator" if state.training.simulator_unlocked else "Locked",
             sandbox_copy,
             interval_disabled,
             _dashboard_layout_revision_update(state, dashboard_layout_revision, ctx),

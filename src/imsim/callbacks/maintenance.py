@@ -87,7 +87,6 @@ def register_maintenance_callbacks(ctx: CallbackRegistrarContext) -> None:
         Output("reference-modal", "is_open"),
         Input("academy-reference-button", "n_clicks"),
         Input("experience-reference-button", "n_clicks"),
-        Input("simulator-reference-button", "n_clicks"),
         Input("reference-modal-close", "n_clicks"),
         State("reference-modal", "is_open"),
         prevent_initial_call=True,
@@ -95,7 +94,6 @@ def register_maintenance_callbacks(ctx: CallbackRegistrarContext) -> None:
     def toggle_reference_modal(
         academy_clicks,
         experience_clicks,
-        simulator_clicks,
         close_clicks,
         is_open,
     ):
@@ -103,8 +101,7 @@ def register_maintenance_callbacks(ctx: CallbackRegistrarContext) -> None:
         if triggered in {
             "academy-reference-button",
             "experience-reference-button",
-            "simulator-reference-button",
-        } and any([academy_clicks, experience_clicks, simulator_clicks]):
+        } and any([academy_clicks, experience_clicks]):
             return True
         if triggered == "reference-modal-close" and close_clicks:
             return False

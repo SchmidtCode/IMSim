@@ -200,7 +200,7 @@ def _asq_controls() -> html.Div:
                     ]
                 ),
                 id="asq-collapse",
-                is_open=False,
+                is_open=True,
             ),
         ],
         id="asq-controls-shell",
@@ -211,18 +211,23 @@ def _policy_panel() -> html.Div:
     return _dashboard_panel(
         "policy-panel",
         [
-            html.Div("Policy", className="panel-label"),
-            html.H3("Global parameters", className="panel-title"),
-            *_controls(_POLICY_CONTROLS),
-            _auto_po_controls(),
-            _asq_controls(),
-            html.Div(id="update-params-conf", className="mt-3"),
-            action_button(
-                "Update Parameters",
-                "update-params-button",
-                "primary",
-                class_name="button-block mt-2",
+            html.Details(
+                [
+                    html.Summary("Global parameters"),
+                    *_controls(_POLICY_CONTROLS),
+                    _auto_po_controls(),
+                    html.Div(id="update-params-conf", className="mt-3"),
+                    action_button(
+                        "Apply Changes",
+                        "update-params-button",
+                        "primary",
+                        class_name="button-block mt-2",
+                    ),
+                ],
+                open=True,
+                className="policy-settings",
             ),
+            _asq_controls(),
         ],
     )
 
@@ -233,24 +238,15 @@ def _session_panel() -> html.Div:
         [
             html.Div(
                 [
-                    html.Div("Session", className="panel-label"),
-                    action_button(
-                        "Dark mode",
-                        "theme-toggle",
-                        "ghost",
-                        class_name="theme-toggle-button button-sm",
-                    ),
-                ],
-                className="session-card-header",
-            ),
-            html.Div(
-                [
                     html.Div(
                         [
                             html.Div(
                                 "Day: 1",
                                 id="day-display",
                                 className="status-value",
+                            ),
+                            html.Div(
+                                id="lesson-compact-summary", className="lesson-compact-summary"
                             ),
                             html.Div(
                                 "Status: Paused",
@@ -364,40 +360,6 @@ def _detail_col(
     )
 
 
-def simulator_shell() -> html.Div:
-    return html.Div(
-        [
-            hero_card(
-                kicker="Simulator",
-                title="Simulator workspace",
-                title_id="simulator-title",
-                copy=(
-                    "Run the full inventory workspace with imports, policy controls, "
-                    "signal maps, and sandbox reward controls."
-                ),
-                copy_id="simulator-copy",
-                actions=[
-                    action_button(
-                        "Return to Academy",
-                        "simulator-return-button",
-                        "secondary",
-                        class_name="button-pill",
-                    ),
-                    action_button(
-                        "Reference",
-                        "simulator-reference-button",
-                        "ghost",
-                        class_name="button-pill",
-                    ),
-                ],
-                class_name="academy-shell mb-4",
-            )
-        ],
-        id="simulator-shell",
-        style={"display": "none"},
-    )
-
-
 def dashboard_shell() -> html.Div:
     return html.Div(
         [
@@ -410,6 +372,8 @@ def dashboard_shell() -> html.Div:
                     "Adjust the live controls, read the signals, and close the objective window."
                 ),
                 copy_id="experience-copy",
+                left_lg=6,
+                actions_lg=6,
                 actions=[
                     action_button(
                         "Start Lesson",
@@ -423,29 +387,44 @@ def dashboard_shell() -> html.Div:
                         "secondary",
                         class_name="button-pill",
                     ),
-                    action_button(
-                        "Reference",
-                        "experience-reference-button",
-                        "ghost",
-                        class_name="button-pill",
-                    ),
                     html.Div(
                         action_button(
                             "Return to Academy",
                             "return-to-menu-button",
-                            "ghost",
+                            "secondary",
                             class_name="button-pill",
                         ),
                         id="lesson-return-wrap",
                     ),
+                    html.Div(
+                        action_button(
+                            "Return to Academy",
+                            "simulator-return-button",
+                            "secondary",
+                            class_name="button-pill",
+                        ),
+                        id="simulator-shell",
+                        style={"display": "none"},
+                    ),
+                    html.Div(
+                        [
+                            action_button(
+                                "Dark mode",
+                                "theme-toggle",
+                                "ghost",
+                                class_name="theme-toggle-button button-sm",
+                            ),
+                            action_button(
+                                "Reference",
+                                "experience-reference-button",
+                                "ghost",
+                                class_name="button-pill",
+                            ),
+                        ],
+                        className="workspace-tools",
+                    ),
                 ],
                 class_name="hero-banner-card experience-banner-card",
-                extra_left=[
-                    html.Div(
-                        id="lesson-compact-summary",
-                        className="lesson-compact-summary mt-3",
-                    )
-                ],
             ),
             html.Div(id="kpi-strip", className="dashboard-kpi-strip"),
             dbc.Row(
@@ -509,6 +488,12 @@ def dashboard_shell() -> html.Div:
                     ),
                 ],
                 className="g-3 dashboard-main-layout",
+            ),
+            html.Button(
+                "Next lesson",
+                id="next-lesson-button",
+                hidden=True,
+                className="imsim-button button-primary button-pill next-lesson",
             ),
         ],
         id="dashboard-shell",
