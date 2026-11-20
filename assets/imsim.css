@@ -4339,3 +4339,36 @@ body {
   --Dash-Fill-Interactive-Strong: var(--imsim-progress);
   --Dash-Fill-Primary-Active: var(--imsim-progress);
 }
+
+.academy-next-action,
+.sample-download {
+  color: var(--imsim-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.academy-next-action {
+  justify-self: start;
+  background: transparent;
+  border: 0;
+  padding: 0.35rem 0;
+  text-align: inherit;
+}
+
+.sample-download {
+  display: inline-block;
+  padding-block: 0.5rem;
+}
+
+.fill-empty {
+  margin-block: 1rem;
+  font-weight: 600;
+}
+
+.fill-card:has(input:checked) .fill-empty {
+  display: none;
+}
+
+@media (max-width: 767.98px) {
+  .academy-next-action { justify-self: center; }
+}

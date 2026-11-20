@@ -910,6 +910,17 @@ def active_layout_variant(state: SimulationState) -> str:
     return level.layout_variant if level is not None else "simulator"
 
 
+def next_playable_lesson(profile: TrainingProfile) -> LevelDefinition | None:
+    levels = academy_levels()
+    if levels[-1].level_id in profile.completed_levels:
+        return None
+    playable = levels[: max(1, profile.highest_unlocked_level)]
+    return next(
+        (level for level in playable if level.level_id not in profile.completed_levels),
+        playable[-1],
+    )
+
+
 def academy_level_status(profile: TrainingProfile, level: LevelDefinition) -> str:
     if level.level_id in profile.completed_levels:
         return "completed"

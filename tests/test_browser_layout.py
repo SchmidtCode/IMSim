@@ -419,3 +419,59 @@ def test_completed_lesson_opens_next_lesson(browser_page, width):
     next_lesson.click(timeout=5000)
     expect(page.locator("#lesson-title")).to_have_text("Basic Ordering and PNA")
     assert errors == []
+
+
+@pytest.mark.parametrize("width", [390, 1440])
+def test_academy_shortcut_and_simulator_review_states(browser_page, width):
+    from playwright.sync_api import expect
+
+    page, url, errors = browser_page
+    page.set_viewport_size({"width": width, "height": 900})
+    page.goto(url, wait_until="networkidle")
+    page.locator("#academy-up-next").click()
+    expect(page.locator("#lesson-title")).to_have_text("On Hand and Usage")
+    page.locator("#lesson-intro-dismiss-button").click()
+    page.locator("#return-to-menu-button").click()
+    _unlock_academy(page)
+    page.locator("#academy-simulator-button").click()
+    if width == 390:
+        page.locator("#theme-toggle").click()
+    expect(page.get_by_text("Target: 95%", exact=True)).to_be_visible()
+    expect(page.locator(".fill-empty")).to_have_text("No orders yet")
+    page.get_by_role("checkbox", name="Compare today").check()
+    expect(page.locator(".fill-comparison meter")).to_have_count(0)
+
+    page.locator("#add-item-button").click()
+    with page.expect_download() as downloaded:
+        page.get_by_role("link", name="Download sample CSV").click()
+    assert downloaded.value.suggested_filename == "sample-items.csv"
+    assert downloaded.value.path().read_text().startswith("Usage Rate,Lead Time,Item Cost")
+    page.locator("#add-item-modal .btn-close").click()
+    page.locator("#po-overview-button").click()
+    cancel = page.locator("#po-cancel-button")
+    expedite = page.locator("#po-expedite-button")
+    expect(cancel).to_be_disabled()
+    expect(expedite).to_be_disabled()
+    grid = page.locator("#po-overview-grid")
+    selection = grid.locator(".ag-header-select-all input")
+    expect(grid.get_by_text("No open purchase orders")).to_be_visible()
+    page.locator("#po-overview-close").click()
+    page.locator("#place-custom-order-button").click()
+    first_cell = page.locator("#custom-order-grid [role=gridcell]").first
+    first_cell.click()
+    first_cell.press("Control+ArrowRight")
+    cell = page.locator("#custom-order-grid .custom-order-qty-cell").first
+    cell.click()
+    editor = cell.locator("input")
+    editor.fill("12")
+    editor.press("Enter")
+    page.locator("#place-order-button").click()
+    page.locator("#po-overview-button").click()
+    expect(selection).to_be_enabled()
+    selection.check()
+    expect(cancel).to_be_enabled()
+    expect(expedite).to_be_enabled()
+    cancel.click()
+    expect(grid.get_by_text("No open purchase orders")).to_be_visible()
+    expect(cancel).to_be_disabled()
+    assert errors == []

@@ -608,6 +608,21 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
         )
 
     @app.callback(
+        Output("po-expedite-button", "disabled"),
+        Output("po-cancel-button", "disabled"),
+        Input("po-overview-grid", "selectedRows"),
+        Input("session-revision", "data"),
+        State("user-data-store", "data"),
+    )
+    def po_selection_actions(selected_rows, _revision, client_data):
+        if not selected_rows:
+            return True, True
+        state = ctx.current_state(client_data)
+        return not is_action_allowed(state, "expedite_receipt"), not is_action_allowed(
+            state, "cancel_receipt"
+        )
+
+    @app.callback(
         [
             Output("po-overview-grid", "rowData"),
             Output("po-overview-grid", "columnDefs"),
@@ -643,8 +658,6 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
                 raise PreventUpdate
             grid = build_po_overview_grid(state, theme_name)
             set_props("po-overview-modal", {"is_open": True})
-            if isinstance(grid, dbc.Alert):
-                return [], [], [], dash.no_update
             return grid.rowData, grid.columnDefs, [], dash.no_update
         if dash_ctx.triggered_id == "po-overview-close":
             set_props("po-overview-modal", {"is_open": False})
@@ -668,6 +681,4 @@ def register_inventory_callbacks(ctx: CallbackRegistrarContext) -> None:
             raise PreventUpdate
         ctx.persist_state(session_id, state)
         grid = build_po_overview_grid(state, theme_name)
-        if isinstance(grid, dbc.Alert):
-            return [], [], [], ctx.next_session_revision(session_revision)
         return grid.rowData, grid.columnDefs, [], ctx.next_session_revision(session_revision)

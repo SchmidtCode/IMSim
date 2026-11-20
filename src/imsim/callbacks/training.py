@@ -16,6 +16,7 @@ from ..services.training import (
     build_level_state,
     build_simulator_state,
     is_action_allowed,
+    next_playable_lesson,
     reset_progress_state,
     simulator_view_allowed,
     unlock_all_academy_levels,
@@ -221,6 +222,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         ],
         [
             *level_button_inputs,
+            Input("academy-up-next", "n_clicks", allow_optional=True),
             Input("next-lesson-button", "n_clicks"),
             Input("academy-simulator-button", "n_clicks"),
             Input("return-to-menu-button", "n_clicks"),
@@ -235,6 +237,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         *input_values, client_data, session_revision = callback_args
         level_clicks = input_values[: len(levels)]
         (
+            up_next_clicks,
             next_lesson_clicks,
             open_simulator_clicks,
             lesson_return_clicks,
@@ -251,6 +254,7 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
                     f"academy-level-{level.index}-button": click_count
                     for level, click_count in zip(levels, level_clicks, strict=True)
                 },
+                "academy-up-next": up_next_clicks,
                 "next-lesson-button": next_lesson_clicks,
                 "academy-simulator-button": open_simulator_clicks,
                 "return-to-menu-button": lesson_return_clicks,
@@ -263,6 +267,11 @@ def register_training_callbacks(ctx: CallbackRegistrarContext) -> None:
         session_id, state = ctx.require_session(client_data)
         if trig == "academy-reset-progress-button":
             next_state = reset_progress_state()
+        elif trig == "academy-up-next":
+            level = next_playable_lesson(state.training)
+            if level is None or state.training.current_view != "main_menu":
+                raise PreventUpdate
+            next_state = build_level_state(level.level_id, state.training)
         elif trig == "next-lesson-button":
             level = active_level(state)
             if not level or state.training.lesson_status != "passed" or level.index >= len(levels):

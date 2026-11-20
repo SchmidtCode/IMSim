@@ -120,7 +120,6 @@ def _command_rail_panel() -> html.Div:
     return _dashboard_panel(
         "actions-panel",
         [
-            html.Div("Command rail", className="panel-label"),
             html.H3("Operations", className="panel-title"),
             html.Div(
                 [

@@ -57,9 +57,9 @@ def _import_card() -> dbc.Card:
     return shell_card(
         [
             html.H3("Import items", className="panel-title-small"),
-            dbc.Alert(
-                "Upload .csv or .xlsx files using the canonical 7-column item format.",
-                color="light",
+            html.P(
+                "Use the seven headers in the sample for your CSV or Excel file.",
+                className="helper-copy",
             ),
             dcc.Upload(
                 id="upload-item",
@@ -67,6 +67,12 @@ def _import_card() -> dbc.Card:
                 multiple=True,
                 accept=".csv,.xlsx",
                 className="upload-shell",
+            ),
+            html.A(
+                "Download sample CSV",
+                href="/examples/sample-items.csv",
+                download="sample-items.csv",
+                className="sample-download",
             ),
             html.Div(id="output-item-upload", className="mt-3"),
             action_button(
@@ -173,8 +179,8 @@ def po_overview_modal() -> dbc.Modal:
         grid_id="po-overview-grid",
         options=po_overview_grid_options(),
         footer_buttons=[
-            action_button("Expedite Selected", "po-expedite-button", "secondary"),
-            action_button("Cancel Selected", "po-cancel-button", "danger"),
+            action_button("Expedite Selected", "po-expedite-button", "secondary", disabled=True),
+            action_button("Cancel Selected", "po-cancel-button", "danger", disabled=True),
             action_button("Close", "po-overview-close", "secondary"),
         ],
     )

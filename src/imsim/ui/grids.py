@@ -42,6 +42,7 @@ def po_overview_grid_options() -> dict[str, object]:
         "rowHeight": _GRID_ROW_HEIGHT,
         "headerHeight": _GRID_HEADER_HEIGHT,
         "animateRows": False,
+        "localeText": {"noRowsToShow": "No open purchase orders"},
         "rowSelection": {
             "mode": "multiRow",
             "checkboxes": True,
@@ -100,10 +101,8 @@ def build_po_overview_rows(state: SimulationState) -> list[dict[str, int | float
     return rows
 
 
-def build_po_overview_grid(state: SimulationState, theme: str = "light") -> dag.AgGrid | dbc.Alert:
+def build_po_overview_grid(state: SimulationState, theme: str = "light") -> dag.AgGrid:
     rows = build_po_overview_rows(state)
-    if not rows:
-        return dbc.Alert("No open purchase orders.", color="secondary")
     return dag.AgGrid(
         id="po-overview-grid",
         rowData=rows,

@@ -485,7 +485,9 @@ def build_kpi_strip(state: SimulationState) -> list:
                                 persistence_type="session",
                                 className="fill-toggle",
                             ),
-                            html.Div(
+                            html.Div("No orders yet", className="fill-empty")
+                            if fill_rate is None
+                            else html.Div(
                                 html.Strong(fmt_pct(fill_rate)),
                                 className="fill-gauge",
                                 style={"--fill-angle": f"{180 * (fill_rate or 0)}deg"},
@@ -493,18 +495,29 @@ def build_kpi_strip(state: SimulationState) -> list:
                             html.Div(
                                 [
                                     html.Meter(
-                                        value=fill_rate or 0,
+                                        value=fill_rate,
                                         min=0,
                                         max=1,
                                         high=0.95,
                                         optimum=1,
                                         **{"aria-label": "Cumulative fill rate"},
+                                    )
+                                    if fill_rate is not None
+                                    else None,
+                                    html.Div(
+                                        f"Cumulative: {fmt_pct(fill_rate)}"
+                                        if fill_rate is not None
+                                        else "Cumulative: No orders yet"
                                     ),
-                                    html.Div(f"Cumulative: {fmt_pct(fill_rate)}"),
-                                    html.Div(f"Today: {fmt_pct(daily_fill)}"),
+                                    html.Div(
+                                        f"Today: {fmt_pct(daily_fill)}"
+                                        if daily_fill is not None
+                                        else "Today: No orders yet"
+                                    ),
                                 ],
                                 className="fill-comparison",
                             ),
+                            html.Small("Target: 95%", className="helper-copy"),
                         ],
                         className="metric-card fill-card",
                     ),

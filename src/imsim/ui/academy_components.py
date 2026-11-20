@@ -14,6 +14,7 @@ from ..services.training import (
     evaluate_active_lesson,
     fill_rate,
     lesson_days_remaining,
+    next_playable_lesson,
 )
 from .panels import _lesson_snapshot_disclosure, _lesson_snapshot_table
 
@@ -291,12 +292,7 @@ def academy_progress_children(state: SimulationState) -> list:
     levels = academy_levels()
     total_levels = len(levels)
     completed = len(state.training.completed_levels)
-    certified = levels[-1].level_id in state.training.completed_levels
-    playable = levels[: max(1, state.training.highest_unlocked_level)]
-    current = next(
-        (level for level in playable if level.level_id not in state.training.completed_levels),
-        playable[-1],
-    )
+    current = next_playable_lesson(state.training)
     return [
         html.Div(
             html.Strong(f"{completed}/{total_levels}"),
@@ -307,11 +303,13 @@ def academy_progress_children(state: SimulationState) -> list:
         ),
         html.Div(
             [
-                html.Div(
-                    "Certificate Complete" if certified else "Up next", className="panel-label"
-                ),
-                html.Strong("Complete" if certified else f"Lesson {current.index}"),
-                html.Div("Academy complete" if certified else current.title),
+                html.Div("Up next" if current else "Certificate Complete", className="panel-label"),
+                html.Strong(f"Lesson {current.index}" if current else "Complete"),
+                html.Button(
+                    current.title, id="academy-up-next", n_clicks=0, className="academy-next-action"
+                )
+                if current
+                else html.Div("Academy complete"),
             ],
             className="academy-next",
         ),

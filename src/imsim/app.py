@@ -8,7 +8,7 @@ import dash
 import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 from dash import html
-from flask import Flask, abort, jsonify, request
+from flask import Flask, abort, jsonify, request, send_from_directory
 
 from .callbacks import register_callbacks
 from .config import IMSimConfig
@@ -48,6 +48,10 @@ def create_app(config: IMSimConfig | None = None) -> dash.Dash:
     server.extensions["imsim_config"] = config
     server.extensions["imsim_repository"] = repository
     server.extensions["imsim_maintenance"] = maintenance
+
+    @server.get("/examples/sample-items.csv")
+    def download_sample_items():
+        return send_from_directory(config.examples_dir, "sample-items.csv", as_attachment=True)
 
     @server.after_request
     def apply_security_headers(response):
