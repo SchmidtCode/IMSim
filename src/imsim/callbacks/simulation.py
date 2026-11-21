@@ -283,14 +283,3 @@ def register_simulation_callbacks(ctx: CallbackRegistrarContext) -> None:
             else f"{ticks_per_second:.1f} ticks/sec"
         )
         return interval_ms, label
-
-    @app.callback(
-        Output("asq-collapse", "is_open"),
-        Input("toggle-asq-collapse", "n_clicks"),
-        State("asq-collapse", "is_open"),
-        prevent_initial_call=True,
-    )
-    def toggle_asq_collapse(n_clicks, is_open):
-        if not n_clicks:
-            raise PreventUpdate
-        return not is_open

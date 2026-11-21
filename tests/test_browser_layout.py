@@ -132,13 +132,13 @@ def test_planner_grid_has_readable_rows_and_headers(browser_page, width):
     expect(page.locator("#inventory-table-grid")).to_have_class(re.compile("ag-theme-quartz-dark"))
     _assert_grid_readable(page)
 
-    page.get_by_role("checkbox", name="Compare today").check()
+    page.get_by_text("Last 30 days", exact=True).click()
     initial_day = page.locator("#day-display").inner_text()
     page.locator("#start-button").click()
     expect(page.locator("#day-display")).not_to_have_text(initial_day, timeout=10000)
     page.locator("#start-button").click()
     expect(page.locator("#start-button")).to_have_text("Resume Simulation")
-    expect(page.locator(".fill-comparison")).to_be_visible()
+    expect(page.locator(".fill-rolling")).to_be_visible()
 
     page.locator("#simulator-return-button").click()
     expect(page.locator("#academy-menu-shell")).to_be_visible()
@@ -436,10 +436,22 @@ def test_academy_shortcut_and_simulator_review_states(browser_page, width):
     page.locator("#academy-simulator-button").click()
     if width == 390:
         page.locator("#theme-toggle").click()
-    expect(page.get_by_text("Target: 95%", exact=True)).to_be_visible()
-    expect(page.locator(".fill-empty")).to_have_text("No orders yet")
-    page.get_by_role("checkbox", name="Compare today").check()
-    expect(page.locator(".fill-comparison meter")).to_have_count(0)
+    headings = page.locator(".simulator-metrics .metric-label")
+    expect(headings).to_have_count(5)
+    assert headings.evaluate_all(
+        "nodes => nodes.every(n => parseFloat(getComputedStyle(n).fontSize) >= 18)"
+    )
+    policy = page.locator("details").filter(has=page.get_by_text("Global parameters", exact=True))
+    assert not policy.evaluate("node => node.open")
+    expect(page.locator("#apply-asq-button")).not_to_be_visible()
+    policy.locator("summary").click()
+    expect(page.locator("#update-params-button")).to_be_visible()
+    page.locator("#asq-controls-shell summary").press("Enter")
+    expect(page.locator("#apply-asq-button")).to_be_visible()
+    expect(page.locator(".fill-all small")).to_contain_text("Target: 95%")
+    expect(page.locator(".fill-all strong")).to_have_text("—")
+    page.get_by_text("Last 30 days", exact=True).click()
+    expect(page.locator(".fill-rolling .fill-gauge")).to_be_visible()
 
     page.locator("#add-item-button").click()
     with page.expect_download() as downloaded:

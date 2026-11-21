@@ -4076,12 +4076,23 @@ body {
   box-shadow: none;
 }
 
+.simulator-metrics .metric-label {
+  color: var(--imsim-ink);
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  font-size: clamp(1.125rem, 1.25vw, 1.375rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 .fill-card {
   grid-row: span 2;
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 0.65rem;
 }
 
 .fill-gauge {
@@ -4221,34 +4232,33 @@ body {
 }
 
 .fill-toggle {
-  color: var(--imsim-muted);
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-self: flex-start;
+  max-width: 100%;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border: 1px solid var(--imsim-line);
+  border-radius: var(--imsim-radius-pill);
+  background: var(--imsim-control-bg);
 }
 
-.fill-toggle input {
-  margin-right: 0.4rem;
-  accent-color: var(--imsim-teal);
-}
-
-.fill-card .fill-gauge {
-  margin-top: 0.5rem;
+.fill-toggle .form-check { margin: 0; padding: 0; position: relative; }
+.fill-toggle .form-check-input { position: absolute; opacity: 0; }
+.fill-toggle .form-check-label {
+  display: block;
+  cursor: pointer;
   color: var(--imsim-ink);
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--imsim-radius-pill);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
-
-.fill-card:has(input:checked) .fill-gauge, .fill-card:not(:has(input:checked)) .fill-comparison {
-  display: none;
-}
-
-.fill-comparison {
-  display: grid;
-  gap: 0.6rem;
-  margin-top: 1rem;
-}
-
-.fill-comparison meter {
-  width: 100%;
-  height: 2rem;
-}
+.fill-toggle input:checked + label { background: var(--imsim-secondary); color: white; }
+.fill-toggle input:focus-visible + label { outline: 2px solid var(--imsim-progress); outline-offset: 2px; }
+.fill-period { display: grid; gap: 0.4rem; }
+.fill-card .fill-gauge { color: var(--imsim-ink); }
+.fill-card:has(.form-check:last-child input:checked) .fill-all,
+.fill-card:not(:has(.form-check:last-child input:checked)) .fill-rolling { display: none; }
 
 .policy-settings > summary {
   background: var(--imsim-secondary);
@@ -4258,7 +4268,7 @@ body {
   font-weight: 600;
 }
 
-.policy-settings[open] > summary, .policy-settings + #asq-controls-shell {
+.policy-settings[open] > summary {
   margin-bottom: 0.75rem;
 }
 
@@ -4358,15 +4368,6 @@ body {
 .sample-download {
   display: inline-block;
   padding-block: 0.5rem;
-}
-
-.fill-empty {
-  margin-block: 1rem;
-  font-weight: 600;
-}
-
-.fill-card:has(input:checked) .fill-empty {
-  display: none;
 }
 
 @media (max-width: 767.98px) {

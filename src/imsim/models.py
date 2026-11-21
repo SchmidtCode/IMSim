@@ -166,6 +166,8 @@ class HistoryPoint:
     total_on_order: float
     total_backorder: float
     total_pna: float
+    cumulative_orders: int | None = None
+    cumulative_stockouts: int | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> HistoryPoint:
@@ -176,6 +178,8 @@ class HistoryPoint:
             total_on_order=float(data.get("total_on_order", 0.0)),
             total_backorder=float(data.get("total_backorder", 0.0)),
             total_pna=float(data.get("total_pna", 0.0)),
+            cumulative_orders=data.get("cumulative_orders"),
+            cumulative_stockouts=data.get("cumulative_stockouts"),
         )
 
 
@@ -471,6 +475,8 @@ class SimulationState:
     def record_history(self) -> None:
         point = HistoryPoint(
             day=int(self.day),
+            cumulative_orders=self.service_totals.orders,
+            cumulative_stockouts=self.service_totals.orders_stockout,
             total_on_hand=sum(item.on_hand for item in self.items),
             total_on_order=sum(
                 sum(receipt.qty for receipt in item.pipeline) for item in self.items

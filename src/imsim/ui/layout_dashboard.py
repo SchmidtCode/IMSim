@@ -177,32 +177,16 @@ def _auto_po_controls() -> html.Div:
     )
 
 
-def _asq_controls() -> html.Div:
-    return html.Div(
+def _asq_controls() -> html.Details:
+    return html.Details(
         [
-            action_button(
-                "ASQ Adjuster Settings",
-                "toggle-asq-collapse",
-                "secondary",
-                class_name="button-block mb-2",
-            ),
-            dbc.Collapse(
-                html.Div(
-                    [
-                        *_controls(_ASQ_CONTROLS),
-                        action_button(
-                            "Apply ASQ Now",
-                            "apply-asq-button",
-                            "info",
-                            class_name="button-block",
-                        ),
-                    ]
-                ),
-                id="asq-collapse",
-                is_open=True,
-            ),
+            html.Summary("ASQ Adjuster Settings"),
+            *_controls(_ASQ_CONTROLS),
+            action_button("Apply ASQ Now", "apply-asq-button", "info", class_name="button-block"),
         ],
         id="asq-controls-shell",
+        className="policy-settings",
+        open=False,
     )
 
 
@@ -223,7 +207,7 @@ def _policy_panel() -> html.Div:
                         class_name="button-block mt-2",
                     ),
                 ],
-                open=True,
+                open=False,
                 className="policy-settings",
             ),
             _asq_controls(),

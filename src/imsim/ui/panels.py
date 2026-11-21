@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import dash_bootstrap_components as dbc
-from dash import dcc, html
+from dash import html
 
 from ..models import InventoryItem, SimulationState
 from ..services.planning import format_money, item_on_order
@@ -429,6 +429,45 @@ def _kpi_card(title: str, value: str, tone: str, subtitle: str) -> dbc.Card:
     )
 
 
+def _last_30_day_counts(state: SimulationState) -> tuple[int, int] | None:
+    totals = state.service_totals
+    # The clock starts on day 1, before the first demand is processed.
+    if state.day <= 31:
+        return totals.orders, totals.orders_stockout
+    cutoff = state.day - 30
+    for point in reversed(state.history):
+        if point.day > cutoff:
+            continue
+        if (
+            point.day == cutoff
+            and point.cumulative_orders is not None
+            and point.cumulative_stockouts is not None
+        ):
+            return (
+                totals.orders - point.cumulative_orders,
+                totals.orders_stockout - point.cumulative_stockouts,
+            )
+        break
+    return None  # Older saves have inventory history without daily order totals.
+
+
+def _service_gauge(rate: float | None, period: str, empty_label: str):
+    return html.Div(
+        [
+            html.Div(
+                html.Strong("—" if rate is None else f"{rate:.1%}"),
+                className="fill-gauge",
+                style={"--fill-angle": f"{180 * (rate or 0)}deg"},
+            ),
+            html.Small(
+                "Target: 95%" if rate is not None else f"{empty_label} · Target: 95%",
+                className="helper-copy",
+            ),
+        ],
+        className=f"fill-period fill-{period}",
+    )
+
+
 def build_kpi_strip(state: SimulationState) -> list:
     revenue = state.sales.revenue
     gross = revenue - state.sales.cogs
@@ -469,55 +508,33 @@ def build_kpi_strip(state: SimulationState) -> list:
         ("GMROI", fmt_ratio(gmroi), "neutral", "Gross margin return"),
     )
     if state.training.current_view == "simulator":
-        today = state.service_today
-        daily_fill = 1 - today.orders_stockout / today.orders if today.orders else None
+        counts = _last_30_day_counts(state)
+        rolling_rate = 1 - counts[1] / counts[0] if counts and counts[0] else None
         return [
             html.Div(
                 [
                     html.Div(
                         [
-                            html.Div("Cumulative fill rate", className="metric-label"),
-                            dcc.Checklist(
-                                id="fill-comparison-toggle",
-                                options=[{"label": "Compare today", "value": "daily"}],
-                                value=[],
+                            html.Div("Fill rate", className="metric-label"),
+                            dbc.RadioItems(
+                                id="fill-rate-period",
+                                options=[
+                                    {"label": "Cumulative", "value": "all"},
+                                    {"label": "Last 30 days", "value": "rolling"},
+                                ],
+                                value="all",
                                 persistence=True,
                                 persistence_type="session",
-                                className="fill-toggle",
+                                class_name="fill-toggle",
                             ),
-                            html.Div("No orders yet", className="fill-empty")
-                            if fill_rate is None
-                            else html.Div(
-                                html.Strong(fmt_pct(fill_rate)),
-                                className="fill-gauge",
-                                style={"--fill-angle": f"{180 * (fill_rate or 0)}deg"},
+                            _service_gauge(fill_rate, "all", "No orders yet"),
+                            _service_gauge(
+                                rolling_rate,
+                                "rolling",
+                                "No orders in this period"
+                                if counts is not None
+                                else "Collecting 30-day history",
                             ),
-                            html.Div(
-                                [
-                                    html.Meter(
-                                        value=fill_rate,
-                                        min=0,
-                                        max=1,
-                                        high=0.95,
-                                        optimum=1,
-                                        **{"aria-label": "Cumulative fill rate"},
-                                    )
-                                    if fill_rate is not None
-                                    else None,
-                                    html.Div(
-                                        f"Cumulative: {fmt_pct(fill_rate)}"
-                                        if fill_rate is not None
-                                        else "Cumulative: No orders yet"
-                                    ),
-                                    html.Div(
-                                        f"Today: {fmt_pct(daily_fill)}"
-                                        if daily_fill is not None
-                                        else "Today: No orders yet"
-                                    ),
-                                ],
-                                className="fill-comparison",
-                            ),
-                            html.Small("Target: 95%", className="helper-copy"),
                         ],
                         className="metric-card fill-card",
                     ),

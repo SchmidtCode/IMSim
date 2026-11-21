@@ -1017,3 +1017,28 @@ def test_active_layout_variant_tracks_bridge_and_certification():
     assert active_layout_variant(build_level_state("level-15")) == "workspace_advanced"
     assert active_layout_variant(build_level_state("level-18")) == "workspace_advanced"
     assert active_layout_variant(build_level_state("level-19")) == "workspace_certification"
+
+
+def test_fill_gauge_uses_only_orders_in_last_30_days_after_reload():
+    from imsim.ui.panels import build_kpi_strip
+
+    state = build_simulator_state()
+    state.day = 2
+    state.service_totals.orders = 90
+    state.service_totals.orders_stockout = 30
+    state.record_history()
+    state.day = 32
+    state.service_totals.orders = 100
+    state.service_totals.orders_stockout = 32
+    state.record_history()
+    labels = _component_text(build_kpi_strip(state.clone()))
+    assert "68.0%" in labels
+    assert "80.0%" in labels
+
+    legacy = state.to_dict()
+    for point in legacy["history"]:
+        point.pop("cumulative_orders")
+        point.pop("cumulative_stockouts")
+    labels = _component_text(build_kpi_strip(type(state).from_dict(legacy)))
+    assert "68.0%" in labels
+    assert any("Collecting 30-day history" in label for label in labels)
